@@ -1,0 +1,2546 @@
+{
+  "project": {
+    "name": "Medical View",
+    "description": "A cloud-native medical imaging and diagnosis platform where patients register and book checkups, doctors open a DICOM Viewport to diagnose a patient's Study (one DB row = one Study) under a single-writer distributed lock, save reports, and patients then receive results, prescriptions, drug purchases/billing, and follow-up appointments — built as .NET 10 microservices with Clean Architecture and deployed on Azure.",
+    "techStack": {
+      "backend": ".NET 10",
+      "frontend": "Blazor",
+      "architecture": "Clean Architecture + Microservices + Repository pattern + Unit of Work + SOLID",
+      "database": "PostgreSQL (EF Core / Npgsql)",
+      "cache": "Redis (distributed lock via RedLock)",
+      "messaging": "MassTransit over RabbitMQ (local) / Azure Service Bus (prod), Transactional Outbox",
+      "cloud": "Azure (Container Apps, Azure Database for PostgreSQL, Azure Cache for Redis, Service Bus, Key Vault, ACR, Blob Storage, Application Insights)"
+    }
+  },
+  "sections": [
+    {
+      "id": "S01",
+      "name": "Foundation & Solution Structure",
+      "goal": "A compiling, conventioned monorepo with .NET 10 SDK, central package management, and Clean Architecture conventions agreed.",
+      "order": 1,
+      "dependsOn": [],
+      "tasks": [
+        {
+          "id": "S01-T01",
+          "title": "Install and verify .NET 10 SDK",
+          "details": "Install the .NET 10 SDK on all dev machines/CI. Verify with `dotnet --list-sdks` and `dotnet --version` (expect 10.x).",
+          "priority": "high",
+          "status": "done",
+          "dependsOn": [],
+          "acceptanceCriteria": [
+            "`dotnet --version` reports a 10.x SDK"
+          ],
+          "tags": [
+            "setup",
+            "dotnet"
+          ]
+        },
+        {
+          "id": "S01-T02",
+          "title": "Initialize git repository and .gitignore",
+          "details": "Create the repo, run `dotnet new gitignore`, add README, LICENSE, and a CONTRIBUTING doc. Adopt trunk-based or GitFlow branching and document it.",
+          "priority": "high",
+          "status": "done",
+          "dependsOn": [
+            "S01-T01"
+          ],
+          "acceptanceCriteria": [
+            "Repo initialized with dotnet .gitignore and README committed"
+          ],
+          "tags": [
+            "setup",
+            "git"
+          ]
+        },
+        {
+          "id": "S01-T03",
+          "title": "Create solution and top-level folders",
+          "details": "Run `dotnet new sln -n MedicalView`. Create `src/`, `tests/`, `build/`, `deploy/`, `docs/` folders. Add solution folders per bounded context.",
+          "priority": "high",
+          "status": "done",
+          "dependsOn": [
+            "S01-T02"
+          ],
+          "acceptanceCriteria": [
+            "MedicalView.sln builds with `dotnet build` (empty)"
+          ],
+          "tags": [
+            "setup",
+            "dotnet"
+          ]
+        },
+        {
+          "id": "S01-T04",
+          "title": "Enable Central Package Management",
+          "details": "Add `Directory.Packages.props` (CPM, `ManagePackageVersionsCentrally=true`) and `Directory.Build.props` (nullable enable, LangVersion latest, ImplicitUsings, TreatWarningsAsErrors).",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S01-T03"
+          ],
+          "acceptanceCriteria": [
+            "All projects resolve versions from Directory.Packages.props"
+          ],
+          "tags": [
+            "setup",
+            "dotnet"
+          ]
+        },
+        {
+          "id": "S01-T05",
+          "title": "Add .editorconfig and analyzers",
+          "details": "Add `.editorconfig` with team code style, enable Roslyn analyzers and (optionally) StyleCop.Analyzers via CPM.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S01-T04"
+          ],
+          "acceptanceCriteria": [
+            "Style violations surface as build warnings/errors"
+          ],
+          "tags": [
+            "setup",
+            "quality"
+          ]
+        },
+        {
+          "id": "S01-T06",
+          "title": "Create dotnet tool manifest",
+          "details": "Run `dotnet new tool-manifest` and `dotnet tool install dotnet-ef` so EF Core CLI is pinned per-repo.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S01-T04"
+          ],
+          "acceptanceCriteria": [
+            "`dotnet ef --version` works via local tool manifest"
+          ],
+          "tags": [
+            "setup",
+            "efcore"
+          ]
+        },
+        {
+          "id": "S01-T07",
+          "title": "Document Clean Architecture conventions",
+          "details": "Write docs/architecture.md defining the 4 layers per service (Domain, Application, Infrastructure, Api), dependency rule (inward only), and folder naming.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S01-T03"
+          ],
+          "acceptanceCriteria": [
+            "docs/architecture.md reviewed and merged"
+          ],
+          "tags": [
+            "docs",
+            "architecture"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S02",
+      "name": "Shared Kernel & Building Blocks",
+      "goal": "Reusable building blocks (base entities, Result type, generic repository + Unit of Work, domain events, error handling, integration-event contracts) that every service consumes.",
+      "order": 2,
+      "dependsOn": [
+        "S01"
+      ],
+      "tasks": [
+        {
+          "id": "S02-T01",
+          "title": "Create BuildingBlocks.Domain library",
+          "details": "`dotnet new classlib` for Entity/AuditableEntity base, AggregateRoot, ValueObject, IDomainEvent, and strongly-typed Id support.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S01-T07"
+          ],
+          "acceptanceCriteria": [
+            "Domain primitives compile and are unit-testable"
+          ],
+          "tags": [
+            "shared",
+            "ddd"
+          ]
+        },
+        {
+          "id": "S02-T02",
+          "title": "Implement Result and Error types",
+          "details": "Add a Result / Result<T> and Error record for railway-style flow (avoid exceptions for expected failures). Include common error factories (NotFound, Conflict, Validation).",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S02-T01"
+          ],
+          "acceptanceCriteria": [
+            "Result<T> supports success/failure with typed errors; unit tested"
+          ],
+          "tags": [
+            "shared",
+            "solid"
+          ]
+        },
+        {
+          "id": "S02-T03",
+          "title": "Define repository and Unit of Work abstractions",
+          "details": "In BuildingBlocks.Application define IRepository<T>, IReadRepository<T>, ISpecification<T>, and IUnitOfWork. Depend on abstractions only (DIP).",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S02-T01"
+          ],
+          "acceptanceCriteria": [
+            "Abstractions defined with no infrastructure dependency"
+          ],
+          "tags": [
+            "shared",
+            "repository",
+            "solid"
+          ]
+        },
+        {
+          "id": "S02-T04",
+          "title": "Implement EF Core generic repository + UoW",
+          "details": "Create BuildingBlocks.Infrastructure with EfRepository<T>, specification evaluator, and EfUnitOfWork wrapping DbContext.SaveChanges. Keep provider-agnostic.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S02-T03"
+          ],
+          "acceptanceCriteria": [
+            "Generic repo + UoW pass integration tests against a DbContext"
+          ],
+          "tags": [
+            "shared",
+            "repository",
+            "efcore"
+          ]
+        },
+        {
+          "id": "S02-T05",
+          "title": "Add domain event dispatch via MediatR",
+          "details": "Register MediatR; dispatch IDomainEvent from SaveChanges interceptor after commit. Provide INotificationHandler base.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S02-T04"
+          ],
+          "acceptanceCriteria": [
+            "Domain events raised on an aggregate are handled after persistence"
+          ],
+          "tags": [
+            "shared",
+            "cqrs"
+          ]
+        },
+        {
+          "id": "S02-T06",
+          "title": "Global exception handling + ProblemDetails",
+          "details": "Add exception-handling middleware mapping exceptions/Result errors to RFC7807 ProblemDetails with correlation id.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S02-T02"
+          ],
+          "acceptanceCriteria": [
+            "Unhandled/handled errors return consistent ProblemDetails JSON"
+          ],
+          "tags": [
+            "shared",
+            "api"
+          ]
+        },
+        {
+          "id": "S02-T07",
+          "title": "Add validation pipeline (FluentValidation)",
+          "details": "Add FluentValidation + a MediatR validation behavior so command/query inputs validate before handlers run.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S02-T05"
+          ],
+          "acceptanceCriteria": [
+            "Invalid commands short-circuit with 400 + validation errors"
+          ],
+          "tags": [
+            "shared",
+            "validation"
+          ]
+        },
+        {
+          "id": "S02-T08",
+          "title": "Create Contracts library for integration events",
+          "details": "Separate BuildingBlocks.Contracts package holding versioned integration-event records (UserRegistered, StudyLocked, ReportFinalized, PrescriptionIssued, BillPaid, FollowUpScheduled).",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S02-T01"
+          ],
+          "acceptanceCriteria": [
+            "Contracts package referenced by publishers and consumers only"
+          ],
+          "tags": [
+            "shared",
+            "messaging"
+          ]
+        },
+        {
+          "id": "S02-T09",
+          "title": "Add pagination and query result envelopes",
+          "details": "Provide PagedResult<T>, paging request DTOs, and sorting helpers reused across query endpoints.",
+          "priority": "low",
+          "status": "todo",
+          "dependsOn": [
+            "S02-T02"
+          ],
+          "acceptanceCriteria": [
+            "Paged endpoints share a single PagedResult<T> shape"
+          ],
+          "tags": [
+            "shared",
+            "api"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S03",
+      "name": "Local Infrastructure (Docker Compose / .NET Aspire)",
+      "goal": "One-command local environment: PostgreSQL, Redis, RabbitMQ, and Seq running and reachable, with an optional .NET Aspire AppHost for orchestration.",
+      "order": 3,
+      "dependsOn": [
+        "S01"
+      ],
+      "tasks": [
+        {
+          "id": "S03-T01",
+          "title": "Author docker-compose.yml for infrastructure",
+          "details": "Create deploy/local/docker-compose.yml with services: postgres:17, redis:7, rabbitmq:3-management, datalust/seq. Add named volumes and a shared network.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S01-T03"
+          ],
+          "acceptanceCriteria": [
+            "`docker compose config` validates the file"
+          ],
+          "tags": [
+            "infra",
+            "docker"
+          ]
+        },
+        {
+          "id": "S03-T02",
+          "title": "Bring up the local stack",
+          "details": "Run `docker compose -f deploy/local/docker-compose.yml up -d`. Confirm containers healthy with `docker compose ps` and `docker compose logs -f`.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S03-T01"
+          ],
+          "acceptanceCriteria": [
+            "All four containers report healthy/running"
+          ],
+          "tags": [
+            "infra",
+            "docker"
+          ]
+        },
+        {
+          "id": "S03-T03",
+          "title": "Verify individual services via CLI",
+          "details": "Fallback single commands: `docker run -d --name mv-postgres -e POSTGRES_PASSWORD=Pass@word1 -p 5432:5432 postgres:17`; `docker run -d --name mv-redis -p 6379:6379 redis:7`; `docker run -d --name mv-rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management`; `docker run -d --name mv-seq -e ACCEPT_EULA=Y -p 5341:80 datalust/seq`.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S03-T02"
+          ],
+          "acceptanceCriteria": [
+            "Each service reachable on its mapped port"
+          ],
+          "tags": [
+            "infra",
+            "docker"
+          ]
+        },
+        {
+          "id": "S03-T04",
+          "title": "Wire secrets with user-secrets and .env",
+          "details": "Use `dotnet user-secrets` per service for connection strings/keys locally; provide a committed .env.example (no real secrets).",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S03-T02"
+          ],
+          "acceptanceCriteria": [
+            "No secrets in source; .env.example documents required keys"
+          ],
+          "tags": [
+            "infra",
+            "security"
+          ]
+        },
+        {
+          "id": "S03-T05",
+          "title": "Create optional .NET Aspire AppHost",
+          "details": "Add an Aspire AppHost project to orchestrate services + containers with the dashboard; keep compose as the container-only fallback.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S03-T02"
+          ],
+          "acceptanceCriteria": [
+            "`dotnet run` on AppHost starts services with Aspire dashboard"
+          ],
+          "tags": [
+            "infra",
+            "aspire"
+          ]
+        },
+        {
+          "id": "S03-T06",
+          "title": "Add local admin UIs (optional)",
+          "details": "Optionally add pgAdmin and RedisInsight containers; document RabbitMQ management UI at http://localhost:15672 and Seq at http://localhost:5341.",
+          "priority": "low",
+          "status": "todo",
+          "dependsOn": [
+            "S03-T02"
+          ],
+          "acceptanceCriteria": [
+            "Admin UIs reachable and documented in docs/local.md"
+          ],
+          "tags": [
+            "infra",
+            "docker"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S04",
+      "name": "Auth Microservice",
+      "goal": "A standalone Auth service issuing JWT access + refresh tokens over ASP.NET Core Identity, publishing UserRegistered, and exposing a shared token-validation config.",
+      "order": 4,
+      "dependsOn": [
+        "S02",
+        "S03"
+      ],
+      "tasks": [
+        {
+          "id": "S04-T01",
+          "title": "Scaffold Auth service in Clean Architecture",
+          "details": "Create Auth.Domain/Application/Infrastructure/Api projects wired with BuildingBlocks. `dotnet new webapi` for Api (minimal APIs or controllers).",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S02-T08",
+            "S03-T04"
+          ],
+          "acceptanceCriteria": [
+            "Auth service builds and runs with a health endpoint"
+          ],
+          "tags": [
+            "auth",
+            "microservice"
+          ]
+        },
+        {
+          "id": "S04-T02",
+          "title": "Add ASP.NET Core Identity + EF Core (Npgsql)",
+          "details": "Configure Identity user/store on PostgreSQL via Npgsql. Add DbContext, run `dotnet ef migrations add InitAuth` and `dotnet ef database update`.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S04-T01"
+          ],
+          "acceptanceCriteria": [
+            "Users table created in Postgres via EF migration"
+          ],
+          "tags": [
+            "auth",
+            "efcore"
+          ]
+        },
+        {
+          "id": "S04-T03",
+          "title": "Implement JWT access + refresh token issuance",
+          "details": "Add token service (signing key from config/Key Vault), access token with role/permission claims, rotating refresh tokens with persistence and revocation.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S04-T02"
+          ],
+          "acceptanceCriteria": [
+            "Login returns access+refresh; refresh rotates and revokes old token"
+          ],
+          "tags": [
+            "auth",
+            "security"
+          ]
+        },
+        {
+          "id": "S04-T04",
+          "title": "Build Register / Login / Refresh / Logout endpoints",
+          "details": "Expose endpoints with FluentValidation, password policy, and Identity lockout on repeated failures.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S04-T03"
+          ],
+          "acceptanceCriteria": [
+            "End-to-end register->login->refresh->logout works"
+          ],
+          "tags": [
+            "auth",
+            "api"
+          ]
+        },
+        {
+          "id": "S04-T05",
+          "title": "Publish UserRegistered integration event",
+          "details": "On successful registration, publish UserRegistered via the message bus (see S16 bus setup) using the Outbox pattern.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S04-T04",
+            "S02-T08"
+          ],
+          "acceptanceCriteria": [
+            "UserRegistered observed on the broker after registration"
+          ],
+          "tags": [
+            "auth",
+            "messaging"
+          ]
+        },
+        {
+          "id": "S04-T06",
+          "title": "Export shared JWT validation configuration",
+          "details": "Provide a shared AddJwtAuth() extension (issuer, audience, signing key) consumed by every downstream service and the gateway.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S04-T03"
+          ],
+          "acceptanceCriteria": [
+            "A protected test endpoint accepts Auth-issued tokens"
+          ],
+          "tags": [
+            "auth",
+            "security"
+          ]
+        },
+        {
+          "id": "S04-T07",
+          "title": "Write Auth unit + integration tests",
+          "details": "Unit test token service and handlers; integration test endpoints against a Postgres Testcontainer.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S04-T04"
+          ],
+          "acceptanceCriteria": [
+            "Auth test suite green in CI"
+          ],
+          "tags": [
+            "auth",
+            "testing"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S05",
+      "name": "Role & Permission Microservice",
+      "goal": "Central role/permission management with policy-based authorization, default seeded roles (Patient, Doctor, Admin), and permission claims flowing into JWTs.",
+      "order": 5,
+      "dependsOn": [
+        "S04"
+      ],
+      "tasks": [
+        {
+          "id": "S05-T01",
+          "title": "Scaffold Role service (Clean Architecture)",
+          "details": "Create Role.Domain/Application/Infrastructure/Api projects and DbContext on Postgres.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S04-T06"
+          ],
+          "acceptanceCriteria": [
+            "Role service runs with health endpoint"
+          ],
+          "tags": [
+            "role",
+            "microservice"
+          ]
+        },
+        {
+          "id": "S05-T02",
+          "title": "Model roles, permissions, and assignments",
+          "details": "Domain: Role, Permission, RolePermission, UserRole. Add EF config + `dotnet ef migrations add InitRole`.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S05-T01"
+          ],
+          "acceptanceCriteria": [
+            "Role/permission schema migrated to Postgres"
+          ],
+          "tags": [
+            "role",
+            "efcore"
+          ]
+        },
+        {
+          "id": "S05-T03",
+          "title": "Implement permission-based authorization",
+          "details": "Add a custom IAuthorizationPolicyProvider + permission requirement/handler so `[HasPermission(\"studies.read\")]` works across services.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S05-T02"
+          ],
+          "acceptanceCriteria": [
+            "Endpoints enforce fine-grained permissions"
+          ],
+          "tags": [
+            "role",
+            "security",
+            "solid"
+          ]
+        },
+        {
+          "id": "S05-T04",
+          "title": "Feed permissions into JWT claims",
+          "details": "Coordinate with Auth so effective permissions are embedded as claims at token issuance (or resolved via a claims transformation).",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S05-T03",
+            "S04-T03"
+          ],
+          "acceptanceCriteria": [
+            "JWT carries permission claims used by policies"
+          ],
+          "tags": [
+            "role",
+            "auth"
+          ]
+        },
+        {
+          "id": "S05-T05",
+          "title": "Seed default roles and permissions",
+          "details": "Seed Patient, Doctor, Admin with baseline permissions on startup (idempotent seeder).",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S05-T02"
+          ],
+          "acceptanceCriteria": [
+            "Fresh DB contains the three default roles"
+          ],
+          "tags": [
+            "role",
+            "seed"
+          ]
+        },
+        {
+          "id": "S05-T06",
+          "title": "Admin endpoints for role management",
+          "details": "CRUD for roles/permissions and assign/unassign to users, guarded by admin permission.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S05-T05"
+          ],
+          "acceptanceCriteria": [
+            "Admin can manage roles via API with authorization"
+          ],
+          "tags": [
+            "role",
+            "api"
+          ]
+        },
+        {
+          "id": "S05-T07",
+          "title": "Role service tests",
+          "details": "Unit test policy provider/handler; integration test admin endpoints.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S05-T06"
+          ],
+          "acceptanceCriteria": [
+            "Role test suite green"
+          ],
+          "tags": [
+            "role",
+            "testing"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S06",
+      "name": "Patient & Studies Microservice",
+      "goal": "The core clinical record service: Patients and Studies (each row = one Study) with multi-doctor assignment, a status enum including Locked, and full audit history.",
+      "order": 6,
+      "dependsOn": [
+        "S05"
+      ],
+      "tasks": [
+        {
+          "id": "S06-T01",
+          "title": "Scaffold Patient/Studies service",
+          "details": "Create Patients.Domain/Application/Infrastructure/Api projects on Postgres with BuildingBlocks wiring.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S05-T04"
+          ],
+          "acceptanceCriteria": [
+            "Service runs with health endpoint"
+          ],
+          "tags": [
+            "patient",
+            "microservice"
+          ]
+        },
+        {
+          "id": "S06-T02",
+          "title": "Model Patient and Study aggregates",
+          "details": "Study is an aggregate root with StudyStatus enum (Registered, InReview, Locked, Reported, Closed), AuditableEntity fields, and assigned-doctors collection.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S06-T01"
+          ],
+          "acceptanceCriteria": [
+            "Domain enforces status transitions via methods"
+          ],
+          "tags": [
+            "patient",
+            "ddd"
+          ]
+        },
+        {
+          "id": "S06-T03",
+          "title": "Persist with EF Core + migrations",
+          "details": "Configure mappings and run `dotnet ef migrations add InitPatients`; apply owned-type/value-object mappings.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S06-T02"
+          ],
+          "acceptanceCriteria": [
+            "Patients + Studies tables created in Postgres"
+          ],
+          "tags": [
+            "patient",
+            "efcore"
+          ]
+        },
+        {
+          "id": "S06-T04",
+          "title": "Assign multiple doctors to a Study",
+          "details": "Command to add/remove doctor assignments to a Study (many doctors allowed) with permission checks.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S06-T03"
+          ],
+          "acceptanceCriteria": [
+            "A Study can list multiple assigned doctors"
+          ],
+          "tags": [
+            "patient",
+            "api"
+          ]
+        },
+        {
+          "id": "S06-T05",
+          "title": "Query endpoints for Studies list",
+          "details": "Paged/filterable Studies list and Study detail endpoints using the specification pattern and PagedResult<T>.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S06-T04"
+          ],
+          "acceptanceCriteria": [
+            "Studies list returns paged, filtered results"
+          ],
+          "tags": [
+            "patient",
+            "api"
+          ]
+        },
+        {
+          "id": "S06-T06",
+          "title": "Implement audit history",
+          "details": "Record who changed what/when for Studies (audit log table or EF Core temporal tables) to satisfy compliance.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S06-T03"
+          ],
+          "acceptanceCriteria": [
+            "Every Study change produces an audit record"
+          ],
+          "tags": [
+            "patient",
+            "audit",
+            "compliance"
+          ]
+        },
+        {
+          "id": "S06-T07",
+          "title": "Consume UserRegistered to create Patient profile",
+          "details": "Subscribe to UserRegistered and create/link a Patient profile idempotently.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S06-T03",
+            "S04-T05"
+          ],
+          "acceptanceCriteria": [
+            "New user results in a Patient profile"
+          ],
+          "tags": [
+            "patient",
+            "messaging"
+          ]
+        },
+        {
+          "id": "S06-T08",
+          "title": "Patient/Studies tests",
+          "details": "Unit test status transitions and assignment rules; integration test query endpoints.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S06-T05"
+          ],
+          "acceptanceCriteria": [
+            "Suite green including audit assertions"
+          ],
+          "tags": [
+            "patient",
+            "testing"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S07",
+      "name": "Appointment / Booking Microservice",
+      "goal": "Checkup booking with availability, plus follow-up appointment scheduling triggered after a report is finalized.",
+      "order": 7,
+      "dependsOn": [
+        "S06"
+      ],
+      "tasks": [
+        {
+          "id": "S07-T01",
+          "title": "Scaffold Booking service",
+          "details": "Create Booking.Domain/Application/Infrastructure/Api projects on Postgres.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S06-T01"
+          ],
+          "acceptanceCriteria": [
+            "Service runs with health endpoint"
+          ],
+          "tags": [
+            "booking",
+            "microservice"
+          ]
+        },
+        {
+          "id": "S07-T02",
+          "title": "Model Appointment, Slot, and FollowUp",
+          "details": "Domain for appointment lifecycle (Requested, Confirmed, Completed, Cancelled) + availability slots. Add EF migration.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S07-T01"
+          ],
+          "acceptanceCriteria": [
+            "Appointment schema migrated; transitions enforced"
+          ],
+          "tags": [
+            "booking",
+            "ddd"
+          ]
+        },
+        {
+          "id": "S07-T03",
+          "title": "Booking + availability endpoints",
+          "details": "Allow a patient to view availability and book a checkup; prevent double-booking with concurrency checks.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S07-T02"
+          ],
+          "acceptanceCriteria": [
+            "Patient can book an available slot; conflicts rejected"
+          ],
+          "tags": [
+            "booking",
+            "api"
+          ]
+        },
+        {
+          "id": "S07-T04",
+          "title": "Follow-up scheduling from report",
+          "details": "Consume ReportFinalized to offer/schedule a follow-up appointment date and publish FollowUpScheduled.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S07-T03",
+            "S10-T05"
+          ],
+          "acceptanceCriteria": [
+            "Finalized report enables a follow-up booking"
+          ],
+          "tags": [
+            "booking",
+            "messaging"
+          ]
+        },
+        {
+          "id": "S07-T05",
+          "title": "Emit AppointmentBooked event",
+          "details": "Publish AppointmentBooked (Outbox) for notification.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S07-T03"
+          ],
+          "acceptanceCriteria": [
+            "AppointmentBooked observed on broker"
+          ],
+          "tags": [
+            "booking",
+            "messaging"
+          ]
+        },
+        {
+          "id": "S07-T06",
+          "title": "Booking tests",
+          "details": "Unit test slot/conflict logic; integration test booking flow.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S07-T03"
+          ],
+          "acceptanceCriteria": [
+            "Suite green"
+          ],
+          "tags": [
+            "booking",
+            "testing"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S08",
+      "name": "DICOM Imaging Microservice",
+      "goal": "Ingest, store, and serve DICOM: pixel data in Azure Blob Storage, metadata in the DB, linked to Studies, with DICOMweb-style (STOW/WADO/QIDO) endpoints via fo-dicom.",
+      "order": 8,
+      "dependsOn": [
+        "S06"
+      ],
+      "tasks": [
+        {
+          "id": "S08-T01",
+          "title": "Scaffold Imaging service + add fo-dicom",
+          "details": "Create Imaging.Domain/Application/Infrastructure/Api projects; add the fo-dicom package for parsing/serialization.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S06-T03"
+          ],
+          "acceptanceCriteria": [
+            "Service runs; fo-dicom parses a sample .dcm"
+          ],
+          "tags": [
+            "dicom",
+            "microservice"
+          ]
+        },
+        {
+          "id": "S08-T02",
+          "title": "Configure blob + metadata storage",
+          "details": "Store pixel data in Azure Blob Storage (Azurite locally) and DICOM metadata in Postgres. Add EF migration for image/instance metadata.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S08-T01"
+          ],
+          "acceptanceCriteria": [
+            "Uploaded DICOM stored in blob with metadata row"
+          ],
+          "tags": [
+            "dicom",
+            "storage"
+          ]
+        },
+        {
+          "id": "S08-T03",
+          "title": "Implement STOW (store) endpoint",
+          "details": "Accept DICOM upload, validate, extract metadata, persist, and associate with a Study id.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S08-T02"
+          ],
+          "acceptanceCriteria": [
+            "Uploaded instance linked to its Study"
+          ],
+          "tags": [
+            "dicom",
+            "api"
+          ]
+        },
+        {
+          "id": "S08-T04",
+          "title": "Implement WADO (retrieve) + QIDO (query)",
+          "details": "Serve instances/frames (WADO-RS) and query studies/series/instances (QIDO-RS).",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S08-T03"
+          ],
+          "acceptanceCriteria": [
+            "Client can query and retrieve stored instances"
+          ],
+          "tags": [
+            "dicom",
+            "api"
+          ]
+        },
+        {
+          "id": "S08-T05",
+          "title": "Generate thumbnails / frame rendering",
+          "details": "Produce cached preview images/frames (fo-dicom rendering) for fast viewport loading.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S08-T04"
+          ],
+          "acceptanceCriteria": [
+            "Thumbnail retrievable for a stored instance"
+          ],
+          "tags": [
+            "dicom",
+            "performance"
+          ]
+        },
+        {
+          "id": "S08-T06",
+          "title": "Imaging tests",
+          "details": "Unit test metadata extraction; integration test store/retrieve against Azurite + Postgres Testcontainers.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S08-T04"
+          ],
+          "acceptanceCriteria": [
+            "Suite green"
+          ],
+          "tags": [
+            "dicom",
+            "testing"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S09",
+      "name": "Viewport Concurrency & Single-Doctor Distributed Lock",
+      "goal": "Enforce that only one Doctor edits a Study's Viewport at a time using a Redis distributed lock with ownership, TTL/heartbeat, and safe release; expose lock status to the UI.",
+      "order": 9,
+      "dependsOn": [
+        "S06",
+        "S03"
+      ],
+      "tasks": [
+        {
+          "id": "S09-T01",
+          "title": "Add Redis connection + RedLock",
+          "details": "Wire StackExchange.Redis and RedLock.net (or a Redlock implementation) into a shared LockService abstraction (ILockService).",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S03-T02",
+            "S06-T03"
+          ],
+          "acceptanceCriteria": [
+            "LockService connects to Redis and acquires a test lock"
+          ],
+          "tags": [
+            "lock",
+            "redis",
+            "solid"
+          ]
+        },
+        {
+          "id": "S09-T02",
+          "title": "Acquire lock on Viewport open",
+          "details": "When a Doctor opens a Study viewport, acquire a lock keyed by study id with the doctor id as owner and a short TTL.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S09-T01"
+          ],
+          "acceptanceCriteria": [
+            "First doctor acquires; Study status set to Locked"
+          ],
+          "tags": [
+            "lock",
+            "api"
+          ]
+        },
+        {
+          "id": "S09-T03",
+          "title": "Heartbeat / auto-renew while active",
+          "details": "Renew the lock via heartbeat while the doctor is active so it does not expire mid-session; stop renewing on idle.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S09-T02"
+          ],
+          "acceptanceCriteria": [
+            "Lock stays held during active use, expires after inactivity"
+          ],
+          "tags": [
+            "lock",
+            "reliability"
+          ]
+        },
+        {
+          "id": "S09-T04",
+          "title": "Reject non-owners from write access",
+          "details": "Any write/report action requires being the current lock owner; others receive 409 Conflict with owner info.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S09-T02"
+          ],
+          "acceptanceCriteria": [
+            "Second doctor is denied viewport write with clear conflict"
+          ],
+          "tags": [
+            "lock",
+            "security"
+          ]
+        },
+        {
+          "id": "S09-T05",
+          "title": "Safe release on close/timeout",
+          "details": "Release lock on explicit close, logout, or TTL expiry; ensure only the owner can release (fencing token).",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S09-T02"
+          ],
+          "acceptanceCriteria": [
+            "Lock released only by owner; auto-released on timeout"
+          ],
+          "tags": [
+            "lock",
+            "reliability"
+          ]
+        },
+        {
+          "id": "S09-T06",
+          "title": "Lock status API + events",
+          "details": "Expose GET lock-status for a Study and publish StudyLocked/StudyUnlocked events for UI/notifications.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S09-T05",
+            "S02-T08"
+          ],
+          "acceptanceCriteria": [
+            "UI can query who holds a Study and react to events"
+          ],
+          "tags": [
+            "lock",
+            "api",
+            "messaging"
+          ]
+        },
+        {
+          "id": "S09-T07",
+          "title": "Concurrency tests for the lock",
+          "details": "Integration tests simulating concurrent doctors against a Redis Testcontainer, including expiry and fencing.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S09-T06"
+          ],
+          "acceptanceCriteria": [
+            "Concurrent-access tests prove single-writer guarantee"
+          ],
+          "tags": [
+            "lock",
+            "testing"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S10",
+      "name": "Reporting / Diagnosis Microservice",
+      "goal": "Doctors write and finalize a diagnosis Report against a Study (only the lock owner may write); finalized reports notify the patient and unlock downstream flows.",
+      "order": 10,
+      "dependsOn": [
+        "S09"
+      ],
+      "tasks": [
+        {
+          "id": "S10-T01",
+          "title": "Scaffold Reporting service",
+          "details": "Create Reporting.Domain/Application/Infrastructure/Api projects on Postgres.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S09-T01"
+          ],
+          "acceptanceCriteria": [
+            "Service runs with health endpoint"
+          ],
+          "tags": [
+            "reporting",
+            "microservice"
+          ]
+        },
+        {
+          "id": "S10-T02",
+          "title": "Model Report and Diagnosis",
+          "details": "Report aggregate linked to Study with Draft/Finalized states and diagnosis fields. Add EF migration.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S10-T01"
+          ],
+          "acceptanceCriteria": [
+            "Report schema migrated; state machine enforced"
+          ],
+          "tags": [
+            "reporting",
+            "ddd"
+          ]
+        },
+        {
+          "id": "S10-T03",
+          "title": "Enforce lock ownership on write",
+          "details": "Save/update report only if the caller currently owns the Study lock (call ILockService/lock-status).",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S10-T02",
+            "S09-T04"
+          ],
+          "acceptanceCriteria": [
+            "Non-owners cannot create or edit a report"
+          ],
+          "tags": [
+            "reporting",
+            "lock"
+          ]
+        },
+        {
+          "id": "S10-T04",
+          "title": "Draft save + finalize endpoints",
+          "details": "Allow incremental draft saves and a finalize action that transitions the Study to Reported.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S10-T03"
+          ],
+          "acceptanceCriteria": [
+            "Draft->Finalize flow updates Study status"
+          ],
+          "tags": [
+            "reporting",
+            "api"
+          ]
+        },
+        {
+          "id": "S10-T05",
+          "title": "Publish ReportFinalized event",
+          "details": "On finalize, publish ReportFinalized (Outbox) consumed by Booking, Prescription, and Notification.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S10-T04",
+            "S02-T08"
+          ],
+          "acceptanceCriteria": [
+            "ReportFinalized observed on broker"
+          ],
+          "tags": [
+            "reporting",
+            "messaging"
+          ]
+        },
+        {
+          "id": "S10-T06",
+          "title": "Generate PDF report (optional)",
+          "details": "Render the finalized report to PDF and store it (blob) for patient download.",
+          "priority": "low",
+          "status": "todo",
+          "dependsOn": [
+            "S10-T04"
+          ],
+          "acceptanceCriteria": [
+            "Finalized report downloadable as PDF"
+          ],
+          "tags": [
+            "reporting",
+            "pdf"
+          ]
+        },
+        {
+          "id": "S10-T07",
+          "title": "Reporting tests",
+          "details": "Unit test state machine + ownership guard; integration test finalize + event emission.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S10-T05"
+          ],
+          "acceptanceCriteria": [
+            "Suite green"
+          ],
+          "tags": [
+            "reporting",
+            "testing"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S11",
+      "name": "Prescription Microservice",
+      "goal": "Create prescriptions from a finalized report, referencing a drug catalog, and publish PrescriptionIssued for the cart/billing flow.",
+      "order": 11,
+      "dependsOn": [
+        "S10"
+      ],
+      "tasks": [
+        {
+          "id": "S11-T01",
+          "title": "Scaffold Prescription service",
+          "details": "Create Prescription.Domain/Application/Infrastructure/Api projects on Postgres.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S10-T01"
+          ],
+          "acceptanceCriteria": [
+            "Service runs with health endpoint"
+          ],
+          "tags": [
+            "prescription",
+            "microservice"
+          ]
+        },
+        {
+          "id": "S11-T02",
+          "title": "Model Prescription + items + drug catalog",
+          "details": "Prescription aggregate with PrescriptionItem lines referencing a Drug catalog. Add EF migration and seed a sample catalog.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S11-T01"
+          ],
+          "acceptanceCriteria": [
+            "Prescription schema migrated; catalog seeded"
+          ],
+          "tags": [
+            "prescription",
+            "ddd"
+          ]
+        },
+        {
+          "id": "S11-T03",
+          "title": "Create prescription from finalized report",
+          "details": "Consume ReportFinalized (or a doctor action) to create a prescription tied to the report/patient.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S11-T02",
+            "S10-T05"
+          ],
+          "acceptanceCriteria": [
+            "Finalized report can yield a prescription"
+          ],
+          "tags": [
+            "prescription",
+            "messaging"
+          ]
+        },
+        {
+          "id": "S11-T04",
+          "title": "Publish PrescriptionIssued",
+          "details": "Publish PrescriptionIssued (Outbox) so Cart can offer the drugs for purchase.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S11-T03",
+            "S02-T08"
+          ],
+          "acceptanceCriteria": [
+            "PrescriptionIssued observed on broker"
+          ],
+          "tags": [
+            "prescription",
+            "messaging"
+          ]
+        },
+        {
+          "id": "S11-T05",
+          "title": "Prescription tests",
+          "details": "Unit test creation rules; integration test event-driven creation.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S11-T04"
+          ],
+          "acceptanceCriteria": [
+            "Suite green"
+          ],
+          "tags": [
+            "prescription",
+            "testing"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S12",
+      "name": "Cart & Billing / Payment Microservice",
+      "goal": "Patients add prescribed drugs to a cart, check out to create a bill, complete payment (test gateway), and receive order history; publishes BillPaid.",
+      "order": 12,
+      "dependsOn": [
+        "S11"
+      ],
+      "tasks": [
+        {
+          "id": "S12-T01",
+          "title": "Scaffold Cart/Billing service",
+          "details": "Create Cart.Domain/Application/Infrastructure/Api projects on Postgres.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S11-T01"
+          ],
+          "acceptanceCriteria": [
+            "Service runs with health endpoint"
+          ],
+          "tags": [
+            "cart",
+            "microservice"
+          ]
+        },
+        {
+          "id": "S12-T02",
+          "title": "Model Cart, Order, and Invoice",
+          "details": "Cart with line items, Order, Invoice/Bill with totals and payment status. Add EF migration.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S12-T01"
+          ],
+          "acceptanceCriteria": [
+            "Cart/Order/Invoice schema migrated"
+          ],
+          "tags": [
+            "cart",
+            "ddd"
+          ]
+        },
+        {
+          "id": "S12-T03",
+          "title": "Populate cart from prescription",
+          "details": "Consume PrescriptionIssued so prescribed drugs can be added to the patient's cart.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S12-T02",
+            "S11-T04"
+          ],
+          "acceptanceCriteria": [
+            "Prescribed drugs appear as add-to-cart options"
+          ],
+          "tags": [
+            "cart",
+            "messaging"
+          ]
+        },
+        {
+          "id": "S12-T04",
+          "title": "Checkout creates a bill",
+          "details": "Checkout converts the cart to an order and generates an invoice with computed totals/taxes.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S12-T03"
+          ],
+          "acceptanceCriteria": [
+            "Checkout produces an invoice with correct totals"
+          ],
+          "tags": [
+            "cart",
+            "api"
+          ]
+        },
+        {
+          "id": "S12-T05",
+          "title": "Integrate payment (test gateway)",
+          "details": "Integrate Stripe test mode (or a mock provider) to complete payment; handle webhook/confirmation idempotently.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S12-T04"
+          ],
+          "acceptanceCriteria": [
+            "A test payment marks the bill Paid"
+          ],
+          "tags": [
+            "cart",
+            "payments"
+          ]
+        },
+        {
+          "id": "S12-T06",
+          "title": "Publish BillPaid + order history",
+          "details": "On payment success publish BillPaid (Outbox) and expose an order-history endpoint for the patient.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S12-T05",
+            "S02-T08"
+          ],
+          "acceptanceCriteria": [
+            "BillPaid emitted; history endpoint returns orders"
+          ],
+          "tags": [
+            "cart",
+            "messaging"
+          ]
+        },
+        {
+          "id": "S12-T07",
+          "title": "Cart/Billing tests",
+          "details": "Unit test totals/state; integration test checkout + payment confirmation.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S12-T06"
+          ],
+          "acceptanceCriteria": [
+            "Suite green"
+          ],
+          "tags": [
+            "cart",
+            "testing"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S13",
+      "name": "Notification Microservice",
+      "goal": "React to domain events (report ready, appointment booked, bill paid, follow-up scheduled) and notify patients via email/SMS with templated messages and a delivery log.",
+      "order": 13,
+      "dependsOn": [
+        "S07",
+        "S10",
+        "S12"
+      ],
+      "tasks": [
+        {
+          "id": "S13-T01",
+          "title": "Scaffold Notification service",
+          "details": "Create Notification.Domain/Application/Infrastructure/Api projects on Postgres.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S07-T01",
+            "S10-T01",
+            "S12-T01"
+          ],
+          "acceptanceCriteria": [
+            "Service runs with health endpoint"
+          ],
+          "tags": [
+            "notify",
+            "microservice"
+          ]
+        },
+        {
+          "id": "S13-T02",
+          "title": "Subscribe to domain events",
+          "details": "Consume ReportFinalized, AppointmentBooked, BillPaid, FollowUpScheduled from the bus.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S13-T01",
+            "S02-T08"
+          ],
+          "acceptanceCriteria": [
+            "Each event triggers a notification workflow"
+          ],
+          "tags": [
+            "notify",
+            "messaging"
+          ]
+        },
+        {
+          "id": "S13-T03",
+          "title": "Integrate email/SMS provider",
+          "details": "Integrate Azure Communication Services or SendGrid for email (and optional SMS) with templated content.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S13-T02"
+          ],
+          "acceptanceCriteria": [
+            "A test event sends a templated email"
+          ],
+          "tags": [
+            "notify",
+            "integration"
+          ]
+        },
+        {
+          "id": "S13-T04",
+          "title": "Persist a notification/delivery log",
+          "details": "Record sent notifications, status, and retries for audit and troubleshooting.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S13-T03"
+          ],
+          "acceptanceCriteria": [
+            "Notifications are logged with delivery status"
+          ],
+          "tags": [
+            "notify",
+            "audit"
+          ]
+        },
+        {
+          "id": "S13-T05",
+          "title": "Notification tests",
+          "details": "Unit test template selection; integration test event->send with a mocked provider.",
+          "priority": "low",
+          "status": "todo",
+          "dependsOn": [
+            "S13-T04"
+          ],
+          "acceptanceCriteria": [
+            "Suite green"
+          ],
+          "tags": [
+            "notify",
+            "testing"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S14",
+      "name": "API Gateway (YARP)",
+      "goal": "A single ingress via YARP with per-service routing, JWT auth forwarding, rate limiting, CORS, and aggregated health.",
+      "order": 14,
+      "dependsOn": [
+        "S04",
+        "S06",
+        "S08",
+        "S12"
+      ],
+      "tasks": [
+        {
+          "id": "S14-T01",
+          "title": "Create YARP gateway project",
+          "details": "`dotnet new web` gateway; add YARP reverse proxy package and base configuration.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S04-T06"
+          ],
+          "acceptanceCriteria": [
+            "Gateway starts and proxies a sample route"
+          ],
+          "tags": [
+            "gateway",
+            "yarp"
+          ]
+        },
+        {
+          "id": "S14-T02",
+          "title": "Configure routes and clusters per service",
+          "details": "Map routes to Auth, Role, Patients, Booking, Imaging, Reporting, Prescription, Cart, Notification clusters.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S14-T01"
+          ],
+          "acceptanceCriteria": [
+            "Each service reachable behind the gateway path"
+          ],
+          "tags": [
+            "gateway",
+            "routing"
+          ]
+        },
+        {
+          "id": "S14-T03",
+          "title": "Enforce JWT auth at the edge",
+          "details": "Validate tokens at the gateway (shared AddJwtAuth) and forward identity/claims downstream.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S14-T02",
+            "S04-T06"
+          ],
+          "acceptanceCriteria": [
+            "Protected routes require a valid token at the gateway"
+          ],
+          "tags": [
+            "gateway",
+            "security"
+          ]
+        },
+        {
+          "id": "S14-T04",
+          "title": "Add rate limiting and CORS",
+          "details": "Apply ASP.NET Core rate limiting policies and a CORS policy for the Blazor origin.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S14-T03"
+          ],
+          "acceptanceCriteria": [
+            "Excess requests are throttled; Blazor origin allowed"
+          ],
+          "tags": [
+            "gateway",
+            "resilience"
+          ]
+        },
+        {
+          "id": "S14-T05",
+          "title": "Aggregate health and expose OpenAPI",
+          "details": "Add health-check aggregation and (optionally) a unified OpenAPI/Swagger surface.",
+          "priority": "low",
+          "status": "todo",
+          "dependsOn": [
+            "S14-T02"
+          ],
+          "acceptanceCriteria": [
+            "/health reflects downstream service health"
+          ],
+          "tags": [
+            "gateway",
+            "observability"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S15",
+      "name": "Blazor Front-end (Patient & Doctor portals + DICOM Viewport)",
+      "goal": "A Blazor Web App delivering the Patient journey (register, book, view report, prescription, cart/checkout, follow-up) and the Doctor journey (studies list, viewport with lock indicator, write report), with a Cornerstone.js DICOM viewer.",
+      "order": 15,
+      "dependsOn": [
+        "S14"
+      ],
+      "tasks": [
+        {
+          "id": "S15-T01",
+          "title": "Create Blazor Web App project",
+          "details": "`dotnet new blazor` (interactive auto/server render modes) targeting .NET 10; configure the typed API client against the gateway.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S14-T03"
+          ],
+          "acceptanceCriteria": [
+            "App runs and calls a gateway endpoint"
+          ],
+          "tags": [
+            "blazor",
+            "frontend"
+          ]
+        },
+        {
+          "id": "S15-T02",
+          "title": "Implement authentication in the UI",
+          "details": "Handle login/refresh token storage, auth state provider, and protected routes/role-based UI.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S15-T01"
+          ],
+          "acceptanceCriteria": [
+            "Login persists session; protected pages gated"
+          ],
+          "tags": [
+            "blazor",
+            "auth"
+          ]
+        },
+        {
+          "id": "S15-T03",
+          "title": "Build the Patient portal",
+          "details": "Pages for register, book checkup, view final report, view prescription, cart/checkout, and follow-up scheduling.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S15-T02"
+          ],
+          "acceptanceCriteria": [
+            "Patient can complete the end-to-end journey in the UI"
+          ],
+          "tags": [
+            "blazor",
+            "patient"
+          ]
+        },
+        {
+          "id": "S15-T04",
+          "title": "Build the Doctor portal + studies list",
+          "details": "Studies list with filters and a Study detail page showing assignment and status.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S15-T02"
+          ],
+          "acceptanceCriteria": [
+            "Doctor sees assigned Studies and can open one"
+          ],
+          "tags": [
+            "blazor",
+            "doctor"
+          ]
+        },
+        {
+          "id": "S15-T05",
+          "title": "Integrate DICOM Viewport (Cornerstone.js)",
+          "details": "Add JS interop to render DICOM (Cornerstone.js) in the Doctor viewport, loading frames via the Imaging service (WADO).",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S15-T04",
+            "S08-T04"
+          ],
+          "acceptanceCriteria": [
+            "DICOM images render and can be windowed/zoomed"
+          ],
+          "tags": [
+            "blazor",
+            "dicom"
+          ]
+        },
+        {
+          "id": "S15-T06",
+          "title": "Surface lock status + report editor",
+          "details": "Show LOCKED indicator and owner; allow only the lock owner to edit/save the report from the viewport.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S15-T05",
+            "S09-T06",
+            "S10-T04"
+          ],
+          "acceptanceCriteria": [
+            "Non-owner viewport is read-only with clear lock UI"
+          ],
+          "tags": [
+            "blazor",
+            "lock"
+          ]
+        },
+        {
+          "id": "S15-T07",
+          "title": "Real-time lock updates (SignalR, optional)",
+          "details": "Push lock acquire/release updates to connected doctors via SignalR for instant UI feedback.",
+          "priority": "low",
+          "status": "todo",
+          "dependsOn": [
+            "S15-T06"
+          ],
+          "acceptanceCriteria": [
+            "Lock changes reflect without manual refresh"
+          ],
+          "tags": [
+            "blazor",
+            "realtime"
+          ]
+        },
+        {
+          "id": "S15-T08",
+          "title": "UI error handling + loading states",
+          "details": "Consistent handling of ProblemDetails errors, 409 conflicts, and loading/empty states.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S15-T03",
+            "S15-T06"
+          ],
+          "acceptanceCriteria": [
+            "Errors and conflicts render friendly messages"
+          ],
+          "tags": [
+            "blazor",
+            "ux"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S16",
+      "name": "Cross-cutting: Messaging, Observability & Resilience",
+      "goal": "Shared async messaging (MassTransit + Outbox), structured logging (Serilog), distributed tracing/metrics (OpenTelemetry), health checks, and resilience (Polly) across all services.",
+      "order": 16,
+      "dependsOn": [
+        "S02",
+        "S03"
+      ],
+      "tasks": [
+        {
+          "id": "S16-T01",
+          "title": "Set up MassTransit with RabbitMQ",
+          "details": "Add a shared messaging extension configuring MassTransit over RabbitMQ locally (Azure Service Bus in prod) with consumer registration.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S03-T02",
+            "S02-T08"
+          ],
+          "acceptanceCriteria": [
+            "A test message publishes and is consumed"
+          ],
+          "tags": [
+            "messaging",
+            "shared"
+          ]
+        },
+        {
+          "id": "S16-T02",
+          "title": "Implement the Transactional Outbox",
+          "details": "Enable MassTransit EF Core Outbox so events publish atomically with the local DB transaction.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S16-T01"
+          ],
+          "acceptanceCriteria": [
+            "Events are not lost on partial failures"
+          ],
+          "tags": [
+            "messaging",
+            "reliability"
+          ]
+        },
+        {
+          "id": "S16-T03",
+          "title": "Add Serilog structured logging",
+          "details": "Configure Serilog with enrichers (correlation id, service name) and sinks to console + Seq locally.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S02-T06"
+          ],
+          "acceptanceCriteria": [
+            "Logs are structured and visible in Seq"
+          ],
+          "tags": [
+            "observability",
+            "logging"
+          ]
+        },
+        {
+          "id": "S16-T04",
+          "title": "Add OpenTelemetry tracing + metrics",
+          "details": "Instrument ASP.NET Core, HttpClient, EF Core, Redis, and MassTransit; export traces/metrics (OTLP) and propagate context across the bus.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S16-T01",
+            "S16-T03"
+          ],
+          "acceptanceCriteria": [
+            "A request trace spans gateway->service->bus"
+          ],
+          "tags": [
+            "observability",
+            "otel"
+          ]
+        },
+        {
+          "id": "S16-T05",
+          "title": "Add health checks everywhere",
+          "details": "Add liveness/readiness checks (DB, Redis, broker, downstream) to every service and the gateway.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S16-T01"
+          ],
+          "acceptanceCriteria": [
+            "/health/ready reflects real dependency health"
+          ],
+          "tags": [
+            "observability",
+            "health"
+          ]
+        },
+        {
+          "id": "S16-T06",
+          "title": "Apply Polly resilience policies",
+          "details": "Add retry, timeout, and circuit-breaker policies to HttpClient calls and message consumers.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S16-T04"
+          ],
+          "acceptanceCriteria": [
+            "Transient failures retry; breakers open under sustained failure"
+          ],
+          "tags": [
+            "resilience",
+            "polly"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S17",
+      "name": "Security & Compliance",
+      "goal": "Health-data-grade security: TLS everywhere, secrets in Key Vault, encryption at rest, PII protection, audit logging, least-privilege identities, and GDPR/HIPAA-minded data handling.",
+      "order": 17,
+      "dependsOn": [
+        "S06",
+        "S16"
+      ],
+      "tasks": [
+        {
+          "id": "S17-T01",
+          "title": "Enforce HTTPS/TLS and security headers",
+          "details": "Require HTTPS, enable HSTS, and add security headers (CSP, X-Content-Type-Options, etc.) at the gateway and services.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S16-T05"
+          ],
+          "acceptanceCriteria": [
+            "Traffic is TLS-only with hardened headers"
+          ],
+          "tags": [
+            "security",
+            "hardening"
+          ]
+        },
+        {
+          "id": "S17-T02",
+          "title": "Centralize secrets in Key Vault",
+          "details": "Move connection strings/keys to Azure Key Vault referenced via managed identity; remove secrets from config/repo.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S03-T04"
+          ],
+          "acceptanceCriteria": [
+            "No secrets in code; services read from Key Vault"
+          ],
+          "tags": [
+            "security",
+            "secrets"
+          ]
+        },
+        {
+          "id": "S17-T03",
+          "title": "Encrypt data at rest + protect PII",
+          "details": "Enable DB/Blob encryption at rest and add field-level encryption/hashing for sensitive PII where needed.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S06-T03"
+          ],
+          "acceptanceCriteria": [
+            "Sensitive fields encrypted; storage encrypted at rest"
+          ],
+          "tags": [
+            "security",
+            "pii",
+            "compliance"
+          ]
+        },
+        {
+          "id": "S17-T04",
+          "title": "Implement access audit logging",
+          "details": "Log who accessed/modified which Study/report (immutable audit trail) for compliance investigations.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S06-T06"
+          ],
+          "acceptanceCriteria": [
+            "Study access/edits produce audit entries"
+          ],
+          "tags": [
+            "security",
+            "audit",
+            "compliance"
+          ]
+        },
+        {
+          "id": "S17-T05",
+          "title": "Least-privilege identities and RBAC",
+          "details": "Use managed identities and scoped RBAC so each service has only the Azure permissions it needs.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S17-T02"
+          ],
+          "acceptanceCriteria": [
+            "Each service uses a scoped managed identity"
+          ],
+          "tags": [
+            "security",
+            "rbac"
+          ]
+        },
+        {
+          "id": "S17-T06",
+          "title": "GDPR/HIPAA data-handling controls",
+          "details": "Add data-retention policy and a right-to-erasure workflow; document data-processing and lawful basis.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S17-T04"
+          ],
+          "acceptanceCriteria": [
+            "Retention + erasure workflow documented and testable"
+          ],
+          "tags": [
+            "compliance",
+            "gdpr"
+          ]
+        },
+        {
+          "id": "S17-T07",
+          "title": "Dependency and container scanning",
+          "details": "Enable dependency vulnerability scanning and image scanning in CI (see S19).",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S17-T01"
+          ],
+          "acceptanceCriteria": [
+            "Vulnerable dependencies/images flagged in CI"
+          ],
+          "tags": [
+            "security",
+            "supplychain"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S18",
+      "name": "Testing (Unit, Integration, Contract, E2E)",
+      "goal": "A layered test strategy with coverage gates: unit tests for domain/application, Testcontainers integration tests, consumer-driven contract tests, and Playwright E2E for the Blazor flows.",
+      "order": 18,
+      "dependsOn": [
+        "S15",
+        "S16"
+      ],
+      "tasks": [
+        {
+          "id": "S18-T01",
+          "title": "Establish test projects and conventions",
+          "details": "Add xUnit + FluentAssertions + NSubstitute test projects per service and a shared test utilities library.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S02-T02"
+          ],
+          "acceptanceCriteria": [
+            "`dotnet test` discovers and runs all suites"
+          ],
+          "tags": [
+            "testing",
+            "setup"
+          ]
+        },
+        {
+          "id": "S18-T02",
+          "title": "Write domain/application unit tests",
+          "details": "Cover aggregates, state machines (Study status, report finalize), and handlers.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S18-T01"
+          ],
+          "acceptanceCriteria": [
+            "Critical domain logic covered by unit tests"
+          ],
+          "tags": [
+            "testing",
+            "unit"
+          ]
+        },
+        {
+          "id": "S18-T03",
+          "title": "Integration tests with Testcontainers",
+          "details": "Spin up Postgres/Redis/RabbitMQ/Azurite via Testcontainers for repository, lock, and messaging tests.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S18-T01",
+            "S16-T02"
+          ],
+          "acceptanceCriteria": [
+            "Integration tests run against real containers in CI"
+          ],
+          "tags": [
+            "testing",
+            "integration"
+          ]
+        },
+        {
+          "id": "S18-T04",
+          "title": "Consumer-driven contract tests",
+          "details": "Add Pact (or similar) contracts between event publishers/consumers and gateway/service HTTP contracts.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S18-T03"
+          ],
+          "acceptanceCriteria": [
+            "Breaking contract changes fail the build"
+          ],
+          "tags": [
+            "testing",
+            "contract"
+          ]
+        },
+        {
+          "id": "S18-T05",
+          "title": "End-to-end tests (Playwright)",
+          "details": "Automate key journeys: patient booking->report->prescription->payment, and doctor lock/report flow.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S15-T08"
+          ],
+          "acceptanceCriteria": [
+            "E2E covers the two primary journeys"
+          ],
+          "tags": [
+            "testing",
+            "e2e"
+          ]
+        },
+        {
+          "id": "S18-T06",
+          "title": "Coverage gate + load test the lock",
+          "details": "Add Coverlet coverage thresholds; add a k6/NBomber load test proving single-writer under concurrency.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S18-T03",
+            "S09-T07"
+          ],
+          "acceptanceCriteria": [
+            "Coverage gate enforced; lock holds under load"
+          ],
+          "tags": [
+            "testing",
+            "performance"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S19",
+      "name": "CI/CD Pipeline",
+      "goal": "Automated build/test on PRs and gated deployment: containerize each service, scan and push to ACR, run migrations, and deploy to Azure with environment approvals.",
+      "order": 19,
+      "dependsOn": [
+        "S18"
+      ],
+      "tasks": [
+        {
+          "id": "S19-T01",
+          "title": "CI workflow: build + test on PR",
+          "details": "GitHub Actions workflow restoring, building, and running `dotnet test` (with Testcontainers) on every pull request.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S18-T03"
+          ],
+          "acceptanceCriteria": [
+            "PRs are blocked unless build + tests pass"
+          ],
+          "tags": [
+            "cicd",
+            "ci"
+          ]
+        },
+        {
+          "id": "S19-T02",
+          "title": "Containerize each service",
+          "details": "Add multi-stage Dockerfiles (or `dotnet publish` container build) for every service and the gateway/Blazor app.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S19-T01"
+          ],
+          "acceptanceCriteria": [
+            "Each service produces a runnable image locally"
+          ],
+          "tags": [
+            "cicd",
+            "docker"
+          ]
+        },
+        {
+          "id": "S19-T03",
+          "title": "Scan and push images to ACR",
+          "details": "Add image vulnerability scanning (e.g., Trivy) then push tagged images to Azure Container Registry.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S19-T02",
+            "S17-T07"
+          ],
+          "acceptanceCriteria": [
+            "Scanned images published to ACR on main"
+          ],
+          "tags": [
+            "cicd",
+            "acr",
+            "security"
+          ]
+        },
+        {
+          "id": "S19-T04",
+          "title": "Automate database migrations",
+          "details": "Run EF Core migrations as a pipeline step or startup migrator with safeguards for production.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S19-T03"
+          ],
+          "acceptanceCriteria": [
+            "Migrations apply automatically per environment"
+          ],
+          "tags": [
+            "cicd",
+            "efcore"
+          ]
+        },
+        {
+          "id": "S19-T05",
+          "title": "CD workflow with environment approvals",
+          "details": "Deploy to dev/staging/prod (Azure Container Apps) with manual approval gates and environment secrets.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S19-T04"
+          ],
+          "acceptanceCriteria": [
+            "Promotion to prod requires approval"
+          ],
+          "tags": [
+            "cicd",
+            "cd"
+          ]
+        },
+        {
+          "id": "S19-T06",
+          "title": "Smoke tests post-deploy",
+          "details": "Run health/smoke checks after each deployment and auto-rollback or alert on failure.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S19-T05"
+          ],
+          "acceptanceCriteria": [
+            "Failed smoke checks block/rollback the release"
+          ],
+          "tags": [
+            "cicd",
+            "quality"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S20",
+      "name": "Azure Infrastructure (IaC) & Production Deployment",
+      "goal": "All Azure resources provisioned via Bicep and the system running in production on Azure Container Apps with managed identities, private networking, autoscaling, monitoring, and cost controls.",
+      "order": 20,
+      "dependsOn": [
+        "S17",
+        "S19"
+      ],
+      "tasks": [
+        {
+          "id": "S20-T01",
+          "title": "Author Bicep modules for core resources",
+          "details": "Create Bicep for Resource Group, ACR, Container Apps Environment, Log Analytics, and Application Insights.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S19-T03"
+          ],
+          "acceptanceCriteria": [
+            "`az deployment` provisions core resources"
+          ],
+          "tags": [
+            "azure",
+            "iac"
+          ]
+        },
+        {
+          "id": "S20-T02",
+          "title": "Provision data + messaging resources",
+          "details": "Bicep for Azure Database for PostgreSQL Flexible Server, Azure Cache for Redis, Azure Service Bus, and Blob Storage.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S20-T01"
+          ],
+          "acceptanceCriteria": [
+            "Data/cache/bus/storage provisioned via IaC"
+          ],
+          "tags": [
+            "azure",
+            "iac"
+          ]
+        },
+        {
+          "id": "S20-T03",
+          "title": "Provision Key Vault + managed identities",
+          "details": "Bicep for Key Vault and user-assigned managed identities with scoped RBAC role assignments per service.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S20-T02",
+            "S17-T05"
+          ],
+          "acceptanceCriteria": [
+            "Services authenticate to Azure via managed identity"
+          ],
+          "tags": [
+            "azure",
+            "security"
+          ]
+        },
+        {
+          "id": "S20-T04",
+          "title": "Deploy Container Apps with config",
+          "details": "Deploy each service/gateway/Blazor app as a Container App, wiring Key Vault references and Service Bus/Redis/Postgres connections.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S20-T03",
+            "S19-T05"
+          ],
+          "acceptanceCriteria": [
+            "All apps run in the Container Apps environment"
+          ],
+          "tags": [
+            "azure",
+            "deploy"
+          ]
+        },
+        {
+          "id": "S20-T05",
+          "title": "Networking and private endpoints",
+          "details": "Add VNet integration and private endpoints for Postgres/Redis/Key Vault/Storage; restrict public access.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S20-T04"
+          ],
+          "acceptanceCriteria": [
+            "Data services are not publicly reachable"
+          ],
+          "tags": [
+            "azure",
+            "networking",
+            "security"
+          ]
+        },
+        {
+          "id": "S20-T06",
+          "title": "Autoscaling, custom domain, and TLS",
+          "details": "Configure Container Apps scale rules (HTTP/queue length), a custom domain, and managed TLS certificates.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S20-T04"
+          ],
+          "acceptanceCriteria": [
+            "Apps autoscale; custom domain served over TLS"
+          ],
+          "tags": [
+            "azure",
+            "scaling"
+          ]
+        },
+        {
+          "id": "S20-T07",
+          "title": "Monitoring dashboards + cost alerts",
+          "details": "Build App Insights/Log Analytics dashboards and alerts (errors, latency, lock contention) and set budget/cost alerts.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S20-T04"
+          ],
+          "acceptanceCriteria": [
+            "Dashboards live; alerts fire on threshold breaches"
+          ],
+          "tags": [
+            "azure",
+            "observability",
+            "cost"
+          ]
+        },
+        {
+          "id": "S20-T08",
+          "title": "Production runbook + DR plan",
+          "details": "Document deploy/rollback runbook, backup/restore for Postgres/Blob, and a disaster-recovery/RTO-RPO plan.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S20-T07"
+          ],
+          "acceptanceCriteria": [
+            "Runbook + DR plan reviewed and stored in docs/"
+          ],
+          "tags": [
+            "azure",
+            "ops",
+            "docs"
+          ]
+        }
+      ]
+    }
+  ],
+  "exportedAt": "2026-08-04T13:29:45.114Z"
+}
