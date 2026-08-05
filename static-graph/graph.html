@@ -3,228 +3,144 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Medical View - Delivery Graph</title>
+<title>Medical View - Build Tree</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
 <style>
   :root{
-    --bg:#0a0f1a;
-    --canvas:#0b1220;
-    --panel:#111a2b;
-    --panel-2:#0e1626;
-    --line:#22314c;
-    --line-soft:#1a2740;
-    --ink:#e7eefb;
-    --ink-2:#93a6c6;
-    --ink-3:#5f7599;
-    --muted:#647599;
-    --cyan:#34d3ee;
-    --cyan-dim:#1c93a8;
-    --todo:#6b7a90;
-    --prog:#f0a83a;
-    --done:#37c46b;
-    --radius:12px;
+    --bg:#0a0f1a;--canvas:#0b1220;--panel:#111a2b;--panel-2:#0e1626;
+    --line:#22314c;--line-soft:#1a2740;--ink:#e7eefb;--ink-2:#93a6c6;--ink-3:#5f7599;
+    --cyan:#34d3ee;--cyan-dim:#1c93a8;--todo:#6b7a90;--prog:#f0a83a;--done:#37c46b;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{
-    margin:0;
-    background:var(--bg);
-    color:var(--ink);
-    font-family:"IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    -webkit-font-smoothing:antialiased;
-    overflow:hidden;
-  }
-  .mono{font-family:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;overflow:hidden}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 
-  header.top{
-    height:58px;
-    display:flex;align-items:center;gap:18px;
-    padding:0 18px;
-    border-bottom:1px solid var(--line);
-    background:linear-gradient(180deg,#0e1626,#0a0f1a);
-  }
+  header.top{height:58px;display:flex;align-items:center;gap:18px;padding:0 18px;
+    border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0e1626,#0a0f1a)}
   .brand{display:flex;align-items:center;gap:11px;min-width:0}
-  .reticle{
-    width:22px;height:22px;flex:0 0 auto;position:relative;
-    border:1px solid var(--cyan-dim);border-radius:50%;
-  }
-  .reticle::before,.reticle::after{
-    content:"";position:absolute;background:var(--cyan-dim);
-  }
+  .reticle{width:22px;height:22px;flex:0 0 auto;position:relative;border:1px solid var(--cyan-dim);border-radius:50%}
+  .reticle::before,.reticle::after{content:"";position:absolute;background:var(--cyan-dim)}
   .reticle::before{left:50%;top:-4px;bottom:-4px;width:1px;transform:translateX(-50%)}
   .reticle::after{top:50%;left:-4px;right:-4px;height:1px;transform:translateY(-50%)}
-  .brand h1{
-    font-size:14px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:0;
-    white-space:nowrap;
-  }
+  .brand h1{font-size:14px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:0;white-space:nowrap}
   .brand .sub{font-size:11px;color:var(--ink-2);letter-spacing:.04em}
-
   .top-progress{margin-left:auto;display:flex;align-items:center;gap:14px}
   .top-pct{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
   .top-pct .unit{font-size:12px;color:var(--ink-2);font-weight:500;margin-left:2px}
-  .top-count{font-size:11px;color:var(--ink-2);letter-spacing:.03em}
+  .top-count{font-size:11px;color:var(--ink-2)}
   .topbar{width:200px;height:7px;border-radius:99px;background:#16223a;overflow:hidden;border:1px solid var(--line-soft)}
-  .topbar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan-dim),var(--done));transition:width .4s ease}
+  .topbar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan-dim),var(--done));transition:width .4s ease}
 
-  main{display:grid;grid-template-columns:320px 1fr;height:calc(100vh - 58px)}
-
-  aside{
-    border-right:1px solid var(--line);
-    background:var(--panel-2);
-    overflow-y:auto;
-    padding:14px 14px 40px;
-  }
-  aside::-webkit-scrollbar{width:9px}
-  aside::-webkit-scrollbar-thumb{background:#1d2b45;border-radius:9px}
+  main{display:grid;grid-template-columns:340px 1fr;height:calc(100vh - 58px)}
+  aside{border-right:1px solid var(--line);background:var(--panel-2);overflow-y:auto;padding:14px 14px 40px}
+  aside::-webkit-scrollbar{width:9px}aside::-webkit-scrollbar-thumb{background:#1d2b45;border-radius:9px}
 
   .group{margin-bottom:16px}
-  .glabel{
-    font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);
-    margin:0 2px 8px;font-weight:600;
-  }
+  .glabel{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin:0 2px 8px;font-weight:600}
   .seg{display:flex;background:#0c1526;border:1px solid var(--line-soft);border-radius:9px;padding:3px;gap:3px}
-  .seg button{
-    flex:1;border:0;background:transparent;color:var(--ink-2);
-    font:inherit;font-size:12px;font-weight:500;padding:6px 4px;border-radius:6px;cursor:pointer;
-    transition:background .15s,color .15s;
-  }
+  .seg button{flex:1;border:0;background:transparent;color:var(--ink-2);font:inherit;font-size:12px;font-weight:500;
+    padding:6px 4px;border-radius:6px;cursor:pointer;transition:.15s}
   .seg button:hover{color:var(--ink)}
   .seg button.active{background:#1c2c48;color:var(--ink)}
   .seg.cyan button.active{background:rgba(52,211,238,.14);color:var(--cyan)}
 
   .chips{display:flex;flex-wrap:wrap;gap:7px}
-  .fchip{
-    display:inline-flex;align-items:center;gap:7px;cursor:pointer;user-select:none;
-    border:1px solid var(--line-soft);background:#0c1526;border-radius:8px;
-    padding:6px 9px;font-size:12px;color:var(--ink-2);transition:.15s;
-  }
+  .fchip{display:inline-flex;align-items:center;gap:7px;cursor:pointer;user-select:none;border:1px solid var(--line-soft);
+    background:#0c1526;border-radius:8px;padding:6px 9px;font-size:12px;color:var(--ink-2);transition:.15s}
   .fchip .dot{width:9px;height:9px;border-radius:3px}
   .fchip.off{opacity:.38}
-  .fchip:hover{border-color:var(--line)}
 
-  .stat-row{display:flex;gap:8px;margin-top:2px}
-  .stat{
-    flex:1;background:var(--panel);border:1px solid var(--line-soft);border-radius:10px;padding:9px 10px;
-  }
+  .stat-row{display:flex;gap:8px}
+  .stat{flex:1;background:var(--panel);border:1px solid var(--line-soft);border-radius:10px;padding:9px 10px}
   .stat .n{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
   .stat .l{font-size:10px;color:var(--ink-2);letter-spacing:.04em;margin-top:4px;text-transform:uppercase}
 
-  .ready{
-    margin-top:10px;display:flex;align-items:center;gap:10px;
-    background:linear-gradient(90deg,rgba(52,211,238,.10),rgba(52,211,238,0));
-    border:1px solid rgba(52,211,238,.28);border-radius:10px;padding:9px 11px;
-  }
-  .ready .rn{font-size:18px;font-weight:700;color:var(--cyan);font-variant-numeric:tabular-nums}
-  .ready .rl{font-size:11px;color:var(--ink-2);line-height:1.3}
+  .queue{display:flex;flex-direction:column;gap:5px}
+  .qhead{display:flex;align-items:center;gap:8px;margin-bottom:2px}
+  .qhead .rn{font-size:15px;font-weight:700;color:var(--cyan);font-variant-numeric:tabular-nums}
+  .qhead .rl{font-size:11px;color:var(--ink-2)}
+  .qrow{display:grid;grid-template-columns:16px auto 1fr;align-items:center;gap:9px;cursor:pointer;
+    border:1px solid var(--line-soft);background:linear-gradient(90deg,rgba(52,211,238,.06),transparent);
+    border-radius:8px;padding:7px 9px;transition:.15s}
+  .qrow:hover{border-color:var(--cyan-dim);background:#12203a}
+  .qnum{font-size:11px;font-weight:700;color:var(--cyan);font-variant-numeric:tabular-nums}
+  .qid{font-size:10.5px;color:var(--ink-3)}
+  .qt{font-size:12px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .qempty{font-size:12px;color:var(--done);padding:6px 2px}
 
   .sec-list{display:flex;flex-direction:column;gap:6px}
-  .sec-row{
-    display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:9px;
-    padding:8px 9px;border:1px solid var(--line-soft);border-radius:9px;background:var(--panel);
-    cursor:pointer;transition:.15s;
-  }
+  .sec-row{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:9px;padding:8px 9px;
+    border:1px solid var(--line-soft);border-radius:9px;background:var(--panel);cursor:pointer;transition:.15s}
   .sec-row:hover{border-color:var(--cyan-dim);background:#12203a}
-  .sec-id{font-size:11px;font-weight:700;color:var(--ink-2)}
-  .sec-mid{min-width:0}
+  .sec-id{font-size:11px;font-weight:700}
   .sec-name{font-size:12px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .sec-bar{height:4px;border-radius:99px;background:#16223a;margin-top:5px;overflow:hidden}
-  .sec-bar > i{display:block;height:100%;background:var(--done);width:0}
-  .sec-frac{font-size:10px;color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .sec-bar>i{display:block;height:100%;background:var(--done);width:0}
+  .sec-frac{font-size:10px;color:var(--ink-2);font-variant-numeric:tabular-nums}
 
   .actions{display:flex;flex-direction:column;gap:7px}
-  .btn{
-    display:flex;align-items:center;justify-content:center;gap:8px;
-    border:1px solid var(--line);background:#0c1526;color:var(--ink);
-    font:inherit;font-size:12px;font-weight:500;padding:9px;border-radius:9px;cursor:pointer;transition:.15s;
-  }
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:#0c1526;
+    color:var(--ink);font:inherit;font-size:12px;font-weight:500;padding:9px;border-radius:9px;cursor:pointer;transition:.15s}
   .btn:hover{border-color:var(--cyan-dim);color:#fff}
-  .btn.ghost{color:var(--ink-2)}
-  .btn.ghost:hover{color:var(--prog);border-color:#4a3a1e}
+  .btn.ghost{color:var(--ink-2)}.btn.ghost:hover{color:var(--prog);border-color:#4a3a1e}
   .hint{font-size:10.5px;color:var(--ink-3);margin-top:2px;line-height:1.4}
 
-  /* stage / graph canvas */
   .stage{position:relative;background:var(--canvas);overflow:hidden}
-  .stage::before{
-    /* faint reticle grid, like a DICOM viewport overlay */
-    content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
-    background:
-      radial-gradient(circle at 50% 46%, rgba(52,211,238,.05), transparent 60%),
+  .stage::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+    background:radial-gradient(circle at 30% 46%, rgba(52,211,238,.05), transparent 60%),
       linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px) 0 0/100% 46px,
-      linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px) 0 0/46px 100%;
-  }
-  .stage::after{
-    content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;pointer-events:none;
-    background:rgba(52,211,238,.05);transform:translateX(-.5px);
-  }
+      linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px) 0 0/46px 100%}
   #chart{position:absolute;inset:0}
-
-  .cornerlabel{
-    position:absolute;top:12px;left:14px;z-index:2;pointer-events:none;
-    font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);
-  }
-  .legend{
-    position:absolute;bottom:12px;left:14px;z-index:2;display:flex;gap:14px;flex-wrap:wrap;
-    background:rgba(10,15,26,.7);border:1px solid var(--line-soft);border-radius:9px;padding:8px 11px;
-    backdrop-filter:blur(4px);
-  }
+  .cornerlabel{position:absolute;top:12px;left:14px;z-index:2;pointer-events:none;font-size:10px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+  .legend{position:absolute;bottom:12px;left:14px;z-index:2;display:flex;gap:14px;flex-wrap:wrap;
+    background:rgba(10,15,26,.7);border:1px solid var(--line-soft);border-radius:9px;padding:8px 11px;backdrop-filter:blur(4px)}
   .legend span{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--ink-2)}
   .legend .dot{width:10px;height:10px;border-radius:3px}
   .legend .ring{width:11px;height:11px;border-radius:3px;background:transparent;border:2px solid var(--cyan)}
 
-  /* detail panel (slides over the graph) */
-  .detail{
-    position:absolute;top:0;right:0;bottom:0;width:min(380px,86vw);z-index:5;
-    background:linear-gradient(180deg,#0f1a2c,#0b1220);
-    border-left:1px solid var(--line);
-    box-shadow:-24px 0 60px rgba(0,0,0,.45);
-    transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);
-    display:flex;flex-direction:column;
-  }
+  .detail{position:absolute;top:0;right:0;bottom:0;width:min(380px,86vw);z-index:5;
+    background:linear-gradient(180deg,#0f1a2c,#0b1220);border-left:1px solid var(--line);
+    box-shadow:-24px 0 60px rgba(0,0,0,.45);transform:translateX(100%);
+    transition:transform .28s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
   .detail.open{transform:translateX(0)}
   .detail-h{display:flex;align-items:flex-start;gap:10px;padding:16px 16px 12px;border-bottom:1px solid var(--line)}
   .detail-h .kind{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);font-weight:600}
   .detail-h .did{font-size:12px;color:var(--ink-2);margin-top:2px}
   .detail-h .dtitle{font-size:15px;font-weight:600;margin-top:6px;line-height:1.35}
-  .xclose{margin-left:auto;border:0;background:#16223a;color:var(--ink-2);width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:15px;line-height:1}
+  .xclose{margin-left:auto;border:0;background:#16223a;color:var(--ink-2);width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:15px}
   .xclose:hover{color:#fff;background:#1e2f4d}
   .detail-b{padding:14px 16px 26px;overflow-y:auto}
-  .detail-b::-webkit-scrollbar{width:8px}
-  .detail-b::-webkit-scrollbar-thumb{background:#1d2b45;border-radius:8px}
-
+  .detail-b::-webkit-scrollbar{width:8px}.detail-b::-webkit-scrollbar-thumb{background:#1d2b45;border-radius:8px}
   .kv{margin-bottom:14px}
   .kv .k{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px;font-weight:600}
   .kv .v{font-size:13px;color:var(--ink);line-height:1.55}
-
-  .setstatus{display:flex;gap:6px;margin-top:2px}
-  .setstatus button{
-    flex:1;border:1px solid var(--line-soft);background:#0c1526;color:var(--ink-2);
-    font:inherit;font-size:11.5px;font-weight:600;padding:8px 4px;border-radius:8px;cursor:pointer;transition:.15s;
-    display:flex;align-items:center;justify-content:center;gap:6px;
-  }
+  .setstatus{display:flex;gap:6px}
+  .setstatus button{flex:1;border:1px solid var(--line-soft);background:#0c1526;color:var(--ink-2);font:inherit;
+    font-size:11.5px;font-weight:600;padding:8px 4px;border-radius:8px;cursor:pointer;transition:.15s;
+    display:flex;align-items:center;justify-content:center;gap:6px}
   .setstatus button .dot{width:8px;height:8px;border-radius:3px}
   .setstatus button:hover{color:var(--ink);border-color:var(--line)}
   .setstatus button.on[data-s="todo"]{background:rgba(107,122,144,.16);border-color:var(--todo);color:#cfd9ea}
   .setstatus button.on[data-s="in_progress"]{background:rgba(240,168,58,.16);border-color:var(--prog);color:#ffd79a}
   .setstatus button.on[data-s="done"]{background:rgba(55,196,107,.16);border-color:var(--done);color:#a9edc4}
-
   .pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 9px;border-radius:99px;border:1px solid var(--line-soft);color:var(--ink-2)}
   .pill.high{color:#ff9a9a;border-color:#4a2a2a;background:rgba(255,90,90,.08)}
   .pill.medium{color:#ffcf8a;border-color:#4a3a1e;background:rgba(240,168,58,.08)}
   .pill.low{color:#9fb6d6;border-color:#243450}
-
   .ac{list-style:none;margin:0;padding:0}
   .ac li{position:relative;padding:6px 0 6px 20px;font-size:12.5px;color:var(--ink);line-height:1.5;border-bottom:1px dashed var(--line-soft)}
   .ac li:last-child{border-bottom:0}
   .ac li::before{content:"";position:absolute;left:2px;top:11px;width:7px;height:7px;border:1.5px solid var(--cyan-dim);border-radius:2px}
-
   .deps{display:flex;flex-wrap:wrap;gap:6px}
-  .dep{
-    display:inline-flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;
-    border:1px solid var(--line-soft);background:#0c1526;border-radius:7px;padding:5px 8px;color:var(--ink-2);transition:.15s;
-  }
+  .dep{display:inline-flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;border:1px solid var(--line-soft);
+    background:#0c1526;border-radius:7px;padding:5px 8px;color:var(--ink-2);transition:.15s}
   .dep:hover{border-color:var(--cyan-dim);color:var(--ink)}
   .dep .dot{width:8px;height:8px;border-radius:3px}
   .ready-tag{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--cyan);font-weight:600}
@@ -232,30 +148,20 @@
   .tags{display:flex;flex-wrap:wrap;gap:6px}
   .tag{font-size:10.5px;color:var(--ink-2);background:#0c1526;border:1px solid var(--line-soft);border-radius:6px;padding:3px 7px}
   .details-text{font-size:12.5px;color:var(--ink-2);line-height:1.6}
-
   .tasklist{display:flex;flex-direction:column;gap:5px}
-  .task-mini{
-    display:flex;align-items:center;gap:9px;cursor:pointer;font-size:12px;color:var(--ink-2);
-    border:1px solid transparent;border-radius:7px;padding:6px 7px;transition:.15s;
-  }
+  .task-mini{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:12px;color:var(--ink-2);
+    border:1px solid transparent;border-radius:7px;padding:6px 7px;transition:.15s}
   .task-mini:hover{background:#12203a;color:var(--ink);border-color:var(--line-soft)}
   .task-mini .dot{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
   .task-mini .tid{font-size:10.5px;color:var(--ink-3);flex:0 0 auto}
   .task-mini .tt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-  .empty{color:var(--ink-3);font-size:12px;padding:2px 0}
-
-  @media (max-width:820px){
-    main{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:calc(100vh - 58px)}
-    aside{border-right:0;border-bottom:1px solid var(--line);max-height:44vh}
-    .top-progress{gap:8px}
-    .topbar{display:none}
-    .detail{width:100vw}
+  .empty{color:var(--ink-3);font-size:12px}
+  @media (max-width:860px){
+    main{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+    aside{border-right:0;border-bottom:1px solid var(--line);max-height:46vh}
+    .topbar{display:none}.detail{width:100vw}
   }
-  @media (prefers-reduced-motion:reduce){
-    *{transition:none !important}
-    .topbar > i,.sec-bar > i{transition:none !important}
-  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
   :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 </style>
 </head>
@@ -263,10 +169,7 @@
 <header class="top">
   <div class="brand">
     <div class="reticle" aria-hidden="true"></div>
-    <div>
-      <h1>Medical View</h1>
-      <div class="sub mono">Delivery dependency graph</div>
-    </div>
+    <div><h1>Medical View</h1><div class="sub mono">Build tree - step by step</div></div>
   </div>
   <div class="top-progress">
     <div class="topbar" aria-hidden="true"><i id="topbar-fill"></i></div>
@@ -286,25 +189,26 @@
         <div class="stat"><div class="n" id="cnt-prog" style="color:var(--prog)">0</div><div class="l">In progress</div></div>
         <div class="stat"><div class="n" id="cnt-done" style="color:var(--done)">0</div><div class="l">Done</div></div>
       </div>
-      <div class="ready">
-        <div class="rn mono" id="ready-count">0</div>
-        <div class="rl">tasks ready to start now<br><span style="color:var(--ink-3)">all dependencies complete</span></div>
+    </div>
+
+    <div class="group">
+      <div class="qhead"><span class="rn mono" id="ready-count">0</span><span class="rl">next steps ready to start</span></div>
+      <div class="queue" id="queue"></div>
+    </div>
+
+    <div class="group">
+      <div class="glabel">Direction</div>
+      <div class="seg" id="seg-orient">
+        <button data-o="LR" class="active">Left to right</button>
+        <button data-o="TB">Top down</button>
       </div>
     </div>
 
     <div class="group">
-      <div class="glabel">View</div>
-      <div class="seg" id="seg-view">
-        <button data-v="full" class="active">Sections + tasks</button>
-        <button data-v="overview">Sections only</button>
-      </div>
-    </div>
-
-    <div class="group">
-      <div class="glabel">Layout</div>
-      <div class="seg" id="seg-layout">
-        <button data-l="force" class="active">Force</button>
-        <button data-l="circular">Circular</button>
+      <div class="glabel">Detail level</div>
+      <div class="seg" id="seg-depth">
+        <button data-d="phases" class="active">Phases</button>
+        <button data-d="all">All tasks</button>
       </div>
     </div>
 
@@ -326,7 +230,7 @@
     </div>
 
     <div class="group">
-      <div class="glabel">Sections</div>
+      <div class="glabel">Phases</div>
       <div class="sec-list" id="section-list"></div>
     </div>
 
@@ -338,15 +242,14 @@
         <input id="file-import" type="file" accept="application/json,.json" hidden />
         <button class="btn ghost" id="btn-reset">Reset all to To do</button>
       </div>
-      <div class="hint" id="persist-hint">Click any task node to open it and set its status.</div>
+      <div class="hint" id="persist-hint">Click a node to open it and set its status. Click a phase to expand its tasks.</div>
     </div>
   </aside>
 
   <div class="stage">
-    <div class="cornerlabel mono">STUDIES / WORKLIST &middot; drag to pan &middot; scroll to zoom</div>
+    <div class="cornerlabel mono">BUILD ORDER &middot; click a phase to expand &middot; scroll to zoom</div>
     <div id="chart"></div>
     <div class="legend" id="legend"></div>
-
     <div class="detail" id="detail">
       <div class="detail-h">
         <div style="min-width:0">
@@ -362,481 +265,325 @@
 </main>
 
 <script>
-/* ---------- data (embedded) ---------- */
-const CHECKLIST = {"project": {"name": "Medical View", "description": "A cloud-native medical imaging and diagnosis platform where patients register and book checkups, doctors open a DICOM Viewport to diagnose a patient's Study (one DB row = one Study) under a single-writer distributed lock, save reports, and patients then receive results, prescriptions, drug purchases/billing, and follow-up appointments \u2014 built as .NET 10 microservices with Clean Architecture and deployed on Azure.", "techStack": {"backend": ".NET 10", "frontend": "Blazor", "architecture": "Clean Architecture + Microservices + Repository pattern + Unit of Work + SOLID", "database": "PostgreSQL (EF Core / Npgsql)", "cache": "Redis (distributed lock via RedLock)", "messaging": "MassTransit over RabbitMQ (local) / Azure Service Bus (prod), Transactional Outbox", "cloud": "Azure (Container Apps, Azure Database for PostgreSQL, Azure Cache for Redis, Service Bus, Key Vault, ACR, Blob Storage, Application Insights)"}}, "sections": [{"id": "S01", "name": "Foundation & Solution Structure", "goal": "A compiling, conventioned monorepo with .NET 10 SDK, central package management, and Clean Architecture conventions agreed.", "order": 1, "dependsOn": [], "tasks": [{"id": "S01-T01", "title": "Install and verify .NET 10 SDK", "details": "Install the .NET 10 SDK on all dev machines/CI. Verify with `dotnet --list-sdks` and `dotnet --version` (expect 10.x).", "priority": "high", "status": "todo", "dependsOn": [], "acceptanceCriteria": ["`dotnet --version` reports a 10.x SDK"], "tags": ["setup", "dotnet"]}, {"id": "S01-T02", "title": "Initialize git repository and .gitignore", "details": "Create the repo, run `dotnet new gitignore`, add README, LICENSE, and a CONTRIBUTING doc. Adopt trunk-based or GitFlow branching and document it.", "priority": "high", "status": "todo", "dependsOn": ["S01-T01"], "acceptanceCriteria": ["Repo initialized with dotnet .gitignore and README committed"], "tags": ["setup", "git"]}, {"id": "S01-T03", "title": "Create solution and top-level folders", "details": "Run `dotnet new sln -n MedicalView`. Create `src/`, `tests/`, `build/`, `deploy/`, `docs/` folders. Add solution folders per bounded context.", "priority": "high", "status": "todo", "dependsOn": ["S01-T02"], "acceptanceCriteria": ["MedicalView.sln builds with `dotnet build` (empty)"], "tags": ["setup", "dotnet"]}, {"id": "S01-T04", "title": "Enable Central Package Management", "details": "Add `Directory.Packages.props` (CPM, `ManagePackageVersionsCentrally=true`) and `Directory.Build.props` (nullable enable, LangVersion latest, ImplicitUsings, TreatWarningsAsErrors).", "priority": "high", "status": "todo", "dependsOn": ["S01-T03"], "acceptanceCriteria": ["All projects resolve versions from Directory.Packages.props"], "tags": ["setup", "dotnet"]}, {"id": "S01-T05", "title": "Add .editorconfig and analyzers", "details": "Add `.editorconfig` with team code style, enable Roslyn analyzers and (optionally) StyleCop.Analyzers via CPM.", "priority": "medium", "status": "todo", "dependsOn": ["S01-T04"], "acceptanceCriteria": ["Style violations surface as build warnings/errors"], "tags": ["setup", "quality"]}, {"id": "S01-T06", "title": "Create dotnet tool manifest", "details": "Run `dotnet new tool-manifest` and `dotnet tool install dotnet-ef` so EF Core CLI is pinned per-repo.", "priority": "medium", "status": "todo", "dependsOn": ["S01-T04"], "acceptanceCriteria": ["`dotnet ef --version` works via local tool manifest"], "tags": ["setup", "efcore"]}, {"id": "S01-T07", "title": "Document Clean Architecture conventions", "details": "Write docs/architecture.md defining the 4 layers per service (Domain, Application, Infrastructure, Api), dependency rule (inward only), and folder naming.", "priority": "high", "status": "todo", "dependsOn": ["S01-T03"], "acceptanceCriteria": ["docs/architecture.md reviewed and merged"], "tags": ["docs", "architecture"]}]}, {"id": "S02", "name": "Shared Kernel & Building Blocks", "goal": "Reusable building blocks (base entities, Result type, generic repository + Unit of Work, domain events, error handling, integration-event contracts) that every service consumes.", "order": 2, "dependsOn": ["S01"], "tasks": [{"id": "S02-T01", "title": "Create BuildingBlocks.Domain library", "details": "`dotnet new classlib` for Entity/AuditableEntity base, AggregateRoot, ValueObject, IDomainEvent, and strongly-typed Id support.", "priority": "high", "status": "todo", "dependsOn": ["S01-T07"], "acceptanceCriteria": ["Domain primitives compile and are unit-testable"], "tags": ["shared", "ddd"]}, {"id": "S02-T02", "title": "Implement Result and Error types", "details": "Add a Result / Result<T> and Error record for railway-style flow (avoid exceptions for expected failures). Include common error factories (NotFound, Conflict, Validation).", "priority": "high", "status": "todo", "dependsOn": ["S02-T01"], "acceptanceCriteria": ["Result<T> supports success/failure with typed errors; unit tested"], "tags": ["shared", "solid"]}, {"id": "S02-T03", "title": "Define repository and Unit of Work abstractions", "details": "In BuildingBlocks.Application define IRepository<T>, IReadRepository<T>, ISpecification<T>, and IUnitOfWork. Depend on abstractions only (DIP).", "priority": "high", "status": "todo", "dependsOn": ["S02-T01"], "acceptanceCriteria": ["Abstractions defined with no infrastructure dependency"], "tags": ["shared", "repository", "solid"]}, {"id": "S02-T04", "title": "Implement EF Core generic repository + UoW", "details": "Create BuildingBlocks.Infrastructure with EfRepository<T>, specification evaluator, and EfUnitOfWork wrapping DbContext.SaveChanges. Keep provider-agnostic.", "priority": "high", "status": "todo", "dependsOn": ["S02-T03"], "acceptanceCriteria": ["Generic repo + UoW pass integration tests against a DbContext"], "tags": ["shared", "repository", "efcore"]}, {"id": "S02-T05", "title": "Add domain event dispatch via MediatR", "details": "Register MediatR; dispatch IDomainEvent from SaveChanges interceptor after commit. Provide INotificationHandler base.", "priority": "high", "status": "todo", "dependsOn": ["S02-T04"], "acceptanceCriteria": ["Domain events raised on an aggregate are handled after persistence"], "tags": ["shared", "cqrs"]}, {"id": "S02-T06", "title": "Global exception handling + ProblemDetails", "details": "Add exception-handling middleware mapping exceptions/Result errors to RFC7807 ProblemDetails with correlation id.", "priority": "high", "status": "todo", "dependsOn": ["S02-T02"], "acceptanceCriteria": ["Unhandled/handled errors return consistent ProblemDetails JSON"], "tags": ["shared", "api"]}, {"id": "S02-T07", "title": "Add validation pipeline (FluentValidation)", "details": "Add FluentValidation + a MediatR validation behavior so command/query inputs validate before handlers run.", "priority": "medium", "status": "todo", "dependsOn": ["S02-T05"], "acceptanceCriteria": ["Invalid commands short-circuit with 400 + validation errors"], "tags": ["shared", "validation"]}, {"id": "S02-T08", "title": "Create Contracts library for integration events", "details": "Separate BuildingBlocks.Contracts package holding versioned integration-event records (UserRegistered, StudyLocked, ReportFinalized, PrescriptionIssued, BillPaid, FollowUpScheduled).", "priority": "high", "status": "todo", "dependsOn": ["S02-T01"], "acceptanceCriteria": ["Contracts package referenced by publishers and consumers only"], "tags": ["shared", "messaging"]}, {"id": "S02-T09", "title": "Add pagination and query result envelopes", "details": "Provide PagedResult<T>, paging request DTOs, and sorting helpers reused across query endpoints.", "priority": "low", "status": "todo", "dependsOn": ["S02-T02"], "acceptanceCriteria": ["Paged endpoints share a single PagedResult<T> shape"], "tags": ["shared", "api"]}]}, {"id": "S03", "name": "Local Infrastructure (Docker Compose / .NET Aspire)", "goal": "One-command local environment: PostgreSQL, Redis, RabbitMQ, and Seq running and reachable, with an optional .NET Aspire AppHost for orchestration.", "order": 3, "dependsOn": ["S01"], "tasks": [{"id": "S03-T01", "title": "Author docker-compose.yml for infrastructure", "details": "Create deploy/local/docker-compose.yml with services: postgres:17, redis:7, rabbitmq:3-management, datalust/seq. Add named volumes and a shared network.", "priority": "high", "status": "todo", "dependsOn": ["S01-T03"], "acceptanceCriteria": ["`docker compose config` validates the file"], "tags": ["infra", "docker"]}, {"id": "S03-T02", "title": "Bring up the local stack", "details": "Run `docker compose -f deploy/local/docker-compose.yml up -d`. Confirm containers healthy with `docker compose ps` and `docker compose logs -f`.", "priority": "high", "status": "todo", "dependsOn": ["S03-T01"], "acceptanceCriteria": ["All four containers report healthy/running"], "tags": ["infra", "docker"]}, {"id": "S03-T03", "title": "Verify individual services via CLI", "details": "Fallback single commands: `docker run -d --name mv-postgres -e POSTGRES_PASSWORD=Pass@word1 -p 5432:5432 postgres:17`; `docker run -d --name mv-redis -p 6379:6379 redis:7`; `docker run -d --name mv-rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management`; `docker run -d --name mv-seq -e ACCEPT_EULA=Y -p 5341:80 datalust/seq`.", "priority": "medium", "status": "todo", "dependsOn": ["S03-T02"], "acceptanceCriteria": ["Each service reachable on its mapped port"], "tags": ["infra", "docker"]}, {"id": "S03-T04", "title": "Wire secrets with user-secrets and .env", "details": "Use `dotnet user-secrets` per service for connection strings/keys locally; provide a committed .env.example (no real secrets).", "priority": "high", "status": "todo", "dependsOn": ["S03-T02"], "acceptanceCriteria": ["No secrets in source; .env.example documents required keys"], "tags": ["infra", "security"]}, {"id": "S03-T05", "title": "Create optional .NET Aspire AppHost", "details": "Add an Aspire AppHost project to orchestrate services + containers with the dashboard; keep compose as the container-only fallback.", "priority": "medium", "status": "todo", "dependsOn": ["S03-T02"], "acceptanceCriteria": ["`dotnet run` on AppHost starts services with Aspire dashboard"], "tags": ["infra", "aspire"]}, {"id": "S03-T06", "title": "Add local admin UIs (optional)", "details": "Optionally add pgAdmin and RedisInsight containers; document RabbitMQ management UI at http://localhost:15672 and Seq at http://localhost:5341.", "priority": "low", "status": "todo", "dependsOn": ["S03-T02"], "acceptanceCriteria": ["Admin UIs reachable and documented in docs/local.md"], "tags": ["infra", "docker"]}]}, {"id": "S04", "name": "Auth Microservice", "goal": "A standalone Auth service issuing JWT access + refresh tokens over ASP.NET Core Identity, publishing UserRegistered, and exposing a shared token-validation config.", "order": 4, "dependsOn": ["S02", "S03"], "tasks": [{"id": "S04-T01", "title": "Scaffold Auth service in Clean Architecture", "details": "Create Auth.Domain/Application/Infrastructure/Api projects wired with BuildingBlocks. `dotnet new webapi` for Api (minimal APIs or controllers).", "priority": "high", "status": "todo", "dependsOn": ["S02-T08", "S03-T04"], "acceptanceCriteria": ["Auth service builds and runs with a health endpoint"], "tags": ["auth", "microservice"]}, {"id": "S04-T02", "title": "Add ASP.NET Core Identity + EF Core (Npgsql)", "details": "Configure Identity user/store on PostgreSQL via Npgsql. Add DbContext, run `dotnet ef migrations add InitAuth` and `dotnet ef database update`.", "priority": "high", "status": "todo", "dependsOn": ["S04-T01"], "acceptanceCriteria": ["Users table created in Postgres via EF migration"], "tags": ["auth", "efcore"]}, {"id": "S04-T03", "title": "Implement JWT access + refresh token issuance", "details": "Add token service (signing key from config/Key Vault), access token with role/permission claims, rotating refresh tokens with persistence and revocation.", "priority": "high", "status": "todo", "dependsOn": ["S04-T02"], "acceptanceCriteria": ["Login returns access+refresh; refresh rotates and revokes old token"], "tags": ["auth", "security"]}, {"id": "S04-T04", "title": "Build Register / Login / Refresh / Logout endpoints", "details": "Expose endpoints with FluentValidation, password policy, and Identity lockout on repeated failures.", "priority": "high", "status": "todo", "dependsOn": ["S04-T03"], "acceptanceCriteria": ["End-to-end register->login->refresh->logout works"], "tags": ["auth", "api"]}, {"id": "S04-T05", "title": "Publish UserRegistered integration event", "details": "On successful registration, publish UserRegistered via the message bus (see S16 bus setup) using the Outbox pattern.", "priority": "medium", "status": "todo", "dependsOn": ["S04-T04", "S02-T08"], "acceptanceCriteria": ["UserRegistered observed on the broker after registration"], "tags": ["auth", "messaging"]}, {"id": "S04-T06", "title": "Export shared JWT validation configuration", "details": "Provide a shared AddJwtAuth() extension (issuer, audience, signing key) consumed by every downstream service and the gateway.", "priority": "high", "status": "todo", "dependsOn": ["S04-T03"], "acceptanceCriteria": ["A protected test endpoint accepts Auth-issued tokens"], "tags": ["auth", "security"]}, {"id": "S04-T07", "title": "Write Auth unit + integration tests", "details": "Unit test token service and handlers; integration test endpoints against a Postgres Testcontainer.", "priority": "medium", "status": "todo", "dependsOn": ["S04-T04"], "acceptanceCriteria": ["Auth test suite green in CI"], "tags": ["auth", "testing"]}]}, {"id": "S05", "name": "Role & Permission Microservice", "goal": "Central role/permission management with policy-based authorization, default seeded roles (Patient, Doctor, Admin), and permission claims flowing into JWTs.", "order": 5, "dependsOn": ["S04"], "tasks": [{"id": "S05-T01", "title": "Scaffold Role service (Clean Architecture)", "details": "Create Role.Domain/Application/Infrastructure/Api projects and DbContext on Postgres.", "priority": "high", "status": "todo", "dependsOn": ["S04-T06"], "acceptanceCriteria": ["Role service runs with health endpoint"], "tags": ["role", "microservice"]}, {"id": "S05-T02", "title": "Model roles, permissions, and assignments", "details": "Domain: Role, Permission, RolePermission, UserRole. Add EF config + `dotnet ef migrations add InitRole`.", "priority": "high", "status": "todo", "dependsOn": ["S05-T01"], "acceptanceCriteria": ["Role/permission schema migrated to Postgres"], "tags": ["role", "efcore"]}, {"id": "S05-T03", "title": "Implement permission-based authorization", "details": "Add a custom IAuthorizationPolicyProvider + permission requirement/handler so `[HasPermission(\"studies.read\")]` works across services.", "priority": "high", "status": "todo", "dependsOn": ["S05-T02"], "acceptanceCriteria": ["Endpoints enforce fine-grained permissions"], "tags": ["role", "security", "solid"]}, {"id": "S05-T04", "title": "Feed permissions into JWT claims", "details": "Coordinate with Auth so effective permissions are embedded as claims at token issuance (or resolved via a claims transformation).", "priority": "high", "status": "todo", "dependsOn": ["S05-T03", "S04-T03"], "acceptanceCriteria": ["JWT carries permission claims used by policies"], "tags": ["role", "auth"]}, {"id": "S05-T05", "title": "Seed default roles and permissions", "details": "Seed Patient, Doctor, Admin with baseline permissions on startup (idempotent seeder).", "priority": "medium", "status": "todo", "dependsOn": ["S05-T02"], "acceptanceCriteria": ["Fresh DB contains the three default roles"], "tags": ["role", "seed"]}, {"id": "S05-T06", "title": "Admin endpoints for role management", "details": "CRUD for roles/permissions and assign/unassign to users, guarded by admin permission.", "priority": "medium", "status": "todo", "dependsOn": ["S05-T05"], "acceptanceCriteria": ["Admin can manage roles via API with authorization"], "tags": ["role", "api"]}, {"id": "S05-T07", "title": "Role service tests", "details": "Unit test policy provider/handler; integration test admin endpoints.", "priority": "medium", "status": "todo", "dependsOn": ["S05-T06"], "acceptanceCriteria": ["Role test suite green"], "tags": ["role", "testing"]}]}, {"id": "S06", "name": "Patient & Studies Microservice", "goal": "The core clinical record service: Patients and Studies (each row = one Study) with multi-doctor assignment, a status enum including Locked, and full audit history.", "order": 6, "dependsOn": ["S05"], "tasks": [{"id": "S06-T01", "title": "Scaffold Patient/Studies service", "details": "Create Patients.Domain/Application/Infrastructure/Api projects on Postgres with BuildingBlocks wiring.", "priority": "high", "status": "todo", "dependsOn": ["S05-T04"], "acceptanceCriteria": ["Service runs with health endpoint"], "tags": ["patient", "microservice"]}, {"id": "S06-T02", "title": "Model Patient and Study aggregates", "details": "Study is an aggregate root with StudyStatus enum (Registered, InReview, Locked, Reported, Closed), AuditableEntity fields, and assigned-doctors collection.", "priority": "high", "status": "todo", "dependsOn": ["S06-T01"], "acceptanceCriteria": ["Domain enforces status transitions via methods"], "tags": ["patient", "ddd"]}, {"id": "S06-T03", "title": "Persist with EF Core + migrations", "details": "Configure mappings and run `dotnet ef migrations add InitPatients`; apply owned-type/value-object mappings.", "priority": "high", "status": "todo", "dependsOn": ["S06-T02"], "acceptanceCriteria": ["Patients + Studies tables created in Postgres"], "tags": ["patient", "efcore"]}, {"id": "S06-T04", "title": "Assign multiple doctors to a Study", "details": "Command to add/remove doctor assignments to a Study (many doctors allowed) with permission checks.", "priority": "high", "status": "todo", "dependsOn": ["S06-T03"], "acceptanceCriteria": ["A Study can list multiple assigned doctors"], "tags": ["patient", "api"]}, {"id": "S06-T05", "title": "Query endpoints for Studies list", "details": "Paged/filterable Studies list and Study detail endpoints using the specification pattern and PagedResult<T>.", "priority": "high", "status": "todo", "dependsOn": ["S06-T04"], "acceptanceCriteria": ["Studies list returns paged, filtered results"], "tags": ["patient", "api"]}, {"id": "S06-T06", "title": "Implement audit history", "details": "Record who changed what/when for Studies (audit log table or EF Core temporal tables) to satisfy compliance.", "priority": "high", "status": "todo", "dependsOn": ["S06-T03"], "acceptanceCriteria": ["Every Study change produces an audit record"], "tags": ["patient", "audit", "compliance"]}, {"id": "S06-T07", "title": "Consume UserRegistered to create Patient profile", "details": "Subscribe to UserRegistered and create/link a Patient profile idempotently.", "priority": "medium", "status": "todo", "dependsOn": ["S06-T03", "S04-T05"], "acceptanceCriteria": ["New user results in a Patient profile"], "tags": ["patient", "messaging"]}, {"id": "S06-T08", "title": "Patient/Studies tests", "details": "Unit test status transitions and assignment rules; integration test query endpoints.", "priority": "medium", "status": "todo", "dependsOn": ["S06-T05"], "acceptanceCriteria": ["Suite green including audit assertions"], "tags": ["patient", "testing"]}]}, {"id": "S07", "name": "Appointment / Booking Microservice", "goal": "Checkup booking with availability, plus follow-up appointment scheduling triggered after a report is finalized.", "order": 7, "dependsOn": ["S06"], "tasks": [{"id": "S07-T01", "title": "Scaffold Booking service", "details": "Create Booking.Domain/Application/Infrastructure/Api projects on Postgres.", "priority": "high", "status": "todo", "dependsOn": ["S06-T01"], "acceptanceCriteria": ["Service runs with health endpoint"], "tags": ["booking", "microservice"]}, {"id": "S07-T02", "title": "Model Appointment, Slot, and FollowUp", "details": "Domain for appointment lifecycle (Requested, Confirmed, Completed, Cancelled) + availability slots. Add EF migration.", "priority": "high", "status": "todo", "dependsOn": ["S07-T01"], "acceptanceCriteria": ["Appointment schema migrated; transitions enforced"], "tags": ["booking", "ddd"]}, {"id": "S07-T03", "title": "Booking + availability endpoints", "details": "Allow a patient to view availability and book a checkup; prevent double-booking with concurrency checks.", "priority": "high", "status": "todo", "dependsOn": ["S07-T02"], "acceptanceCriteria": ["Patient can book an available slot; conflicts rejected"], "tags": ["booking", "api"]}, {"id": "S07-T04", "title": "Follow-up scheduling from report", "details": "Consume ReportFinalized to offer/schedule a follow-up appointment date and publish FollowUpScheduled.", "priority": "medium", "status": "todo", "dependsOn": ["S07-T03", "S10-T05"], "acceptanceCriteria": ["Finalized report enables a follow-up booking"], "tags": ["booking", "messaging"]}, {"id": "S07-T05", "title": "Emit AppointmentBooked event", "details": "Publish AppointmentBooked (Outbox) for notification.", "priority": "medium", "status": "todo", "dependsOn": ["S07-T03"], "acceptanceCriteria": ["AppointmentBooked observed on broker"], "tags": ["booking", "messaging"]}, {"id": "S07-T06", "title": "Booking tests", "details": "Unit test slot/conflict logic; integration test booking flow.", "priority": "medium", "status": "todo", "dependsOn": ["S07-T03"], "acceptanceCriteria": ["Suite green"], "tags": ["booking", "testing"]}]}, {"id": "S08", "name": "DICOM Imaging Microservice", "goal": "Ingest, store, and serve DICOM: pixel data in Azure Blob Storage, metadata in the DB, linked to Studies, with DICOMweb-style (STOW/WADO/QIDO) endpoints via fo-dicom.", "order": 8, "dependsOn": ["S06"], "tasks": [{"id": "S08-T01", "title": "Scaffold Imaging service + add fo-dicom", "details": "Create Imaging.Domain/Application/Infrastructure/Api projects; add the fo-dicom package for parsing/serialization.", "priority": "high", "status": "todo", "dependsOn": ["S06-T03"], "acceptanceCriteria": ["Service runs; fo-dicom parses a sample .dcm"], "tags": ["dicom", "microservice"]}, {"id": "S08-T02", "title": "Configure blob + metadata storage", "details": "Store pixel data in Azure Blob Storage (Azurite locally) and DICOM metadata in Postgres. Add EF migration for image/instance metadata.", "priority": "high", "status": "todo", "dependsOn": ["S08-T01"], "acceptanceCriteria": ["Uploaded DICOM stored in blob with metadata row"], "tags": ["dicom", "storage"]}, {"id": "S08-T03", "title": "Implement STOW (store) endpoint", "details": "Accept DICOM upload, validate, extract metadata, persist, and associate with a Study id.", "priority": "high", "status": "todo", "dependsOn": ["S08-T02"], "acceptanceCriteria": ["Uploaded instance linked to its Study"], "tags": ["dicom", "api"]}, {"id": "S08-T04", "title": "Implement WADO (retrieve) + QIDO (query)", "details": "Serve instances/frames (WADO-RS) and query studies/series/instances (QIDO-RS).", "priority": "high", "status": "todo", "dependsOn": ["S08-T03"], "acceptanceCriteria": ["Client can query and retrieve stored instances"], "tags": ["dicom", "api"]}, {"id": "S08-T05", "title": "Generate thumbnails / frame rendering", "details": "Produce cached preview images/frames (fo-dicom rendering) for fast viewport loading.", "priority": "medium", "status": "todo", "dependsOn": ["S08-T04"], "acceptanceCriteria": ["Thumbnail retrievable for a stored instance"], "tags": ["dicom", "performance"]}, {"id": "S08-T06", "title": "Imaging tests", "details": "Unit test metadata extraction; integration test store/retrieve against Azurite + Postgres Testcontainers.", "priority": "medium", "status": "todo", "dependsOn": ["S08-T04"], "acceptanceCriteria": ["Suite green"], "tags": ["dicom", "testing"]}]}, {"id": "S09", "name": "Viewport Concurrency & Single-Doctor Distributed Lock", "goal": "Enforce that only one Doctor edits a Study's Viewport at a time using a Redis distributed lock with ownership, TTL/heartbeat, and safe release; expose lock status to the UI.", "order": 9, "dependsOn": ["S06", "S03"], "tasks": [{"id": "S09-T01", "title": "Add Redis connection + RedLock", "details": "Wire StackExchange.Redis and RedLock.net (or a Redlock implementation) into a shared LockService abstraction (ILockService).", "priority": "high", "status": "todo", "dependsOn": ["S03-T02", "S06-T03"], "acceptanceCriteria": ["LockService connects to Redis and acquires a test lock"], "tags": ["lock", "redis", "solid"]}, {"id": "S09-T02", "title": "Acquire lock on Viewport open", "details": "When a Doctor opens a Study viewport, acquire a lock keyed by study id with the doctor id as owner and a short TTL.", "priority": "high", "status": "todo", "dependsOn": ["S09-T01"], "acceptanceCriteria": ["First doctor acquires; Study status set to Locked"], "tags": ["lock", "api"]}, {"id": "S09-T03", "title": "Heartbeat / auto-renew while active", "details": "Renew the lock via heartbeat while the doctor is active so it does not expire mid-session; stop renewing on idle.", "priority": "high", "status": "todo", "dependsOn": ["S09-T02"], "acceptanceCriteria": ["Lock stays held during active use, expires after inactivity"], "tags": ["lock", "reliability"]}, {"id": "S09-T04", "title": "Reject non-owners from write access", "details": "Any write/report action requires being the current lock owner; others receive 409 Conflict with owner info.", "priority": "high", "status": "todo", "dependsOn": ["S09-T02"], "acceptanceCriteria": ["Second doctor is denied viewport write with clear conflict"], "tags": ["lock", "security"]}, {"id": "S09-T05", "title": "Safe release on close/timeout", "details": "Release lock on explicit close, logout, or TTL expiry; ensure only the owner can release (fencing token).", "priority": "high", "status": "todo", "dependsOn": ["S09-T02"], "acceptanceCriteria": ["Lock released only by owner; auto-released on timeout"], "tags": ["lock", "reliability"]}, {"id": "S09-T06", "title": "Lock status API + events", "details": "Expose GET lock-status for a Study and publish StudyLocked/StudyUnlocked events for UI/notifications.", "priority": "high", "status": "todo", "dependsOn": ["S09-T05", "S02-T08"], "acceptanceCriteria": ["UI can query who holds a Study and react to events"], "tags": ["lock", "api", "messaging"]}, {"id": "S09-T07", "title": "Concurrency tests for the lock", "details": "Integration tests simulating concurrent doctors against a Redis Testcontainer, including expiry and fencing.", "priority": "high", "status": "todo", "dependsOn": ["S09-T06"], "acceptanceCriteria": ["Concurrent-access tests prove single-writer guarantee"], "tags": ["lock", "testing"]}]}, {"id": "S10", "name": "Reporting / Diagnosis Microservice", "goal": "Doctors write and finalize a diagnosis Report against a Study (only the lock owner may write); finalized reports notify the patient and unlock downstream flows.", "order": 10, "dependsOn": ["S09"], "tasks": [{"id": "S10-T01", "title": "Scaffold Reporting service", "details": "Create Reporting.Domain/Application/Infrastructure/Api projects on Postgres.", "priority": "high", "status": "todo", "dependsOn": ["S09-T01"], "acceptanceCriteria": ["Service runs with health endpoint"], "tags": ["reporting", "microservice"]}, {"id": "S10-T02", "title": "Model Report and Diagnosis", "details": "Report aggregate linked to Study with Draft/Finalized states and diagnosis fields. Add EF migration.", "priority": "high", "status": "todo", "dependsOn": ["S10-T01"], "acceptanceCriteria": ["Report schema migrated; state machine enforced"], "tags": ["reporting", "ddd"]}, {"id": "S10-T03", "title": "Enforce lock ownership on write", "details": "Save/update report only if the caller currently owns the Study lock (call ILockService/lock-status).", "priority": "high", "status": "todo", "dependsOn": ["S10-T02", "S09-T04"], "acceptanceCriteria": ["Non-owners cannot create or edit a report"], "tags": ["reporting", "lock"]}, {"id": "S10-T04", "title": "Draft save + finalize endpoints", "details": "Allow incremental draft saves and a finalize action that transitions the Study to Reported.", "priority": "high", "status": "todo", "dependsOn": ["S10-T03"], "acceptanceCriteria": ["Draft->Finalize flow updates Study status"], "tags": ["reporting", "api"]}, {"id": "S10-T05", "title": "Publish ReportFinalized event", "details": "On finalize, publish ReportFinalized (Outbox) consumed by Booking, Prescription, and Notification.", "priority": "high", "status": "todo", "dependsOn": ["S10-T04", "S02-T08"], "acceptanceCriteria": ["ReportFinalized observed on broker"], "tags": ["reporting", "messaging"]}, {"id": "S10-T06", "title": "Generate PDF report (optional)", "details": "Render the finalized report to PDF and store it (blob) for patient download.", "priority": "low", "status": "todo", "dependsOn": ["S10-T04"], "acceptanceCriteria": ["Finalized report downloadable as PDF"], "tags": ["reporting", "pdf"]}, {"id": "S10-T07", "title": "Reporting tests", "details": "Unit test state machine + ownership guard; integration test finalize + event emission.", "priority": "medium", "status": "todo", "dependsOn": ["S10-T05"], "acceptanceCriteria": ["Suite green"], "tags": ["reporting", "testing"]}]}, {"id": "S11", "name": "Prescription Microservice", "goal": "Create prescriptions from a finalized report, referencing a drug catalog, and publish PrescriptionIssued for the cart/billing flow.", "order": 11, "dependsOn": ["S10"], "tasks": [{"id": "S11-T01", "title": "Scaffold Prescription service", "details": "Create Prescription.Domain/Application/Infrastructure/Api projects on Postgres.", "priority": "high", "status": "todo", "dependsOn": ["S10-T01"], "acceptanceCriteria": ["Service runs with health endpoint"], "tags": ["prescription", "microservice"]}, {"id": "S11-T02", "title": "Model Prescription + items + drug catalog", "details": "Prescription aggregate with PrescriptionItem lines referencing a Drug catalog. Add EF migration and seed a sample catalog.", "priority": "high", "status": "todo", "dependsOn": ["S11-T01"], "acceptanceCriteria": ["Prescription schema migrated; catalog seeded"], "tags": ["prescription", "ddd"]}, {"id": "S11-T03", "title": "Create prescription from finalized report", "details": "Consume ReportFinalized (or a doctor action) to create a prescription tied to the report/patient.", "priority": "high", "status": "todo", "dependsOn": ["S11-T02", "S10-T05"], "acceptanceCriteria": ["Finalized report can yield a prescription"], "tags": ["prescription", "messaging"]}, {"id": "S11-T04", "title": "Publish PrescriptionIssued", "details": "Publish PrescriptionIssued (Outbox) so Cart can offer the drugs for purchase.", "priority": "medium", "status": "todo", "dependsOn": ["S11-T03", "S02-T08"], "acceptanceCriteria": ["PrescriptionIssued observed on broker"], "tags": ["prescription", "messaging"]}, {"id": "S11-T05", "title": "Prescription tests", "details": "Unit test creation rules; integration test event-driven creation.", "priority": "medium", "status": "todo", "dependsOn": ["S11-T04"], "acceptanceCriteria": ["Suite green"], "tags": ["prescription", "testing"]}]}, {"id": "S12", "name": "Cart & Billing / Payment Microservice", "goal": "Patients add prescribed drugs to a cart, check out to create a bill, complete payment (test gateway), and receive order history; publishes BillPaid.", "order": 12, "dependsOn": ["S11"], "tasks": [{"id": "S12-T01", "title": "Scaffold Cart/Billing service", "details": "Create Cart.Domain/Application/Infrastructure/Api projects on Postgres.", "priority": "high", "status": "todo", "dependsOn": ["S11-T01"], "acceptanceCriteria": ["Service runs with health endpoint"], "tags": ["cart", "microservice"]}, {"id": "S12-T02", "title": "Model Cart, Order, and Invoice", "details": "Cart with line items, Order, Invoice/Bill with totals and payment status. Add EF migration.", "priority": "high", "status": "todo", "dependsOn": ["S12-T01"], "acceptanceCriteria": ["Cart/Order/Invoice schema migrated"], "tags": ["cart", "ddd"]}, {"id": "S12-T03", "title": "Populate cart from prescription", "details": "Consume PrescriptionIssued so prescribed drugs can be added to the patient's cart.", "priority": "high", "status": "todo", "dependsOn": ["S12-T02", "S11-T04"], "acceptanceCriteria": ["Prescribed drugs appear as add-to-cart options"], "tags": ["cart", "messaging"]}, {"id": "S12-T04", "title": "Checkout creates a bill", "details": "Checkout converts the cart to an order and generates an invoice with computed totals/taxes.", "priority": "high", "status": "todo", "dependsOn": ["S12-T03"], "acceptanceCriteria": ["Checkout produces an invoice with correct totals"], "tags": ["cart", "api"]}, {"id": "S12-T05", "title": "Integrate payment (test gateway)", "details": "Integrate Stripe test mode (or a mock provider) to complete payment; handle webhook/confirmation idempotently.", "priority": "high", "status": "todo", "dependsOn": ["S12-T04"], "acceptanceCriteria": ["A test payment marks the bill Paid"], "tags": ["cart", "payments"]}, {"id": "S12-T06", "title": "Publish BillPaid + order history", "details": "On payment success publish BillPaid (Outbox) and expose an order-history endpoint for the patient.", "priority": "medium", "status": "todo", "dependsOn": ["S12-T05", "S02-T08"], "acceptanceCriteria": ["BillPaid emitted; history endpoint returns orders"], "tags": ["cart", "messaging"]}, {"id": "S12-T07", "title": "Cart/Billing tests", "details": "Unit test totals/state; integration test checkout + payment confirmation.", "priority": "medium", "status": "todo", "dependsOn": ["S12-T06"], "acceptanceCriteria": ["Suite green"], "tags": ["cart", "testing"]}]}, {"id": "S13", "name": "Notification Microservice", "goal": "React to domain events (report ready, appointment booked, bill paid, follow-up scheduled) and notify patients via email/SMS with templated messages and a delivery log.", "order": 13, "dependsOn": ["S07", "S10", "S12"], "tasks": [{"id": "S13-T01", "title": "Scaffold Notification service", "details": "Create Notification.Domain/Application/Infrastructure/Api projects on Postgres.", "priority": "high", "status": "todo", "dependsOn": ["S07-T01", "S10-T01", "S12-T01"], "acceptanceCriteria": ["Service runs with health endpoint"], "tags": ["notify", "microservice"]}, {"id": "S13-T02", "title": "Subscribe to domain events", "details": "Consume ReportFinalized, AppointmentBooked, BillPaid, FollowUpScheduled from the bus.", "priority": "high", "status": "todo", "dependsOn": ["S13-T01", "S02-T08"], "acceptanceCriteria": ["Each event triggers a notification workflow"], "tags": ["notify", "messaging"]}, {"id": "S13-T03", "title": "Integrate email/SMS provider", "details": "Integrate Azure Communication Services or SendGrid for email (and optional SMS) with templated content.", "priority": "medium", "status": "todo", "dependsOn": ["S13-T02"], "acceptanceCriteria": ["A test event sends a templated email"], "tags": ["notify", "integration"]}, {"id": "S13-T04", "title": "Persist a notification/delivery log", "details": "Record sent notifications, status, and retries for audit and troubleshooting.", "priority": "medium", "status": "todo", "dependsOn": ["S13-T03"], "acceptanceCriteria": ["Notifications are logged with delivery status"], "tags": ["notify", "audit"]}, {"id": "S13-T05", "title": "Notification tests", "details": "Unit test template selection; integration test event->send with a mocked provider.", "priority": "low", "status": "todo", "dependsOn": ["S13-T04"], "acceptanceCriteria": ["Suite green"], "tags": ["notify", "testing"]}]}, {"id": "S14", "name": "API Gateway (YARP)", "goal": "A single ingress via YARP with per-service routing, JWT auth forwarding, rate limiting, CORS, and aggregated health.", "order": 14, "dependsOn": ["S04", "S06", "S08", "S12"], "tasks": [{"id": "S14-T01", "title": "Create YARP gateway project", "details": "`dotnet new web` gateway; add YARP reverse proxy package and base configuration.", "priority": "high", "status": "todo", "dependsOn": ["S04-T06"], "acceptanceCriteria": ["Gateway starts and proxies a sample route"], "tags": ["gateway", "yarp"]}, {"id": "S14-T02", "title": "Configure routes and clusters per service", "details": "Map routes to Auth, Role, Patients, Booking, Imaging, Reporting, Prescription, Cart, Notification clusters.", "priority": "high", "status": "todo", "dependsOn": ["S14-T01"], "acceptanceCriteria": ["Each service reachable behind the gateway path"], "tags": ["gateway", "routing"]}, {"id": "S14-T03", "title": "Enforce JWT auth at the edge", "details": "Validate tokens at the gateway (shared AddJwtAuth) and forward identity/claims downstream.", "priority": "high", "status": "todo", "dependsOn": ["S14-T02", "S04-T06"], "acceptanceCriteria": ["Protected routes require a valid token at the gateway"], "tags": ["gateway", "security"]}, {"id": "S14-T04", "title": "Add rate limiting and CORS", "details": "Apply ASP.NET Core rate limiting policies and a CORS policy for the Blazor origin.", "priority": "medium", "status": "todo", "dependsOn": ["S14-T03"], "acceptanceCriteria": ["Excess requests are throttled; Blazor origin allowed"], "tags": ["gateway", "resilience"]}, {"id": "S14-T05", "title": "Aggregate health and expose OpenAPI", "details": "Add health-check aggregation and (optionally) a unified OpenAPI/Swagger surface.", "priority": "low", "status": "todo", "dependsOn": ["S14-T02"], "acceptanceCriteria": ["/health reflects downstream service health"], "tags": ["gateway", "observability"]}]}, {"id": "S15", "name": "Blazor Front-end (Patient & Doctor portals + DICOM Viewport)", "goal": "A Blazor Web App delivering the Patient journey (register, book, view report, prescription, cart/checkout, follow-up) and the Doctor journey (studies list, viewport with lock indicator, write report), with a Cornerstone.js DICOM viewer.", "order": 15, "dependsOn": ["S14"], "tasks": [{"id": "S15-T01", "title": "Create Blazor Web App project", "details": "`dotnet new blazor` (interactive auto/server render modes) targeting .NET 10; configure the typed API client against the gateway.", "priority": "high", "status": "todo", "dependsOn": ["S14-T03"], "acceptanceCriteria": ["App runs and calls a gateway endpoint"], "tags": ["blazor", "frontend"]}, {"id": "S15-T02", "title": "Implement authentication in the UI", "details": "Handle login/refresh token storage, auth state provider, and protected routes/role-based UI.", "priority": "high", "status": "todo", "dependsOn": ["S15-T01"], "acceptanceCriteria": ["Login persists session; protected pages gated"], "tags": ["blazor", "auth"]}, {"id": "S15-T03", "title": "Build the Patient portal", "details": "Pages for register, book checkup, view final report, view prescription, cart/checkout, and follow-up scheduling.", "priority": "high", "status": "todo", "dependsOn": ["S15-T02"], "acceptanceCriteria": ["Patient can complete the end-to-end journey in the UI"], "tags": ["blazor", "patient"]}, {"id": "S15-T04", "title": "Build the Doctor portal + studies list", "details": "Studies list with filters and a Study detail page showing assignment and status.", "priority": "high", "status": "todo", "dependsOn": ["S15-T02"], "acceptanceCriteria": ["Doctor sees assigned Studies and can open one"], "tags": ["blazor", "doctor"]}, {"id": "S15-T05", "title": "Integrate DICOM Viewport (Cornerstone.js)", "details": "Add JS interop to render DICOM (Cornerstone.js) in the Doctor viewport, loading frames via the Imaging service (WADO).", "priority": "high", "status": "todo", "dependsOn": ["S15-T04", "S08-T04"], "acceptanceCriteria": ["DICOM images render and can be windowed/zoomed"], "tags": ["blazor", "dicom"]}, {"id": "S15-T06", "title": "Surface lock status + report editor", "details": "Show LOCKED indicator and owner; allow only the lock owner to edit/save the report from the viewport.", "priority": "high", "status": "todo", "dependsOn": ["S15-T05", "S09-T06", "S10-T04"], "acceptanceCriteria": ["Non-owner viewport is read-only with clear lock UI"], "tags": ["blazor", "lock"]}, {"id": "S15-T07", "title": "Real-time lock updates (SignalR, optional)", "details": "Push lock acquire/release updates to connected doctors via SignalR for instant UI feedback.", "priority": "low", "status": "todo", "dependsOn": ["S15-T06"], "acceptanceCriteria": ["Lock changes reflect without manual refresh"], "tags": ["blazor", "realtime"]}, {"id": "S15-T08", "title": "UI error handling + loading states", "details": "Consistent handling of ProblemDetails errors, 409 conflicts, and loading/empty states.", "priority": "medium", "status": "todo", "dependsOn": ["S15-T03", "S15-T06"], "acceptanceCriteria": ["Errors and conflicts render friendly messages"], "tags": ["blazor", "ux"]}]}, {"id": "S16", "name": "Cross-cutting: Messaging, Observability & Resilience", "goal": "Shared async messaging (MassTransit + Outbox), structured logging (Serilog), distributed tracing/metrics (OpenTelemetry), health checks, and resilience (Polly) across all services.", "order": 16, "dependsOn": ["S02", "S03"], "tasks": [{"id": "S16-T01", "title": "Set up MassTransit with RabbitMQ", "details": "Add a shared messaging extension configuring MassTransit over RabbitMQ locally (Azure Service Bus in prod) with consumer registration.", "priority": "high", "status": "todo", "dependsOn": ["S03-T02", "S02-T08"], "acceptanceCriteria": ["A test message publishes and is consumed"], "tags": ["messaging", "shared"]}, {"id": "S16-T02", "title": "Implement the Transactional Outbox", "details": "Enable MassTransit EF Core Outbox so events publish atomically with the local DB transaction.", "priority": "high", "status": "todo", "dependsOn": ["S16-T01"], "acceptanceCriteria": ["Events are not lost on partial failures"], "tags": ["messaging", "reliability"]}, {"id": "S16-T03", "title": "Add Serilog structured logging", "details": "Configure Serilog with enrichers (correlation id, service name) and sinks to console + Seq locally.", "priority": "high", "status": "todo", "dependsOn": ["S02-T06"], "acceptanceCriteria": ["Logs are structured and visible in Seq"], "tags": ["observability", "logging"]}, {"id": "S16-T04", "title": "Add OpenTelemetry tracing + metrics", "details": "Instrument ASP.NET Core, HttpClient, EF Core, Redis, and MassTransit; export traces/metrics (OTLP) and propagate context across the bus.", "priority": "high", "status": "todo", "dependsOn": ["S16-T01", "S16-T03"], "acceptanceCriteria": ["A request trace spans gateway->service->bus"], "tags": ["observability", "otel"]}, {"id": "S16-T05", "title": "Add health checks everywhere", "details": "Add liveness/readiness checks (DB, Redis, broker, downstream) to every service and the gateway.", "priority": "high", "status": "todo", "dependsOn": ["S16-T01"], "acceptanceCriteria": ["/health/ready reflects real dependency health"], "tags": ["observability", "health"]}, {"id": "S16-T06", "title": "Apply Polly resilience policies", "details": "Add retry, timeout, and circuit-breaker policies to HttpClient calls and message consumers.", "priority": "medium", "status": "todo", "dependsOn": ["S16-T04"], "acceptanceCriteria": ["Transient failures retry; breakers open under sustained failure"], "tags": ["resilience", "polly"]}]}, {"id": "S17", "name": "Security & Compliance", "goal": "Health-data-grade security: TLS everywhere, secrets in Key Vault, encryption at rest, PII protection, audit logging, least-privilege identities, and GDPR/HIPAA-minded data handling.", "order": 17, "dependsOn": ["S06", "S16"], "tasks": [{"id": "S17-T01", "title": "Enforce HTTPS/TLS and security headers", "details": "Require HTTPS, enable HSTS, and add security headers (CSP, X-Content-Type-Options, etc.) at the gateway and services.", "priority": "high", "status": "todo", "dependsOn": ["S16-T05"], "acceptanceCriteria": ["Traffic is TLS-only with hardened headers"], "tags": ["security", "hardening"]}, {"id": "S17-T02", "title": "Centralize secrets in Key Vault", "details": "Move connection strings/keys to Azure Key Vault referenced via managed identity; remove secrets from config/repo.", "priority": "high", "status": "todo", "dependsOn": ["S03-T04"], "acceptanceCriteria": ["No secrets in code; services read from Key Vault"], "tags": ["security", "secrets"]}, {"id": "S17-T03", "title": "Encrypt data at rest + protect PII", "details": "Enable DB/Blob encryption at rest and add field-level encryption/hashing for sensitive PII where needed.", "priority": "high", "status": "todo", "dependsOn": ["S06-T03"], "acceptanceCriteria": ["Sensitive fields encrypted; storage encrypted at rest"], "tags": ["security", "pii", "compliance"]}, {"id": "S17-T04", "title": "Implement access audit logging", "details": "Log who accessed/modified which Study/report (immutable audit trail) for compliance investigations.", "priority": "high", "status": "todo", "dependsOn": ["S06-T06"], "acceptanceCriteria": ["Study access/edits produce audit entries"], "tags": ["security", "audit", "compliance"]}, {"id": "S17-T05", "title": "Least-privilege identities and RBAC", "details": "Use managed identities and scoped RBAC so each service has only the Azure permissions it needs.", "priority": "high", "status": "todo", "dependsOn": ["S17-T02"], "acceptanceCriteria": ["Each service uses a scoped managed identity"], "tags": ["security", "rbac"]}, {"id": "S17-T06", "title": "GDPR/HIPAA data-handling controls", "details": "Add data-retention policy and a right-to-erasure workflow; document data-processing and lawful basis.", "priority": "medium", "status": "todo", "dependsOn": ["S17-T04"], "acceptanceCriteria": ["Retention + erasure workflow documented and testable"], "tags": ["compliance", "gdpr"]}, {"id": "S17-T07", "title": "Dependency and container scanning", "details": "Enable dependency vulnerability scanning and image scanning in CI (see S19).", "priority": "medium", "status": "todo", "dependsOn": ["S17-T01"], "acceptanceCriteria": ["Vulnerable dependencies/images flagged in CI"], "tags": ["security", "supplychain"]}]}, {"id": "S18", "name": "Testing (Unit, Integration, Contract, E2E)", "goal": "A layered test strategy with coverage gates: unit tests for domain/application, Testcontainers integration tests, consumer-driven contract tests, and Playwright E2E for the Blazor flows.", "order": 18, "dependsOn": ["S15", "S16"], "tasks": [{"id": "S18-T01", "title": "Establish test projects and conventions", "details": "Add xUnit + FluentAssertions + NSubstitute test projects per service and a shared test utilities library.", "priority": "high", "status": "todo", "dependsOn": ["S02-T02"], "acceptanceCriteria": ["`dotnet test` discovers and runs all suites"], "tags": ["testing", "setup"]}, {"id": "S18-T02", "title": "Write domain/application unit tests", "details": "Cover aggregates, state machines (Study status, report finalize), and handlers.", "priority": "high", "status": "todo", "dependsOn": ["S18-T01"], "acceptanceCriteria": ["Critical domain logic covered by unit tests"], "tags": ["testing", "unit"]}, {"id": "S18-T03", "title": "Integration tests with Testcontainers", "details": "Spin up Postgres/Redis/RabbitMQ/Azurite via Testcontainers for repository, lock, and messaging tests.", "priority": "high", "status": "todo", "dependsOn": ["S18-T01", "S16-T02"], "acceptanceCriteria": ["Integration tests run against real containers in CI"], "tags": ["testing", "integration"]}, {"id": "S18-T04", "title": "Consumer-driven contract tests", "details": "Add Pact (or similar) contracts between event publishers/consumers and gateway/service HTTP contracts.", "priority": "medium", "status": "todo", "dependsOn": ["S18-T03"], "acceptanceCriteria": ["Breaking contract changes fail the build"], "tags": ["testing", "contract"]}, {"id": "S18-T05", "title": "End-to-end tests (Playwright)", "details": "Automate key journeys: patient booking->report->prescription->payment, and doctor lock/report flow.", "priority": "medium", "status": "todo", "dependsOn": ["S15-T08"], "acceptanceCriteria": ["E2E covers the two primary journeys"], "tags": ["testing", "e2e"]}, {"id": "S18-T06", "title": "Coverage gate + load test the lock", "details": "Add Coverlet coverage thresholds; add a k6/NBomber load test proving single-writer under concurrency.", "priority": "medium", "status": "todo", "dependsOn": ["S18-T03", "S09-T07"], "acceptanceCriteria": ["Coverage gate enforced; lock holds under load"], "tags": ["testing", "performance"]}]}, {"id": "S19", "name": "CI/CD Pipeline", "goal": "Automated build/test on PRs and gated deployment: containerize each service, scan and push to ACR, run migrations, and deploy to Azure with environment approvals.", "order": 19, "dependsOn": ["S18"], "tasks": [{"id": "S19-T01", "title": "CI workflow: build + test on PR", "details": "GitHub Actions workflow restoring, building, and running `dotnet test` (with Testcontainers) on every pull request.", "priority": "high", "status": "todo", "dependsOn": ["S18-T03"], "acceptanceCriteria": ["PRs are blocked unless build + tests pass"], "tags": ["cicd", "ci"]}, {"id": "S19-T02", "title": "Containerize each service", "details": "Add multi-stage Dockerfiles (or `dotnet publish` container build) for every service and the gateway/Blazor app.", "priority": "high", "status": "todo", "dependsOn": ["S19-T01"], "acceptanceCriteria": ["Each service produces a runnable image locally"], "tags": ["cicd", "docker"]}, {"id": "S19-T03", "title": "Scan and push images to ACR", "details": "Add image vulnerability scanning (e.g., Trivy) then push tagged images to Azure Container Registry.", "priority": "high", "status": "todo", "dependsOn": ["S19-T02", "S17-T07"], "acceptanceCriteria": ["Scanned images published to ACR on main"], "tags": ["cicd", "acr", "security"]}, {"id": "S19-T04", "title": "Automate database migrations", "details": "Run EF Core migrations as a pipeline step or startup migrator with safeguards for production.", "priority": "high", "status": "todo", "dependsOn": ["S19-T03"], "acceptanceCriteria": ["Migrations apply automatically per environment"], "tags": ["cicd", "efcore"]}, {"id": "S19-T05", "title": "CD workflow with environment approvals", "details": "Deploy to dev/staging/prod (Azure Container Apps) with manual approval gates and environment secrets.", "priority": "high", "status": "todo", "dependsOn": ["S19-T04"], "acceptanceCriteria": ["Promotion to prod requires approval"], "tags": ["cicd", "cd"]}, {"id": "S19-T06", "title": "Smoke tests post-deploy", "details": "Run health/smoke checks after each deployment and auto-rollback or alert on failure.", "priority": "medium", "status": "todo", "dependsOn": ["S19-T05"], "acceptanceCriteria": ["Failed smoke checks block/rollback the release"], "tags": ["cicd", "quality"]}]}, {"id": "S20", "name": "Azure Infrastructure (IaC) & Production Deployment", "goal": "All Azure resources provisioned via Bicep and the system running in production on Azure Container Apps with managed identities, private networking, autoscaling, monitoring, and cost controls.", "order": 20, "dependsOn": ["S17", "S19"], "tasks": [{"id": "S20-T01", "title": "Author Bicep modules for core resources", "details": "Create Bicep for Resource Group, ACR, Container Apps Environment, Log Analytics, and Application Insights.", "priority": "high", "status": "todo", "dependsOn": ["S19-T03"], "acceptanceCriteria": ["`az deployment` provisions core resources"], "tags": ["azure", "iac"]}, {"id": "S20-T02", "title": "Provision data + messaging resources", "details": "Bicep for Azure Database for PostgreSQL Flexible Server, Azure Cache for Redis, Azure Service Bus, and Blob Storage.", "priority": "high", "status": "todo", "dependsOn": ["S20-T01"], "acceptanceCriteria": ["Data/cache/bus/storage provisioned via IaC"], "tags": ["azure", "iac"]}, {"id": "S20-T03", "title": "Provision Key Vault + managed identities", "details": "Bicep for Key Vault and user-assigned managed identities with scoped RBAC role assignments per service.", "priority": "high", "status": "todo", "dependsOn": ["S20-T02", "S17-T05"], "acceptanceCriteria": ["Services authenticate to Azure via managed identity"], "tags": ["azure", "security"]}, {"id": "S20-T04", "title": "Deploy Container Apps with config", "details": "Deploy each service/gateway/Blazor app as a Container App, wiring Key Vault references and Service Bus/Redis/Postgres connections.", "priority": "high", "status": "todo", "dependsOn": ["S20-T03", "S19-T05"], "acceptanceCriteria": ["All apps run in the Container Apps environment"], "tags": ["azure", "deploy"]}, {"id": "S20-T05", "title": "Networking and private endpoints", "details": "Add VNet integration and private endpoints for Postgres/Redis/Key Vault/Storage; restrict public access.", "priority": "high", "status": "todo", "dependsOn": ["S20-T04"], "acceptanceCriteria": ["Data services are not publicly reachable"], "tags": ["azure", "networking", "security"]}, {"id": "S20-T06", "title": "Autoscaling, custom domain, and TLS", "details": "Configure Container Apps scale rules (HTTP/queue length), a custom domain, and managed TLS certificates.", "priority": "medium", "status": "todo", "dependsOn": ["S20-T04"], "acceptanceCriteria": ["Apps autoscale; custom domain served over TLS"], "tags": ["azure", "scaling"]}, {"id": "S20-T07", "title": "Monitoring dashboards + cost alerts", "details": "Build App Insights/Log Analytics dashboards and alerts (errors, latency, lock contention) and set budget/cost alerts.", "priority": "medium", "status": "todo", "dependsOn": ["S20-T04"], "acceptanceCriteria": ["Dashboards live; alerts fire on threshold breaches"], "tags": ["azure", "observability", "cost"]}, {"id": "S20-T08", "title": "Production runbook + DR plan", "details": "Document deploy/rollback runbook, backup/restore for Postgres/Blob, and a disaster-recovery/RTO-RPO plan.", "priority": "medium", "status": "todo", "dependsOn": ["S20-T07"], "acceptanceCriteria": ["Runbook + DR plan reviewed and stored in docs/"], "tags": ["azure", "ops", "docs"]}]}]};
+const CHECKLIST = {"project": {"name": "Medical View", "description": "A cloud-native medical imaging and diagnosis platform (MediView) where patients register and book checkups, doctors open a Cornerstone.js DICOM Viewport to diagnose a patient's Study (one DB row = one Study) under a single-writer distributed lock, save reports, and patients then receive results, prescriptions, drug purchases/billing, and follow-up appointments - built as .NET 10 microservices with Domain-Driven Design + Clean Architecture and deployed on Azure.", "techStack": {"backend": ".NET 10", "frontend": "Blazor", "architecture": "Domain-Driven Design + Clean Architecture (Domain / Application / Infrastructure / Api) + Microservices + Repository + Unit of Work + SOLID", "database": "PostgreSQL (EF Core / Npgsql)", "cache": "Redis (distributed lock via RedLock)", "messaging": "MassTransit over RabbitMQ (local) / Azure Service Bus (prod), Transactional Outbox", "cloud": "Azure (Container Apps, Azure Database for PostgreSQL, Azure Cache for Redis, Service Bus, Key Vault, ACR, Blob Storage, Application Insights)", "auth": "JWT access tokens + rotating refresh tokens", "orm": "Entity Framework Core (Npgsql)", "imaging": "DICOM via fo-dicom (WADO-RS/QIDO-RS) + Cornerstone.js viewport"}, "revision": "v2"}, "sections": [{"id": "S01", "name": "Foundation & Solution Structure", "goal": "A compiling, conventioned monorepo with .NET 10 SDK, central package management, and Clean Architecture conventions agreed.", "order": 1, "dependsOn": [], "tasks": [{"id": "S01-T01", "title": "Install and verify .NET 10 SDK", "details": "Install the .NET 10 SDK on all dev machines/CI. Verify with `dotnet --list-sdks` and `dotnet --version` (expect 10.x).", "priority": "high", "status": "todo", "dependsOn": [], "acceptanceCriteria": ["`dotnet --version` reports a 10.x SDK"], "tags": ["setup", "dotnet"]}, {"id": "S01-T02", "title": "Initialize git repository and .gitignore", "details": "Create the repo, run `dotnet new gitignore`, add README, LICENSE, and a CONTRIBUTING doc. Adopt trunk-based or GitFlow branching and document it.", "priority": "high", "status": "todo", "dependsOn": ["S01-T01"], "acceptanceCriteria": ["Repo initialized with dotnet .gitignore and README committed"], "tags": ["setup", "git"]}, {"id": "S01-T03", "title": "Create solution and top-level folders", "details": "Run `dotnet new sln -n MedicalView`. Create `src/`, `tests/`, `build/`, `deploy/`, `docs/` folders. Add solution folders per bounded context.", "priority": "high", "status": "todo", "dependsOn": ["S01-T02"], "acceptanceCriteria": ["MedicalView.sln builds with `dotnet build` (empty)"], "tags": ["setup", "dotnet"]}, {"id": "S01-T04", "title": "Enable Central Package Management", "details": "Add `Directory.Packages.props` (CPM, `ManagePackageVersionsCentrally=true`) and `Directory.Build.props` (nullable enable, LangVersion latest, ImplicitUsings, TreatWarningsAsErrors).", "priority": "high", "status": "todo", "dependsOn": ["S01-T03"], "acceptanceCriteria": ["All projects resolve versions from Directory.Packages.props"], "tags": ["setup", "dotnet"]}, {"id": "S01-T05", "title": "Add .editorconfig and analyzers", "details": "Add `.editorconfig` with team code style, enable Roslyn analyzers and (optionally) StyleCop.Analyzers via CPM.", "priority": "medium", "status": "todo", "dependsOn": ["S01-T04"], "acceptanceCriteria": ["Style violations surface as build warnings/errors"], "tags": ["setup", "quality"]}, {"id": "S01-T06", "title": "Create dotnet tool manifest", "details": "Run `dotnet new tool-manifest` and `dotnet tool install dotnet-ef` so EF Core CLI is pinned per-repo.", "priority": "medium", "status": "todo", "dependsOn": ["S01-T04"], "acceptanceCriteria": ["`dotnet ef --version` works via local tool manifest"], "tags": ["setup", "efcore"]}, {"id": "S01-T07", "title": "Document DDD + Clean Architecture layering", "details": "Write docs/architecture.md defining Domain-Driven Design on top of Clean Architecture. Four concentric layers per service: (1) Domain = entities, aggregates, value objects, domain events, domain services and repository interfaces (Enterprise Business Rules); (2) Application = use cases as commands/queries/handlers, DTOs, validators (Application Business Rules); (3) Infrastructure = EF Core, Redis, message bus, blob and external gateways (Interface Adapters); (4) Api/Web = ASP.NET Core or Blazor host and DI composition root (Frameworks & Drivers). The dependency rule is absolute: source dependencies point inward only.", "priority": "high", "status": "todo", "dependsOn": ["S01-T03"], "acceptanceCriteria": ["docs/architecture.md shows the four DDD / Clean Architecture layers and the inward-only dependency rule"], "tags": ["docs", "architecture", "ddd"]}, {"id": "S01-T08", "title": "Define the per-microservice project template (separate projects per layer)", "details": "Standardize every microservice as four SEPARATE projects, matching the reference solution layout: `MediView.<Service>.Domain` (classlib), `MediView.<Service>.Application` (classlib), `MediView.<Service>.Infrastructure` (classlib) and `MediView.<Service>.Api` (webapi startup project). Blazor host projects use the `.Web` suffix. Wire references inward only: Api -> Infrastructure -> Application -> Domain, and Application references Domain only. Commands: `dotnet new classlib -n MediView.<Service>.Domain`, `... .Application`, `... .Infrastructure`, `dotnet new webapi -n MediView.<Service>.Api`, then `dotnet sln add` and `dotnet add reference` to connect the layers.", "priority": "high", "status": "todo", "dependsOn": ["S01-T07"], "acceptanceCriteria": ["A sample service exists as four projects with references pointing inward only"], "tags": ["setup", "architecture", "ddd", "dotnet"]}, {"id": "S01-T09", "title": "Create a reusable service scaffold", "details": "Package the four-project layout as a `dotnet new` template (or a pwsh/bash generator) so every new microservice is created identically with the Domain/Application/Infrastructure/Api projects, base references, and analyzers already wired.", "priority": "medium", "status": "todo", "dependsOn": ["S01-T08"], "acceptanceCriteria": ["Running the scaffold produces a ready-to-build Clean Architecture service"], "tags": ["setup", "automation", "ddd"]}]}, {"id": "S02", "name": "Shared Kernel & Building Blocks", "goal": "Reusable building blocks (base entities, Result type, generic repository + Unit of Work, domain events, error handling, integration-event contracts) that every service consumes.", "order": 2, "dependsOn": ["S01"], "tasks": [{"id": "S02-T01", "title": "Create BuildingBlocks.Domain library", "details": "Create BuildingBlocks.Domain: Entity / AuditableEntity, AggregateRoot, ValueObject, IDomainEvent, DomainService marker, and strongly-typed ids - the DDD tactical building blocks every aggregate is composed from.", "priority": "high", "status": "todo", "dependsOn": ["S01-T07"], "acceptanceCriteria": ["Domain primitives compile and are unit-testable"], "tags": ["shared", "ddd"]}, {"id": "S02-T02", "title": "Implement Result and Error types", "details": "Add a Result / Result<T> and Error record for railway-style flow (avoid exceptions for expected failures). Include common error factories (NotFound, Conflict, Validation).", "priority": "high", "status": "todo", "dependsOn": ["S02-T01"], "acceptanceCriteria": ["Result<T> supports success/failure with typed errors; unit tested"], "tags": ["shared", "solid"]}, {"id": "S02-T03", "title": "Define repository and Unit of Work abstractions", "details": "In BuildingBlocks.Application define IRepository<T>, IReadRepository<T>, ISpecification<T>, and IUnitOfWork. Depend on abstractions only (DIP).", "priority": "high", "status": "todo", "dependsOn": ["S02-T01"], "acceptanceCriteria": ["Abstractions defined with no infrastructure dependency"], "tags": ["shared", "repository", "solid"]}, {"id": "S02-T04", "title": "Implement EF Core generic repository + UoW", "details": "Create BuildingBlocks.Infrastructure with EfRepository<T>, specification evaluator, and EfUnitOfWork wrapping DbContext.SaveChanges. Keep provider-agnostic.", "priority": "high", "status": "todo", "dependsOn": ["S02-T03"], "acceptanceCriteria": ["Generic repo + UoW pass integration tests against a DbContext"], "tags": ["shared", "repository", "efcore"]}, {"id": "S02-T05", "title": "Add domain event dispatch via MediatR", "details": "Register MediatR; dispatch IDomainEvent from SaveChanges interceptor after commit. Provide INotificationHandler base.", "priority": "high", "status": "todo", "dependsOn": ["S02-T04"], "acceptanceCriteria": ["Domain events raised on an aggregate are handled after persistence"], "tags": ["shared", "cqrs"]}, {"id": "S02-T06", "title": "Global exception handling + ProblemDetails", "details": "Add exception-handling middleware mapping exceptions/Result errors to RFC7807 ProblemDetails with correlation id.", "priority": "high", "status": "todo", "dependsOn": ["S02-T02"], "acceptanceCriteria": ["Unhandled/handled errors return consistent ProblemDetails JSON"], "tags": ["shared", "api"]}, {"id": "S02-T07", "title": "Add validation pipeline (FluentValidation)", "details": "Add FluentValidation + a MediatR validation behavior so command/query inputs validate before handlers run.", "priority": "medium", "status": "todo", "dependsOn": ["S02-T05"], "acceptanceCriteria": ["Invalid commands short-circuit with 400 + validation errors"], "tags": ["shared", "validation"]}, {"id": "S02-T08", "title": "Create Contracts library for integration events", "details": "Separate BuildingBlocks.Contracts package holding versioned integration-event records (UserRegistered, StudyLocked, ReportFinalized, PrescriptionIssued, BillPaid, FollowUpScheduled).", "priority": "high", "status": "todo", "dependsOn": ["S02-T01"], "acceptanceCriteria": ["Contracts package referenced by publishers and consumers only"], "tags": ["shared", "messaging"]}, {"id": "S02-T09", "title": "Add pagination and query result envelopes", "details": "Provide PagedResult<T>, paging request DTOs, and sorting helpers reused across query endpoints.", "priority": "low", "status": "todo", "dependsOn": ["S02-T02"], "acceptanceCriteria": ["Paged endpoints share a single PagedResult<T> shape"], "tags": ["shared", "api"]}, {"id": "S02-T10", "title": "Establish EF Core conventions", "details": "Define the EF Core conventions every service follows: one DbContext per bounded context on Npgsql; an IEntityTypeConfiguration<T> per aggregate; value objects mapped as owned types; optimistic concurrency via the Postgres xmin token; connection resiliency with EnableRetryOnFailure; reads use AsNoTracking with projections; lazy loading disabled; and MassTransit EF Outbox tables. Migrations live in the Infrastructure project (`dotnet ef migrations add`, `dotnet ef database update`).", "priority": "high", "status": "todo", "dependsOn": ["S02-T04"], "acceptanceCriteria": ["A documented EF Core convention set is applied by the shared repository/UoW"], "tags": ["shared", "efcore", "ddd"]}]}, {"id": "S03", "name": "Local Infrastructure (Docker Compose / .NET Aspire)", "goal": "One-command local environment: PostgreSQL, Redis, RabbitMQ, and Seq running and reachable, with an optional .NET Aspire AppHost for orchestration.", "order": 3, "dependsOn": ["S01"], "tasks": [{"id": "S03-T01", "title": "Author docker-compose.yml for infrastructure", "details": "Create deploy/local/docker-compose.yml with services: postgres:17, redis:7, rabbitmq:3-management, datalust/seq. Add named volumes and a shared network.", "priority": "high", "status": "todo", "dependsOn": ["S01-T03"], "acceptanceCriteria": ["`docker compose config` validates the file"], "tags": ["infra", "docker"]}, {"id": "S03-T02", "title": "Bring up the local stack", "details": "Run `docker compose -f deploy/local/docker-compose.yml up -d`. Confirm containers healthy with `docker compose ps` and `docker compose logs -f`.", "priority": "high", "status": "todo", "dependsOn": ["S03-T01"], "acceptanceCriteria": ["All four containers report healthy/running"], "tags": ["infra", "docker"]}, {"id": "S03-T03", "title": "Verify individual services via CLI", "details": "Fallback single commands: `docker run -d --name mv-postgres -e POSTGRES_PASSWORD=Pass@word1 -p 5432:5432 postgres:17`; `docker run -d --name mv-redis -p 6379:6379 redis:7`; `docker run -d --name mv-rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management`; `docker run -d --name mv-seq -e ACCEPT_EULA=Y -p 5341:80 datalust/seq`.", "priority": "medium", "status": "todo", "dependsOn": ["S03-T02"], "acceptanceCriteria": ["Each service reachable on its mapped port"], "tags": ["infra", "docker"]}, {"id": "S03-T04", "title": "Wire secrets with user-secrets and .env", "details": "Use `dotnet user-secrets` per service for connection strings/keys locally; provide a committed .env.example (no real secrets).", "priority": "high", "status": "todo", "dependsOn": ["S03-T02"], "acceptanceCriteria": ["No secrets in source; .env.example documents required keys"], "tags": ["infra", "security"]}, {"id": "S03-T05", "title": "Create optional .NET Aspire AppHost", "details": "Add an Aspire AppHost project to orchestrate services + containers with the dashboard; keep compose as the container-only fallback.", "priority": "medium", "status": "todo", "dependsOn": ["S03-T02"], "acceptanceCriteria": ["`dotnet run` on AppHost starts services with Aspire dashboard"], "tags": ["infra", "aspire"]}, {"id": "S03-T06", "title": "Add local admin UIs (optional)", "details": "Optionally add pgAdmin and RedisInsight containers; document RabbitMQ management UI at http://localhost:15672 and Seq at http://localhost:5341.", "priority": "low", "status": "todo", "dependsOn": ["S03-T02"], "acceptanceCriteria": ["Admin UIs reachable and documented in docs/local.md"], "tags": ["infra", "docker"]}]}, {"id": "S04", "name": "Auth Microservice", "goal": "A standalone Auth service issuing JWT access + refresh tokens over ASP.NET Core Identity, publishing UserRegistered, and exposing a shared token-validation config.", "order": 4, "dependsOn": ["S02", "S03"], "tasks": [{"id": "S04-T01", "title": "Scaffold Auth service in Clean Architecture", "details": "Create Auth.Domain/Application/Infrastructure/Api projects wired with BuildingBlocks. `dotnet new webapi` for Api (minimal APIs or controllers).", "priority": "high", "status": "todo", "dependsOn": ["S02-T08", "S03-T04"], "acceptanceCriteria": ["Auth service builds and runs with a health endpoint"], "tags": ["auth", "microservice"]}, {"id": "S04-T02", "title": "Add ASP.NET Core Identity + EF Core (Npgsql)", "details": "Configure Identity user/store on PostgreSQL via Npgsql. Add DbContext, run `dotnet ef migrations add InitAuth` and `dotnet ef database update`.", "priority": "high", "status": "todo", "dependsOn": ["S04-T01"], "acceptanceCriteria": ["Users table created in Postgres via EF migration"], "tags": ["auth", "efcore"]}, {"id": "S04-T03", "title": "Issue JWT access + rotating refresh tokens", "details": "Issue short-lived JWT access tokens (~15 min) signed with a key from configuration / Key Vault. Use HS256 for a single issuer or RS256 (asymmetric) so any service or the gateway validates with the public key. Embed claims: sub (userId), email, role, permission claims, jti, iss, aud, exp. Issue long-lived refresh tokens stored hashed in the DB, single-use and rotated on each refresh, with server-side revocation.", "priority": "high", "status": "todo", "dependsOn": ["S04-T02"], "acceptanceCriteria": ["Login returns a signed JWT carrying role/permission claims plus a rotating, revocable refresh token"], "tags": ["auth", "security", "jwt"]}, {"id": "S04-T04", "title": "Build Register / Login / Refresh / Logout endpoints", "details": "Expose endpoints with FluentValidation, password policy, and Identity lockout on repeated failures.", "priority": "high", "status": "todo", "dependsOn": ["S04-T03"], "acceptanceCriteria": ["End-to-end register->login->refresh->logout works"], "tags": ["auth", "api"]}, {"id": "S04-T05", "title": "Publish UserRegistered integration event", "details": "On successful registration, publish UserRegistered via the message bus (see S16 bus setup) using the Outbox pattern.", "priority": "medium", "status": "todo", "dependsOn": ["S04-T04", "S02-T08"], "acceptanceCriteria": ["UserRegistered observed on the broker after registration"], "tags": ["auth", "messaging"]}, {"id": "S04-T06", "title": "Ship a shared JWT validation extension", "details": "Provide an AddJwtAuth() extension configuring JwtBearer for every service and the gateway: ValidateIssuer, ValidateAudience, ValidateLifetime, ValidateIssuerSigningKey, a small ClockSkew, and (for RS256) the signing key / JWKS endpoint. Endpoints then use [Authorize] plus the permission policies from the Role service.", "priority": "high", "status": "todo", "dependsOn": ["S04-T03"], "acceptanceCriteria": ["Any service validates Auth-issued JWTs through the shared extension"], "tags": ["auth", "security", "jwt"]}]}, {"id": "S05", "name": "Role & Permission Microservice", "goal": "Central role/permission management with policy-based authorization, default seeded roles (Patient, Doctor, Admin), and permission claims flowing into JWTs.", "order": 5, "dependsOn": ["S04"], "tasks": [{"id": "S05-T01", "title": "Scaffold Role service (Clean Architecture)", "details": "Create Role.Domain/Application/Infrastructure/Api projects and DbContext on Postgres.", "priority": "high", "status": "todo", "dependsOn": ["S04-T06"], "acceptanceCriteria": ["Role service runs with health endpoint"], "tags": ["role", "microservice"]}, {"id": "S05-T02", "title": "Model roles, permissions, and assignments", "details": "Domain: Role, Permission, RolePermission, UserRole. Add EF config + `dotnet ef migrations add InitRole`.", "priority": "high", "status": "todo", "dependsOn": ["S05-T01"], "acceptanceCriteria": ["Role/permission schema migrated to Postgres"], "tags": ["role", "efcore"]}, {"id": "S05-T03", "title": "Implement permission-based authorization", "details": "Add a custom IAuthorizationPolicyProvider + permission requirement/handler so `[HasPermission(\"studies.read\")]` works across services.", "priority": "high", "status": "todo", "dependsOn": ["S05-T02"], "acceptanceCriteria": ["Endpoints enforce fine-grained permissions"], "tags": ["role", "security", "solid"]}, {"id": "S05-T04", "title": "Feed permissions into JWT claims", "details": "Coordinate with Auth so effective permissions are embedded as claims at token issuance (or resolved via a claims transformation).", "priority": "high", "status": "todo", "dependsOn": ["S05-T03", "S04-T03"], "acceptanceCriteria": ["JWT carries permission claims used by policies"], "tags": ["role", "auth"]}, {"id": "S05-T05", "title": "Seed default roles and permissions", "details": "Seed Patient, Doctor, Admin with baseline permissions on startup (idempotent seeder).", "priority": "medium", "status": "todo", "dependsOn": ["S05-T02"], "acceptanceCriteria": ["Fresh DB contains the three default roles"], "tags": ["role", "seed"]}, {"id": "S05-T06", "title": "Admin endpoints for role management", "details": "CRUD for roles/permissions and assign/unassign to users, guarded by admin permission.", "priority": "medium", "status": "todo", "dependsOn": ["S05-T05"], "acceptanceCriteria": ["Admin can manage roles via API with authorization"], "tags": ["role", "api"]}]}, {"id": "S06", "name": "Patient & Studies Microservice", "goal": "The core clinical record service: Patients and Studies (each row = one Study) with multi-doctor assignment, a status enum including Locked, and full audit history.", "order": 6, "dependsOn": ["S05"], "tasks": [{"id": "S06-T01", "title": "Scaffold Patient/Studies service", "details": "Create Patients.Domain/Application/Infrastructure/Api projects on Postgres with BuildingBlocks wiring.", "priority": "high", "status": "todo", "dependsOn": ["S05-T04"], "acceptanceCriteria": ["Service runs with health endpoint"], "tags": ["patient", "microservice"]}, {"id": "S06-T02", "title": "Model Patient and Study aggregates", "details": "Study is an aggregate root with StudyStatus enum (Registered, InReview, Locked, Reported, Closed), AuditableEntity fields, and assigned-doctors collection.", "priority": "high", "status": "todo", "dependsOn": ["S06-T01"], "acceptanceCriteria": ["Domain enforces status transitions via methods"], "tags": ["patient", "ddd"]}, {"id": "S06-T03", "title": "Persist Patients/Studies with EF Core (per conventions)", "details": "Configure the Patients DbContext on Npgsql following the shared EF Core conventions: an IEntityTypeConfiguration per aggregate, Study mapped with its owned value objects, an xmin concurrency token, and EnableRetryOnFailure. Add the migration with `dotnet ef migrations add InitPatients` and apply it with `dotnet ef database update`.", "priority": "high", "status": "todo", "dependsOn": ["S06-T02", "S02-T10"], "acceptanceCriteria": ["Patients + Studies tables created in Postgres"], "tags": ["patient", "efcore"]}, {"id": "S06-T04", "title": "Assign multiple doctors to a Study", "details": "Command to add/remove doctor assignments to a Study (many doctors allowed) with permission checks.", "priority": "high", "status": "todo", "dependsOn": ["S06-T03"], "acceptanceCriteria": ["A Study can list multiple assigned doctors"], "tags": ["patient", "api"]}, {"id": "S06-T05", "title": "Query endpoints for Studies list", "details": "Paged/filterable Studies list and Study detail endpoints using the specification pattern and PagedResult<T>.", "priority": "high", "status": "todo", "dependsOn": ["S06-T04"], "acceptanceCriteria": ["Studies list returns paged, filtered results"], "tags": ["patient", "api"]}, {"id": "S06-T06", "title": "Implement audit history", "details": "Record who changed what/when for Studies (audit log table or EF Core temporal tables) to satisfy compliance.", "priority": "high", "status": "todo", "dependsOn": ["S06-T03"], "acceptanceCriteria": ["Every Study change produces an audit record"], "tags": ["patient", "audit", "compliance"]}, {"id": "S06-T07", "title": "Consume UserRegistered to create Patient profile", "details": "Subscribe to UserRegistered and create/link a Patient profile idempotently.", "priority": "medium", "status": "todo", "dependsOn": ["S06-T03", "S04-T05"], "acceptanceCriteria": ["New user results in a Patient profile"], "tags": ["patient", "messaging"]}]}, {"id": "S07", "name": "Appointment / Booking Microservice", "goal": "Checkup booking with availability, plus follow-up appointment scheduling triggered after a report is finalized.", "order": 7, "dependsOn": ["S06"], "tasks": [{"id": "S07-T01", "title": "Scaffold Booking service", "details": "Create Booking.Domain/Application/Infrastructure/Api projects on Postgres.", "priority": "high", "status": "todo", "dependsOn": ["S06-T01"], "acceptanceCriteria": ["Service runs with health endpoint"], "tags": ["booking", "microservice"]}, {"id": "S07-T02", "title": "Model Appointment, Slot, and FollowUp", "details": "Domain for appointment lifecycle (Requested, Confirmed, Completed, Cancelled) + availability slots. Add EF migration.", "priority": "high", "status": "todo", "dependsOn": ["S07-T01"], "acceptanceCriteria": ["Appointment schema migrated; transitions enforced"], "tags": ["booking", "ddd"]}, {"id": "S07-T03", "title": "Booking + availability endpoints", "details": "Allow a patient to view availability and book a checkup; prevent double-booking with concurrency checks.", "priority": "high", "status": "todo", "dependsOn": ["S07-T02"], "acceptanceCriteria": ["Patient can book an available slot; conflicts rejected"], "tags": ["booking", "api"]}, {"id": "S07-T04", "title": "Follow-up scheduling from report", "details": "Consume ReportFinalized to offer/schedule a follow-up appointment date and publish FollowUpScheduled.", "priority": "medium", "status": "todo", "dependsOn": ["S07-T03", "S10-T05"], "acceptanceCriteria": ["Finalized report enables a follow-up booking"], "tags": ["booking", "messaging"]}, {"id": "S07-T05", "title": "Emit AppointmentBooked event", "details": "Publish AppointmentBooked (Outbox) for notification.", "priority": "medium", "status": "todo", "dependsOn": ["S07-T03"], "acceptanceCriteria": ["AppointmentBooked observed on broker"], "tags": ["booking", "messaging"]}]}, {"id": "S08", "name": "DICOM Imaging Microservice", "goal": "Ingest, store, and serve DICOM: pixel data in Azure Blob Storage, metadata in the DB, linked to Studies, with DICOMweb-style (STOW/WADO/QIDO) endpoints via fo-dicom.", "order": 8, "dependsOn": ["S06"], "tasks": [{"id": "S08-T01", "title": "Scaffold Imaging service + add fo-dicom", "details": "Create Imaging.Domain/Application/Infrastructure/Api projects; add the fo-dicom package for parsing/serialization.", "priority": "high", "status": "todo", "dependsOn": ["S06-T03"], "acceptanceCriteria": ["Service runs; fo-dicom parses a sample .dcm"], "tags": ["dicom", "microservice"]}, {"id": "S08-T02", "title": "Configure blob + metadata storage", "details": "Store pixel data in Azure Blob Storage (Azurite locally) and DICOM metadata in Postgres. Add EF migration for image/instance metadata.", "priority": "high", "status": "todo", "dependsOn": ["S08-T01"], "acceptanceCriteria": ["Uploaded DICOM stored in blob with metadata row"], "tags": ["dicom", "storage"]}, {"id": "S08-T03", "title": "Implement STOW (store) endpoint", "details": "Accept DICOM upload, validate, extract metadata, persist, and associate with a Study id.", "priority": "high", "status": "todo", "dependsOn": ["S08-T02"], "acceptanceCriteria": ["Uploaded instance linked to its Study"], "tags": ["dicom", "api"]}, {"id": "S08-T04", "title": "Serve WADO-RS + QIDO-RS for the Cornerstone viewer", "details": "Serve WADO-RS (retrieve instances/frames) and QIDO-RS (query studies/series/instances) so the Blazor Cornerstone.js viewer can pull DICOM frames directly. Return frames in a Cornerstone-compatible form (DICOM P10 or rendered frames) and enable CORS for the front-end origin.", "priority": "high", "status": "todo", "dependsOn": ["S08-T03"], "acceptanceCriteria": ["WADO-RS frames load in a Cornerstone.js test page"], "tags": ["dicom", "api", "cornerstone"]}, {"id": "S08-T05", "title": "Generate thumbnails / frame rendering", "details": "Produce cached preview images/frames (fo-dicom rendering) for fast viewport loading.", "priority": "medium", "status": "todo", "dependsOn": ["S08-T04"], "acceptanceCriteria": ["Thumbnail retrievable for a stored instance"], "tags": ["dicom", "performance"]}]}, {"id": "S09", "name": "Viewport Concurrency & Single-Doctor Distributed Lock", "goal": "Enforce that only one Doctor edits a Study's Viewport at a time using a Redis distributed lock with ownership, TTL/heartbeat, and safe release; expose lock status to the UI.", "order": 9, "dependsOn": ["S06", "S03"], "tasks": [{"id": "S09-T01", "title": "Add Redis connection + RedLock", "details": "Wire StackExchange.Redis and RedLock.net (or a Redlock implementation) into a shared LockService abstraction (ILockService).", "priority": "high", "status": "todo", "dependsOn": ["S03-T02", "S06-T03"], "acceptanceCriteria": ["LockService connects to Redis and acquires a test lock"], "tags": ["lock", "redis", "solid"]}, {"id": "S09-T02", "title": "Acquire lock on Viewport open", "details": "When a Doctor opens a Study viewport, acquire a lock keyed by study id with the doctor id as owner and a short TTL.", "priority": "high", "status": "todo", "dependsOn": ["S09-T01"], "acceptanceCriteria": ["First doctor acquires; Study status set to Locked"], "tags": ["lock", "api"]}, {"id": "S09-T03", "title": "Heartbeat / auto-renew while active", "details": "Renew the lock via heartbeat while the doctor is active so it does not expire mid-session; stop renewing on idle.", "priority": "high", "status": "todo", "dependsOn": ["S09-T02"], "acceptanceCriteria": ["Lock stays held during active use, expires after inactivity"], "tags": ["lock", "reliability"]}, {"id": "S09-T04", "title": "Reject non-owners from write access", "details": "Any write/report action requires being the current lock owner; others receive 409 Conflict with owner info.", "priority": "high", "status": "todo", "dependsOn": ["S09-T02"], "acceptanceCriteria": ["Second doctor is denied viewport write with clear conflict"], "tags": ["lock", "security"]}, {"id": "S09-T05", "title": "Safe release on close/timeout", "details": "Release lock on explicit close, logout, or TTL expiry; ensure only the owner can release (fencing token).", "priority": "high", "status": "todo", "dependsOn": ["S09-T02"], "acceptanceCriteria": ["Lock released only by owner; auto-released on timeout"], "tags": ["lock", "reliability"]}, {"id": "S09-T06", "title": "Lock status API + events", "details": "Expose GET lock-status for a Study and publish StudyLocked/StudyUnlocked events for UI/notifications.", "priority": "high", "status": "todo", "dependsOn": ["S09-T05", "S02-T08"], "acceptanceCriteria": ["UI can query who holds a Study and react to events"], "tags": ["lock", "api", "messaging"]}]}, {"id": "S10", "name": "Reporting / Diagnosis Microservice", "goal": "Doctors write and finalize a diagnosis Report against a Study (only the lock owner may write); finalized reports notify the patient and unlock downstream flows.", "order": 10, "dependsOn": ["S09"], "tasks": [{"id": "S10-T01", "title": "Scaffold Reporting service", "details": "Create Reporting.Domain/Application/Infrastructure/Api projects on Postgres.", "priority": "high", "status": "todo", "dependsOn": ["S09-T01"], "acceptanceCriteria": ["Service runs with health endpoint"], "tags": ["reporting", "microservice"]}, {"id": "S10-T02", "title": "Model Report and Diagnosis", "details": "Report aggregate linked to Study with Draft/Finalized states and diagnosis fields. Add EF migration.", "priority": "high", "status": "todo", "dependsOn": ["S10-T01"], "acceptanceCriteria": ["Report schema migrated; state machine enforced"], "tags": ["reporting", "ddd"]}, {"id": "S10-T03", "title": "Enforce lock ownership on write", "details": "Save/update report only if the caller currently owns the Study lock (call ILockService/lock-status).", "priority": "high", "status": "todo", "dependsOn": ["S10-T02", "S09-T04"], "acceptanceCriteria": ["Non-owners cannot create or edit a report"], "tags": ["reporting", "lock"]}, {"id": "S10-T04", "title": "Draft save + finalize endpoints", "details": "Allow incremental draft saves and a finalize action that transitions the Study to Reported.", "priority": "high", "status": "todo", "dependsOn": ["S10-T03"], "acceptanceCriteria": ["Draft->Finalize flow updates Study status"], "tags": ["reporting", "api"]}, {"id": "S10-T05", "title": "Publish ReportFinalized event", "details": "On finalize, publish ReportFinalized (Outbox) consumed by Booking, Prescription, and Notification.", "priority": "high", "status": "todo", "dependsOn": ["S10-T04", "S02-T08"], "acceptanceCriteria": ["ReportFinalized observed on broker"], "tags": ["reporting", "messaging"]}, {"id": "S10-T06", "title": "Generate PDF report (optional)", "details": "Render the finalized report to PDF and store it (blob) for patient download.", "priority": "low", "status": "todo", "dependsOn": ["S10-T04"], "acceptanceCriteria": ["Finalized report downloadable as PDF"], "tags": ["reporting", "pdf"]}]}, {"id": "S11", "name": "Prescription Microservice", "goal": "Create prescriptions from a finalized report, referencing a drug catalog, and publish PrescriptionIssued for the cart/billing flow.", "order": 11, "dependsOn": ["S10"], "tasks": [{"id": "S11-T01", "title": "Scaffold Prescription service", "details": "Create Prescription.Domain/Application/Infrastructure/Api projects on Postgres.", "priority": "high", "status": "todo", "dependsOn": ["S10-T01"], "acceptanceCriteria": ["Service runs with health endpoint"], "tags": ["prescription", "microservice"]}, {"id": "S11-T02", "title": "Model Prescription + items + drug catalog", "details": "Prescription aggregate with PrescriptionItem lines referencing a Drug catalog. Add EF migration and seed a sample catalog.", "priority": "high", "status": "todo", "dependsOn": ["S11-T01"], "acceptanceCriteria": ["Prescription schema migrated; catalog seeded"], "tags": ["prescription", "ddd"]}, {"id": "S11-T03", "title": "Create prescription from finalized report", "details": "Consume ReportFinalized (or a doctor action) to create a prescription tied to the report/patient.", "priority": "high", "status": "todo", "dependsOn": ["S11-T02", "S10-T05"], "acceptanceCriteria": ["Finalized report can yield a prescription"], "tags": ["prescription", "messaging"]}, {"id": "S11-T04", "title": "Publish PrescriptionIssued", "details": "Publish PrescriptionIssued (Outbox) so Cart can offer the drugs for purchase.", "priority": "medium", "status": "todo", "dependsOn": ["S11-T03", "S02-T08"], "acceptanceCriteria": ["PrescriptionIssued observed on broker"], "tags": ["prescription", "messaging"]}]}, {"id": "S12", "name": "Cart & Billing / Payment Microservice", "goal": "Patients add prescribed drugs to a cart, check out to create a bill, complete payment (test gateway), and receive order history; publishes BillPaid.", "order": 12, "dependsOn": ["S11"], "tasks": [{"id": "S12-T01", "title": "Scaffold Cart/Billing service", "details": "Create Cart.Domain/Application/Infrastructure/Api projects on Postgres.", "priority": "high", "status": "todo", "dependsOn": ["S11-T01"], "acceptanceCriteria": ["Service runs with health endpoint"], "tags": ["cart", "microservice"]}, {"id": "S12-T02", "title": "Model Cart, Order, and Invoice", "details": "Cart with line items, Order, Invoice/Bill with totals and payment status. Add EF migration.", "priority": "high", "status": "todo", "dependsOn": ["S12-T01"], "acceptanceCriteria": ["Cart/Order/Invoice schema migrated"], "tags": ["cart", "ddd"]}, {"id": "S12-T03", "title": "Populate cart from prescription", "details": "Consume PrescriptionIssued so prescribed drugs can be added to the patient's cart.", "priority": "high", "status": "todo", "dependsOn": ["S12-T02", "S11-T04"], "acceptanceCriteria": ["Prescribed drugs appear as add-to-cart options"], "tags": ["cart", "messaging"]}, {"id": "S12-T04", "title": "Checkout creates a bill", "details": "Checkout converts the cart to an order and generates an invoice with computed totals/taxes.", "priority": "high", "status": "todo", "dependsOn": ["S12-T03"], "acceptanceCriteria": ["Checkout produces an invoice with correct totals"], "tags": ["cart", "api"]}, {"id": "S12-T05", "title": "Integrate payment (test gateway)", "details": "Integrate Stripe test mode (or a mock provider) to complete payment; handle webhook/confirmation idempotently.", "priority": "high", "status": "todo", "dependsOn": ["S12-T04"], "acceptanceCriteria": ["A test payment marks the bill Paid"], "tags": ["cart", "payments"]}, {"id": "S12-T06", "title": "Publish BillPaid + order history", "details": "On payment success publish BillPaid (Outbox) and expose an order-history endpoint for the patient.", "priority": "medium", "status": "todo", "dependsOn": ["S12-T05", "S02-T08"], "acceptanceCriteria": ["BillPaid emitted; history endpoint returns orders"], "tags": ["cart", "messaging"]}]}, {"id": "S13", "name": "Notification Microservice", "goal": "React to domain events (report ready, appointment booked, bill paid, follow-up scheduled) and notify patients via email/SMS with templated messages and a delivery log.", "order": 13, "dependsOn": ["S07", "S10", "S12"], "tasks": [{"id": "S13-T01", "title": "Scaffold Notification service", "details": "Create Notification.Domain/Application/Infrastructure/Api projects on Postgres.", "priority": "high", "status": "todo", "dependsOn": ["S07-T01", "S10-T01", "S12-T01"], "acceptanceCriteria": ["Service runs with health endpoint"], "tags": ["notify", "microservice"]}, {"id": "S13-T02", "title": "Subscribe to domain events", "details": "Consume ReportFinalized, AppointmentBooked, BillPaid, FollowUpScheduled from the bus.", "priority": "high", "status": "todo", "dependsOn": ["S13-T01", "S02-T08"], "acceptanceCriteria": ["Each event triggers a notification workflow"], "tags": ["notify", "messaging"]}, {"id": "S13-T03", "title": "Integrate email/SMS provider", "details": "Integrate Azure Communication Services or SendGrid for email (and optional SMS) with templated content.", "priority": "medium", "status": "todo", "dependsOn": ["S13-T02"], "acceptanceCriteria": ["A test event sends a templated email"], "tags": ["notify", "integration"]}, {"id": "S13-T04", "title": "Persist a notification/delivery log", "details": "Record sent notifications, status, and retries for audit and troubleshooting.", "priority": "medium", "status": "todo", "dependsOn": ["S13-T03"], "acceptanceCriteria": ["Notifications are logged with delivery status"], "tags": ["notify", "audit"]}]}, {"id": "S14", "name": "API Gateway (YARP)", "goal": "A single ingress via YARP with per-service routing, JWT auth forwarding, rate limiting, CORS, and aggregated health.", "order": 14, "dependsOn": ["S04", "S06", "S08", "S12"], "tasks": [{"id": "S14-T01", "title": "Create YARP gateway project", "details": "`dotnet new web` gateway; add YARP reverse proxy package and base configuration.", "priority": "high", "status": "todo", "dependsOn": ["S04-T06"], "acceptanceCriteria": ["Gateway starts and proxies a sample route"], "tags": ["gateway", "yarp"]}, {"id": "S14-T02", "title": "Configure routes and clusters per service", "details": "Map routes to Auth, Role, Patients, Booking, Imaging, Reporting, Prescription, Cart, Notification clusters.", "priority": "high", "status": "todo", "dependsOn": ["S14-T01"], "acceptanceCriteria": ["Each service reachable behind the gateway path"], "tags": ["gateway", "routing"]}, {"id": "S14-T03", "title": "Enforce JWT auth at the edge", "details": "Validate tokens at the gateway (shared AddJwtAuth) and forward identity/claims downstream.", "priority": "high", "status": "todo", "dependsOn": ["S14-T02", "S04-T06"], "acceptanceCriteria": ["Protected routes require a valid token at the gateway"], "tags": ["gateway", "security"]}, {"id": "S14-T04", "title": "Add rate limiting and CORS", "details": "Apply ASP.NET Core rate limiting policies and a CORS policy for the Blazor origin.", "priority": "medium", "status": "todo", "dependsOn": ["S14-T03"], "acceptanceCriteria": ["Excess requests are throttled; Blazor origin allowed"], "tags": ["gateway", "resilience"]}, {"id": "S14-T05", "title": "Aggregate health and expose OpenAPI", "details": "Add health-check aggregation and (optionally) a unified OpenAPI/Swagger surface.", "priority": "low", "status": "todo", "dependsOn": ["S14-T02"], "acceptanceCriteria": ["/health reflects downstream service health"], "tags": ["gateway", "observability"]}]}, {"id": "S15", "name": "Blazor Front-end (Patient & Doctor portals + DICOM Viewport)", "goal": "A Blazor Web App delivering the Patient journey (register, book, view report, prescription, cart/checkout, follow-up) and the Doctor journey (studies list, viewport with lock indicator, write report), with a Cornerstone.js DICOM viewer.", "order": 15, "dependsOn": ["S14"], "tasks": [{"id": "S15-T01", "title": "Create Blazor Web App project", "details": "`dotnet new blazor` (interactive auto/server render modes) targeting .NET 10; configure the typed API client against the gateway.", "priority": "high", "status": "todo", "dependsOn": ["S14-T03"], "acceptanceCriteria": ["App runs and calls a gateway endpoint"], "tags": ["blazor", "frontend"]}, {"id": "S15-T02", "title": "Implement authentication in the UI", "details": "Handle login/refresh token storage, auth state provider, and protected routes/role-based UI.", "priority": "high", "status": "todo", "dependsOn": ["S15-T01"], "acceptanceCriteria": ["Login persists session; protected pages gated"], "tags": ["blazor", "auth"]}, {"id": "S15-T03", "title": "Build the Patient portal", "details": "Pages for register, book checkup, view final report, view prescription, cart/checkout, and follow-up scheduling.", "priority": "high", "status": "todo", "dependsOn": ["S15-T02"], "acceptanceCriteria": ["Patient can complete the end-to-end journey in the UI"], "tags": ["blazor", "patient"]}, {"id": "S15-T04", "title": "Build the Doctor portal + studies list", "details": "Studies list with filters and a Study detail page showing assignment and status.", "priority": "high", "status": "todo", "dependsOn": ["S15-T02"], "acceptanceCriteria": ["Doctor sees assigned Studies and can open one"], "tags": ["blazor", "doctor"]}, {"id": "S15-T05", "title": "Integrate the DICOM Viewport with Cornerstone.js", "details": "Integrate the Cornerstone.js stack through Blazor JS interop: cornerstone-core, cornerstone-wado-image-loader with dicom-parser (loads DICOM from the Imaging service's WADO-RS endpoints) and cornerstone-tools for interactions. Build a Razor viewport component that hosts the canvas element and calls a JS module (IJSObjectReference) to display images, set window/level (VOI), zoom, pan, scroll through multi-frame stacks, and run measurement tools (length, angle, ROI).", "priority": "high", "status": "todo", "dependsOn": ["S15-T04", "S08-T04"], "acceptanceCriteria": ["A DICOM series renders in-browser with window/level, zoom, pan, and stack scrolling"], "tags": ["blazor", "dicom", "cornerstone"]}, {"id": "S15-T06", "title": "Surface lock status + report editor", "details": "Show LOCKED indicator and owner; allow only the lock owner to edit/save the report from the viewport.", "priority": "high", "status": "todo", "dependsOn": ["S15-T05", "S09-T06", "S10-T04"], "acceptanceCriteria": ["Non-owner viewport is read-only with clear lock UI"], "tags": ["blazor", "lock"]}, {"id": "S15-T07", "title": "Real-time lock updates (SignalR, optional)", "details": "Push lock acquire/release updates to connected doctors via SignalR for instant UI feedback.", "priority": "low", "status": "todo", "dependsOn": ["S15-T06"], "acceptanceCriteria": ["Lock changes reflect without manual refresh"], "tags": ["blazor", "realtime"]}, {"id": "S15-T08", "title": "UI error handling + loading states", "details": "Consistent handling of ProblemDetails errors, 409 conflicts, and loading/empty states.", "priority": "medium", "status": "todo", "dependsOn": ["S15-T03", "S15-T06"], "acceptanceCriteria": ["Errors and conflicts render friendly messages"], "tags": ["blazor", "ux"]}]}, {"id": "S16", "name": "Cross-cutting: Messaging, Observability & Resilience", "goal": "Shared async messaging (MassTransit + Outbox), structured logging (Serilog), distributed tracing/metrics (OpenTelemetry), health checks, and resilience (Polly) across all services.", "order": 16, "dependsOn": ["S02", "S03"], "tasks": [{"id": "S16-T01", "title": "Set up MassTransit with RabbitMQ", "details": "Add a shared messaging extension configuring MassTransit over RabbitMQ locally (Azure Service Bus in prod) with consumer registration.", "priority": "high", "status": "todo", "dependsOn": ["S03-T02", "S02-T08"], "acceptanceCriteria": ["A test message publishes and is consumed"], "tags": ["messaging", "shared"]}, {"id": "S16-T02", "title": "Implement the Transactional Outbox", "details": "Enable MassTransit EF Core Outbox so events publish atomically with the local DB transaction.", "priority": "high", "status": "todo", "dependsOn": ["S16-T01"], "acceptanceCriteria": ["Events are not lost on partial failures"], "tags": ["messaging", "reliability"]}, {"id": "S16-T03", "title": "Add Serilog structured logging", "details": "Configure Serilog with enrichers (correlation id, service name) and sinks to console + Seq locally.", "priority": "high", "status": "todo", "dependsOn": ["S02-T06"], "acceptanceCriteria": ["Logs are structured and visible in Seq"], "tags": ["observability", "logging"]}, {"id": "S16-T04", "title": "Add OpenTelemetry tracing + metrics", "details": "Instrument ASP.NET Core, HttpClient, EF Core, Redis, and MassTransit; export traces/metrics (OTLP) and propagate context across the bus.", "priority": "high", "status": "todo", "dependsOn": ["S16-T01", "S16-T03"], "acceptanceCriteria": ["A request trace spans gateway->service->bus"], "tags": ["observability", "otel"]}, {"id": "S16-T05", "title": "Add health checks everywhere", "details": "Add liveness/readiness checks (DB, Redis, broker, downstream) to every service and the gateway.", "priority": "high", "status": "todo", "dependsOn": ["S16-T01"], "acceptanceCriteria": ["/health/ready reflects real dependency health"], "tags": ["observability", "health"]}, {"id": "S16-T06", "title": "Apply Polly resilience policies", "details": "Add retry, timeout, and circuit-breaker policies to HttpClient calls and message consumers.", "priority": "medium", "status": "todo", "dependsOn": ["S16-T04"], "acceptanceCriteria": ["Transient failures retry; breakers open under sustained failure"], "tags": ["resilience", "polly"]}]}, {"id": "S17", "name": "Security & Compliance", "goal": "Health-data-grade security: TLS everywhere, secrets in Key Vault, encryption at rest, PII protection, audit logging, least-privilege identities, and GDPR/HIPAA-minded data handling.", "order": 17, "dependsOn": ["S06", "S16"], "tasks": [{"id": "S17-T01", "title": "Enforce HTTPS/TLS and security headers", "details": "Require HTTPS, enable HSTS, and add security headers (CSP, X-Content-Type-Options, etc.) at the gateway and services.", "priority": "high", "status": "todo", "dependsOn": ["S16-T05"], "acceptanceCriteria": ["Traffic is TLS-only with hardened headers"], "tags": ["security", "hardening"]}, {"id": "S17-T02", "title": "Centralize secrets in Key Vault", "details": "Move connection strings/keys to Azure Key Vault referenced via managed identity; remove secrets from config/repo.", "priority": "high", "status": "todo", "dependsOn": ["S03-T04"], "acceptanceCriteria": ["No secrets in code; services read from Key Vault"], "tags": ["security", "secrets"]}, {"id": "S17-T03", "title": "Encrypt data at rest + protect PII", "details": "Enable DB/Blob encryption at rest and add field-level encryption/hashing for sensitive PII where needed.", "priority": "high", "status": "todo", "dependsOn": ["S06-T03"], "acceptanceCriteria": ["Sensitive fields encrypted; storage encrypted at rest"], "tags": ["security", "pii", "compliance"]}, {"id": "S17-T04", "title": "Implement access audit logging", "details": "Log who accessed/modified which Study/report (immutable audit trail) for compliance investigations.", "priority": "high", "status": "todo", "dependsOn": ["S06-T06"], "acceptanceCriteria": ["Study access/edits produce audit entries"], "tags": ["security", "audit", "compliance"]}, {"id": "S17-T05", "title": "Least-privilege identities and RBAC", "details": "Use managed identities and scoped RBAC so each service has only the Azure permissions it needs.", "priority": "high", "status": "todo", "dependsOn": ["S17-T02"], "acceptanceCriteria": ["Each service uses a scoped managed identity"], "tags": ["security", "rbac"]}, {"id": "S17-T06", "title": "GDPR/HIPAA data-handling controls", "details": "Add data-retention policy and a right-to-erasure workflow; document data-processing and lawful basis.", "priority": "medium", "status": "todo", "dependsOn": ["S17-T04"], "acceptanceCriteria": ["Retention + erasure workflow documented and testable"], "tags": ["compliance", "gdpr"]}, {"id": "S17-T07", "title": "Dependency and container scanning", "details": "Enable dependency vulnerability scanning and image scanning in CI (see S19).", "priority": "medium", "status": "todo", "dependsOn": ["S17-T01"], "acceptanceCriteria": ["Vulnerable dependencies/images flagged in CI"], "tags": ["security", "supplychain"]}]}, {"id": "S18", "name": "CI/CD Pipeline", "goal": "Automated build and gated deployment: build and analyze on every PR, containerize each service, scan and push images to ACR, run EF migrations, and deploy to Azure with environment approvals.", "order": 18, "dependsOn": ["S15", "S16"], "tasks": [{"id": "S18-T01", "title": "Build and analyze on every pull request", "details": "GitHub Actions workflow: restore, build in Release, and run Roslyn analyzers plus `dotnet format` verification on every PR.", "priority": "high", "status": "todo", "dependsOn": [], "acceptanceCriteria": ["PRs are blocked unless the build and analyzers pass"], "tags": ["cicd", "ci"]}, {"id": "S18-T02", "title": "Containerize each service", "details": "Add multi-stage Dockerfiles (or `dotnet publish` container build) for every service, the gateway, and the Blazor app.", "priority": "high", "status": "todo", "dependsOn": ["S18-T01"], "acceptanceCriteria": ["Each service produces a runnable image locally"], "tags": ["cicd", "docker"]}, {"id": "S18-T03", "title": "Scan and push images to ACR", "details": "Scan images (e.g., Trivy), then push tagged images to Azure Container Registry on main.", "priority": "high", "status": "todo", "dependsOn": ["S18-T02", "S17-T07"], "acceptanceCriteria": ["Scanned images published to ACR on main"], "tags": ["cicd", "acr", "security"]}, {"id": "S18-T04", "title": "Automate EF Core migrations", "details": "Run EF Core migrations as a deploy step (or startup migrator with a production safeguard) per environment.", "priority": "high", "status": "todo", "dependsOn": ["S18-T03"], "acceptanceCriteria": ["Migrations apply automatically for each environment"], "tags": ["cicd", "efcore"]}, {"id": "S18-T05", "title": "Deploy with environment approvals", "details": "Deploy to dev/staging/prod (Azure Container Apps) with manual approval gates and per-environment secrets.", "priority": "high", "status": "todo", "dependsOn": ["S18-T04"], "acceptanceCriteria": ["Promotion to production requires approval"], "tags": ["cicd", "cd"]}, {"id": "S18-T06", "title": "Post-deploy smoke checks", "details": "Run health/smoke checks after each deployment and auto-rollback or alert on failure.", "priority": "medium", "status": "todo", "dependsOn": ["S18-T05"], "acceptanceCriteria": ["Failed smoke checks block or roll back the release"], "tags": ["cicd", "quality"]}]}, {"id": "S19", "name": "Azure Infrastructure (IaC) & Production Deployment", "goal": "All Azure resources provisioned via Bicep and the system running in production on Azure Container Apps with managed identities, private networking, autoscaling, monitoring, and cost controls.", "order": 19, "dependsOn": ["S17", "S18"], "tasks": [{"id": "S19-T01", "title": "Author Bicep modules for core resources", "details": "Bicep for Resource Group, ACR, Container Apps Environment, Log Analytics, and Application Insights.", "priority": "high", "status": "todo", "dependsOn": ["S18-T03"], "acceptanceCriteria": ["`az deployment` provisions the core resources"], "tags": ["azure", "iac"]}, {"id": "S19-T02", "title": "Provision data and messaging resources", "details": "Bicep for Azure Database for PostgreSQL Flexible Server, Azure Cache for Redis, Azure Service Bus, and Blob Storage.", "priority": "high", "status": "todo", "dependsOn": ["S19-T01"], "acceptanceCriteria": ["Data, cache, bus, and storage provisioned via IaC"], "tags": ["azure", "iac"]}, {"id": "S19-T03", "title": "Provision Key Vault and managed identities", "details": "Bicep for Key Vault and user-assigned managed identities with scoped RBAC role assignments per service.", "priority": "high", "status": "todo", "dependsOn": ["S19-T02", "S17-T05"], "acceptanceCriteria": ["Services authenticate to Azure via managed identity"], "tags": ["azure", "security"]}, {"id": "S19-T04", "title": "Deploy Container Apps with configuration", "details": "Deploy each service, the gateway, and the Blazor app as Container Apps, wiring Key Vault references and Service Bus/Redis/Postgres connections.", "priority": "high", "status": "todo", "dependsOn": ["S19-T03", "S18-T05"], "acceptanceCriteria": ["All apps run in the Container Apps environment"], "tags": ["azure", "deploy"]}, {"id": "S19-T05", "title": "Networking and private endpoints", "details": "Add VNet integration and private endpoints for Postgres/Redis/Key Vault/Storage; restrict public access.", "priority": "high", "status": "todo", "dependsOn": ["S19-T04"], "acceptanceCriteria": ["Data services are not publicly reachable"], "tags": ["azure", "networking", "security"]}, {"id": "S19-T06", "title": "Autoscaling, custom domain, and TLS", "details": "Configure Container Apps scale rules, a custom domain, and managed TLS certificates.", "priority": "medium", "status": "todo", "dependsOn": ["S19-T04"], "acceptanceCriteria": ["Apps autoscale and the custom domain is served over TLS"], "tags": ["azure", "scaling"]}, {"id": "S19-T07", "title": "Monitoring dashboards and cost alerts", "details": "Build App Insights / Log Analytics dashboards and alerts (errors, latency, lock contention) and set budget alerts.", "priority": "medium", "status": "todo", "dependsOn": ["S19-T04"], "acceptanceCriteria": ["Dashboards live and alerts fire on threshold breaches"], "tags": ["azure", "observability", "cost"]}, {"id": "S19-T08", "title": "Production runbook and DR plan", "details": "Document deploy/rollback runbook, Postgres/Blob backup-restore, and a disaster-recovery RTO/RPO plan.", "priority": "medium", "status": "todo", "dependsOn": ["S19-T07"], "acceptanceCriteria": ["Runbook and DR plan reviewed and stored in docs/"], "tags": ["azure", "ops", "docs"]}]}]};
 const sections = CHECKLIST.sections;
+const MONO = '"IBM Plex Mono", monospace';
 
 const STATUS = {
-  todo:        { label:"To do",        color:"#6b7a90" },
-  in_progress: { label:"In progress",  color:"#f0a83a" },
-  done:        { label:"Done",         color:"#37c46b" }
+  todo:{label:"To do",color:"#6b7a90"},
+  in_progress:{label:"In progress",color:"#f0a83a"},
+  done:{label:"Done",color:"#37c46b"}
 };
 const STATUS_ORDER = ["todo","in_progress","done"];
 const N = sections.length;
-const SECTION_COLORS = sections.map((_, i) => "hsl(" + Math.round(360 * i / N) + " 62% 60%)");
+const SECTION_COLORS = sections.map((_,i)=>"hsl("+Math.round(360*i/N)+" 62% 60%)");
 
-const sectionIndex = {}; sections.forEach((s, i) => sectionIndex[s.id] = i);
-const sectionById = {};  sections.forEach(s => sectionById[s.id] = s);
-const taskById = {};
-const reverseDeps = {};   // id -> [ids that depend on it]
-const statusMap = {};     // id -> status  (source of truth)
-
-sections.forEach((s, i) => {
-  s.tasks.forEach(t => {
-    taskById[t.id] = Object.assign({}, t, { _sectionId: s.id, _sectionIdx: i, _sectionName: s.name });
-    statusMap[t.id] = t.status || "todo";
-    (t.dependsOn || []).forEach(dep => {
-      (reverseDeps[dep] = reverseDeps[dep] || []).push(t.id);
-    });
+const sectionIndex={}, sectionById={}, taskById={}, reverseDeps={}, statusMap={};
+sections.forEach((s,i)=>{ sectionIndex[s.id]=i; sectionById[s.id]=s;
+  s.tasks.forEach(t=>{
+    taskById[t.id]=Object.assign({},t,{_sectionId:s.id,_sectionIdx:i,_sectionName:s.name});
+    statusMap[t.id]=t.status||"todo";
+    (t.dependsOn||[]).forEach(d=>{(reverseDeps[d]=reverseDeps[d]||[]).push(t.id);});
   });
 });
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const STORAGE_KEY = "medicalViewStatus_v1";
+const STORAGE_KEY = "medicalViewStatus_v2";
+const state = { orient:"LR", depth:"phases", color:"status", filter:{todo:true,in_progress:true,done:true} };
 
-const state = { view:"full", layout:"force", color:"status", filter:{ todo:true, in_progress:true, done:true } };
+function isDone(id){return statusMap[id]==="done";}
+function taskReady(t){return (t.dependsOn||[]).every(isDone);}
+function lerp(a,b,x){return Math.round(a+(b-a)*x);}
+function progressColor(r){return "rgb("+lerp(107,55,r)+","+lerp(122,196,r)+","+lerp(144,107,r)+")";}
+function sectionStats(s){const tot=s.tasks.length;const done=s.tasks.filter(t=>statusMap[t.id]==="done").length;return {tot,done,ratio:tot?done/tot:0};}
+function esc(x){return String(x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function trunc(x,n){x=String(x);return x.length>n?x.slice(0,n-1)+"\u2026":x;}
 
-/* ---------- helpers ---------- */
-function isDone(id){ return statusMap[id] === "done"; }
-function taskReady(t){ return (t.dependsOn || []).every(isDone); }
-function lerp(a,b,x){ return Math.round(a + (b-a)*x); }
-function progressColor(r){
-  // slate 107,122,144  ->  green 55,196,107
-  return "rgb(" + lerp(107,55,r) + "," + lerp(122,196,r) + "," + lerp(144,107,r) + ")";
-}
-function sectionStats(s){
-  const tot = s.tasks.length;
-  const done = s.tasks.filter(t => statusMap[t.id] === "done").length;
-  return { tot, done, ratio: tot ? done/tot : 0 };
-}
-function esc(str){ return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-
-/* ---------- node styling ---------- */
-function recolorNode(n){
-  if (n._type === "section"){
-    const st = sectionStats(sectionById[n.id]);
-    n.itemStyle.color = state.color === "status" ? progressColor(st.ratio) : SECTION_COLORS[n._sectionIdx];
-  } else {
-    const st = statusMap[n.id];
-    const ready = taskReady(taskById[n.id]);
-    n.itemStyle.color = state.color === "status" ? STATUS[st].color : SECTION_COLORS[n._sectionIdx];
-    const showRing = (st === "todo" && ready);
-    n.itemStyle.borderColor = showRing ? "#34d3ee" : "rgba(255,255,255,0.14)";
-    n.itemStyle.borderWidth = showRing ? 2.4 : 1;
-  }
-}
-
-/* ---------- build graph data ---------- */
-function buildData(){
-  const nodes = [];
-  const links = [];
-  const showTasks = state.view === "full";
-
-  sections.forEach((s, i) => {
-    const st = sectionStats(s);
-    const node = {
-      id: s.id, name: s.id, _type: "section", _sectionIdx: i, category: i,
-      symbol: "circle",
-      symbolSize: showTasks ? 32 : (24 + st.tot * 1.0),
-      itemStyle: { color:"#888", borderColor:"#0a0f1a", borderWidth:2.4, shadowBlur:14, shadowColor:"rgba(0,0,0,0.45)" },
-      label: { show:true, formatter:"{b}", color:"#eaf1fd", fontWeight:700,
-               fontFamily:'"IBM Plex Mono", monospace', fontSize: showTasks ? 11 : 12 }
-    };
-    recolorNode(node);
-    nodes.push(node);
-  });
-
-  // section -> section dependency
-  sections.forEach(s => (s.dependsOn || []).forEach(dep => {
-    if (sectionById[dep]) links.push({
-      source: dep, target: s.id, _kind:"section-dep",
-      lineStyle:{ color:"#3b4d6e", width:1.7, opacity:0.75, curveness:0.1 },
-      symbol:["none","arrow"], symbolSize:[0,8]
-    });
-  }));
-
-  if (showTasks){
-    sections.forEach((s, i) => s.tasks.forEach(t => {
-      const stt = statusMap[t.id];
-      if (!state.filter[stt]) return;
-      const size = t.priority === "high" ? 16.5 : t.priority === "medium" ? 12 : 9.5;
-      const node = {
-        id: t.id, name: t.id, _type:"task", _sectionIdx:i, category:i,
+/* ---- build tree ---- */
+let root, nodeRefById;
+function buildTree(){
+  nodeRefById = {};
+  root = { _id:"ROOT", _type:"root", name:CHECKLIST.project.name,
+    symbol:"circle", symbolSize:16,
+    itemStyle:{color:"#34d3ee",borderColor:"#0a0f1a",borderWidth:2},
+    label:{fontWeight:700,color:"#eaf1fd",fontSize:14,fontFamily:MONO},
+    children:[] };
+  nodeRefById["ROOT"]=root;
+  sections.forEach((s,i)=>{
+    const st=sectionStats(s);
+    const secColor = state.color==="status" ? progressColor(st.ratio) : SECTION_COLORS[i];
+    const sec = { _id:s.id, _type:"section", _idx:i,
+      name: s.id+"  "+trunc(s.name,34)+"   ("+st.done+"/"+st.tot+")",
+      symbol:"circle", symbolSize:12,
+      itemStyle:{color:secColor,borderColor:"#0a0f1a",borderWidth:2},
+      label:{fontWeight:600,color:"#dce6f7",fontSize:12.5,fontFamily:MONO},
+      children:[] };
+    nodeRefById[s.id]=sec;
+    s.tasks.forEach(t=>{
+      const stt=statusMap[t.id];
+      if(!state.filter[stt]) return;
+      const ready=taskReady(taskById[t.id]);
+      const col = state.color==="status" ? STATUS[stt].color : SECTION_COLORS[i];
+      const size = t.priority==="high"?9 : t.priority==="medium"?7 : 5.5;
+      const node = { _id:t.id, _type:"task", _idx:i,
+        name: t.id+"  "+trunc(t.title,46),
         symbol:"circle", symbolSize:size,
-        itemStyle:{ color:"#888", borderColor:"rgba(255,255,255,0.14)", borderWidth:1 },
-        label:{ show:false, formatter:"{b}", color:"#c8d6ee", fontFamily:'"IBM Plex Mono", monospace', fontSize:10 }
-      };
-      recolorNode(node);
-      nodes.push(node);
-    }));
-
-    // containment (section -> its tasks)
-    sections.forEach((s, i) => s.tasks.forEach(t => {
-      links.push({
-        source: s.id, target: t.id, _kind:"contain",
-        lineStyle:{ color: state.color === "section" ? SECTION_COLORS[i] : "#26364f",
-                    width:1, opacity: state.color === "section" ? 0.22 : 0.16, curveness:0.06 },
-        symbol:["none","none"]
-      });
-    }));
-
-    // task -> task dependency
-    sections.forEach(s => s.tasks.forEach(t => (t.dependsOn || []).forEach(dep => {
-      links.push({
-        source: dep, target: t.id, _kind:"task-dep",
-        lineStyle:{ color:"#4c5f82", width:1.3, opacity:0.5, curveness:0.12 },
-        symbol:["none","arrow"], symbolSize:[0,7]
-      });
-    })));
-  }
-
-  const present = new Set(nodes.map(n => n.id));
-  const flinks = links.filter(l => present.has(l.source) && present.has(l.target));
-  return { nodes, links: flinks };
+        itemStyle:{color:col,
+          borderColor:(stt==="todo"&&ready)?"#34d3ee":"rgba(255,255,255,0.12)",
+          borderWidth:(stt==="todo"&&ready)?2:1},
+        label:{color: stt==="done"?"#6f8156":"#c8d6ee", fontSize:11, fontFamily:MONO} };
+      nodeRefById[t.id]=node;
+      sec.children.push(node);
+    });
+    root.children.push(sec);
+  });
+  return root;
 }
 
-/* ---------- tooltip ---------- */
+function recolorNode(id){
+  const n=nodeRefById[id]; if(!n) return;
+  if(n._type==="section"){
+    const s=sectionById[id], st=sectionStats(s);
+    n.itemStyle.color = state.color==="status"?progressColor(st.ratio):SECTION_COLORS[n._idx];
+    n.name = s.id+"  "+trunc(s.name,34)+"   ("+st.done+"/"+st.tot+")";
+  } else if(n._type==="task"){
+    const stt=statusMap[id], ready=taskReady(taskById[id]);
+    n.itemStyle.color = state.color==="status"?STATUS[stt].color:SECTION_COLORS[n._idx];
+    n.itemStyle.borderColor = (stt==="todo"&&ready)?"#34d3ee":"rgba(255,255,255,0.12)";
+    n.itemStyle.borderWidth = (stt==="todo"&&ready)?2:1;
+    n.label.color = stt==="done"?"#6f8156":"#c8d6ee";
+  }
+}
+
 function tooltipHTML(d){
-  if (!d) return "";
-  if (d._type === "section"){
-    const s = sectionById[d.id];
-    const st = sectionStats(s);
-    return '<div style="max-width:320px">'
-      + '<div style="font:600 12px/1.2 IBM Plex Mono,monospace;color:#34d3ee">' + esc(s.id) + '</div>'
-      + '<div style="font-size:14px;font-weight:600;margin:3px 0 6px">' + esc(s.name) + '</div>'
-      + '<div style="font-size:11.5px;color:#93a6c6;line-height:1.45">' + esc(s.goal) + '</div>'
-      + '<div style="margin-top:8px;font:600 12px IBM Plex Mono,monospace;color:#37c46b">' + st.done + ' / ' + st.tot + ' tasks done</div>'
-      + '</div>';
+  if(!d) return "";
+  if(d._type==="root"){
+    return '<div style="max-width:300px"><div style="font-weight:600;font-size:13px">'+esc(CHECKLIST.project.name)+'</div>'
+      +'<div style="font-size:11px;color:#93a6c6;margin-top:4px">'+sections.length+' phases &middot; '+Object.keys(statusMap).length+' tasks</div></div>';
   }
-  const t = taskById[d.id];
-  const stt = statusMap[d.id];
-  const ready = taskReady(t);
-  const readyLine = stt === "todo"
-    ? (ready ? '<span style="color:#34d3ee;font-weight:600">Ready to start</span>'
-             : '<span style="color:#f0a83a;font-weight:600">Waiting on dependencies</span>')
-    : '';
-  return '<div style="max-width:320px">'
-    + '<div style="font:600 11px/1.2 IBM Plex Mono,monospace;color:#93a6c6">' + esc(t.id) + ' &middot; ' + esc(t._sectionId) + '</div>'
-    + '<div style="font-size:13px;font-weight:600;margin:3px 0 6px">' + esc(t.title) + '</div>'
-    + '<div style="display:flex;gap:8px;align-items:center;font-size:11px">'
-    + '<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:' + STATUS[stt].color + ';display:inline-block"></i>' + STATUS[stt].label + '</span>'
-    + '<span style="color:#647599">priority: ' + esc(t.priority) + '</span></div>'
-    + (readyLine ? '<div style="margin-top:6px;font-size:11px">' + readyLine + '</div>' : '')
-    + '<div style="margin-top:7px;font-size:10.5px;color:#647599">click to open &amp; set status</div>'
-    + '</div>';
+  if(d._type==="section"){
+    const s=sectionById[d._id], st=sectionStats(s);
+    return '<div style="max-width:320px"><div style="font:600 12px IBM Plex Mono,monospace;color:#34d3ee">'+esc(s.id)+'</div>'
+      +'<div style="font-size:14px;font-weight:600;margin:3px 0 6px">'+esc(s.name)+'</div>'
+      +'<div style="font-size:11.5px;color:#93a6c6;line-height:1.45">'+esc(s.goal)+'</div>'
+      +'<div style="margin-top:8px;font:600 12px IBM Plex Mono,monospace;color:#37c46b">'+st.done+' / '+st.tot+' tasks done</div></div>';
+  }
+  const t=taskById[d._id], stt=statusMap[d._id], ready=taskReady(t);
+  const rl = stt==="todo" ? (ready?'<span style="color:#34d3ee;font-weight:600">Ready to start</span>':'<span style="color:#f0a83a;font-weight:600">Waiting on dependencies</span>'):'';
+  return '<div style="max-width:320px"><div style="font:600 11px IBM Plex Mono,monospace;color:#93a6c6">'+esc(t.id)+' &middot; '+esc(t._sectionId)+'</div>'
+    +'<div style="font-size:13px;font-weight:600;margin:3px 0 6px">'+esc(t.title)+'</div>'
+    +'<div style="display:flex;gap:8px;align-items:center;font-size:11px"><span style="display:inline-flex;align-items:center;gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:'+STATUS[stt].color+';display:inline-block"></i>'+STATUS[stt].label+'</span><span style="color:#647599">priority: '+esc(t.priority)+'</span></div>'
+    +(rl?'<div style="margin-top:6px;font-size:11px">'+rl+'</div>':'')
+    +'<div style="margin-top:7px;font-size:10.5px;color:#647599">click to open &amp; set status</div></div>';
 }
 
-/* ---------- echarts option ---------- */
+/* ---- option ---- */
 let chart;
 function buildOption(){
-  const { nodes, links } = buildData();
-  chartNodes = nodes; chartLinks = links;
+  buildTree();
+  const lr = state.orient==="LR";
   return {
-    backgroundColor: "transparent",
-    tooltip: {
-      trigger:"item",
-      confine:true,
-      backgroundColor:"rgba(12,20,36,0.96)",
-      borderColor:"#26364f", borderWidth:1,
-      textStyle:{ color:"#e7eefb", fontFamily:'"IBM Plex Sans",sans-serif' },
+    backgroundColor:"transparent",
+    tooltip:{trigger:"item",confine:true,backgroundColor:"rgba(12,20,36,0.96)",borderColor:"#26364f",borderWidth:1,
+      textStyle:{color:"#e7eefb",fontFamily:'"IBM Plex Sans",sans-serif'},
       extraCssText:"box-shadow:0 12px 40px rgba(0,0,0,.5);border-radius:10px;padding:11px 13px;",
-      formatter: p => (p.dataType === "node") ? tooltipHTML(p.data) : ""
-    },
-    animation: !reducedMotion,
-    animationDuration: 500,
-    series: [{
-      type:"graph",
-      layout: state.layout,
-      roam: true,
-      draggable: true,
-      data: nodes,
-      links: links,
-      categories: sections.map((s,i) => ({ name: s.id })),
-      scaleLimit: { min:0.35, max:6 },
-      label: { show:false, position:"right" },
-      edgeSymbolSize: 7,
-      lineStyle: { color:"source", curveness:0.1 },
-      emphasis: {
-        focus:"adjacency",
-        scale: true,
-        label:{ show:true, color:"#ffffff", fontFamily:'"IBM Plex Mono",monospace' },
-        lineStyle:{ width:2.4, opacity:0.95 }
-      },
-      blurScope:"coordinateSystem",
-      force: {
-        repulsion: state.view === "full" ? 240 : 700,
-        gravity: 0.055,
-        edgeLength: state.view === "full" ? [40,150] : [110,240],
-        friction: 0.16,
-        layoutAnimation: !reducedMotion
-      },
-      circular: { rotateLabel: true }
+      formatter:p=>tooltipHTML(p.data)},
+    animation:!reducedMotion, animationDuration:450, animationDurationUpdate:350,
+    series:[{
+      type:"tree", data:[root],
+      top: lr?"3%":"8%", bottom: lr?"3%":"12%", left: lr?"10%":"6%", right: lr?"22%":"6%",
+      layout:"orthogonal", orient: state.orient, roam:true,
+      initialTreeDepth: state.depth==="all" ? -1 : 1,
+      expandAndCollapse:true,
+      symbol:"circle",
+      edgeShape:"curve", edgeForkPosition:"63%",
+      lineStyle:{color:"#2a3a56",width:1.4,curveness: lr?0.5:0.5},
+      label:{ position: lr?"left":"top", align: lr?"right":"center",
+        verticalAlign:"middle", distance:8, fontFamily:MONO, fontSize:12, color:"#dce6f7" },
+      leaves:{ label:{ position: lr?"right":"bottom", align: lr?"left":"center", verticalAlign:"middle", distance:8 } },
+      emphasis:{ focus:"descendant", label:{color:"#ffffff"} },
+      expandAndCollapse:true
     }]
   };
 }
 
-/* ---------- render pipeline ---------- */
-let chartNodes = [], chartLinks = [];
-
-function structuralRender(){
-  chart.setOption(buildOption(), true);
-  // in overview mode, reveal all labels
-  if (state.view === "overview"){
-    chart.setOption({ series:[{ label:{ show:true } }] });
-  }
-}
-
+function structuralRender(){ chart.setOption(buildOption(), true); }
 function applyStatusVisual(){
-  // recolor existing node objects in place; keep same array/order so positions persist
-  chartNodes.forEach(recolorNode);
-  chart.setOption({ series:[{ data: chartNodes, links: chartLinks }] });
+  Object.keys(nodeRefById).forEach(recolorNode);
+  chart.setOption({series:[{data:[root]}]});
 }
 
-/* ---------- progress panel ---------- */
+/* ---- progress + queue + sections ---- */
+function readyQueue(){
+  const q=[];
+  sections.forEach(s=>s.tasks.forEach(t=>{ if(statusMap[t.id]==="todo" && taskReady(taskById[t.id])) q.push(t); }));
+  return q;
+}
 function updateProgress(){
-  let todo=0, prog=0, done=0, ready=0, total=0;
-  sections.forEach(s => s.tasks.forEach(t => {
-    total++;
-    const st = statusMap[t.id];
-    if (st==="done") done++; else if (st==="in_progress") prog++; else { todo++; if (taskReady(t)) ready++; }
-  }));
-  const pct = total ? Math.round(100*done/total) : 0;
-  document.getElementById("top-pct").textContent = pct;
-  document.getElementById("top-done").textContent = done;
-  document.getElementById("top-total").textContent = total;
-  document.getElementById("topbar-fill").style.width = pct + "%";
-  document.getElementById("cnt-todo").textContent = todo;
-  document.getElementById("cnt-prog").textContent = prog;
-  document.getElementById("cnt-done").textContent = done;
-  document.getElementById("ready-count").textContent = ready;
+  let todo=0,prog=0,done=0,total=0;
+  sections.forEach(s=>s.tasks.forEach(t=>{total++;const st=statusMap[t.id];if(st==="done")done++;else if(st==="in_progress")prog++;else todo++;}));
+  const pct=total?Math.round(100*done/total):0;
+  document.getElementById("top-pct").textContent=pct;
+  document.getElementById("top-done").textContent=done;
+  document.getElementById("top-total").textContent=total;
+  document.getElementById("topbar-fill").style.width=pct+"%";
+  document.getElementById("cnt-todo").textContent=todo;
+  document.getElementById("cnt-prog").textContent=prog;
+  document.getElementById("cnt-done").textContent=done;
 
-  const list = document.getElementById("section-list");
-  list.innerHTML = "";
-  sections.forEach((s, i) => {
-    const st = sectionStats(s);
-    const pctS = Math.round(100*st.ratio);
-    const row = document.createElement("div");
-    row.className = "sec-row";
-    row.innerHTML =
-      '<div class="sec-id mono" style="color:' + SECTION_COLORS[i] + '">' + esc(s.id) + '</div>'
-      + '<div class="sec-mid"><div class="sec-name">' + esc(s.name) + '</div>'
-      + '<div class="sec-bar"><i style="width:' + pctS + '%"></i></div></div>'
-      + '<div class="sec-frac mono">' + st.done + '/' + st.tot + '</div>';
-    row.addEventListener("click", () => {
-      openDetail({ id:s.id, _type:"section", _sectionIdx:i });
-      chart.dispatchAction({ type:"highlight", seriesIndex:0, name:s.id });
-    });
+  const q=readyQueue();
+  document.getElementById("ready-count").textContent=q.length;
+  const qEl=document.getElementById("queue"); qEl.innerHTML="";
+  if(!q.length){ qEl.innerHTML='<div class="qempty">All available tasks are underway or done.</div>'; }
+  q.slice(0,8).forEach((t,i)=>{
+    const row=document.createElement("div"); row.className="qrow";
+    row.innerHTML='<span class="qnum mono">'+(i+1)+'</span><span class="qid mono">'+esc(t.id)+'</span><span class="qt">'+esc(t.title)+'</span>';
+    row.addEventListener("click",()=>{ openDetail({_id:t.id,_type:"task"}); highlight(t.id); });
+    qEl.appendChild(row);
+  });
+
+  const list=document.getElementById("section-list"); list.innerHTML="";
+  sections.forEach((s,i)=>{
+    const st=sectionStats(s); const pctS=Math.round(100*st.ratio);
+    const row=document.createElement("div"); row.className="sec-row";
+    row.innerHTML='<div class="sec-id mono" style="color:'+SECTION_COLORS[i]+'">'+esc(s.id)+'</div>'
+      +'<div><div class="sec-name">'+esc(s.name)+'</div><div class="sec-bar"><i style="width:'+pctS+'%"></i></div></div>'
+      +'<div class="sec-frac mono">'+st.done+'/'+st.tot+'</div>';
+    row.addEventListener("click",()=>{ openDetail({_id:s.id,_type:"section"}); highlight(s.id); });
     list.appendChild(row);
   });
 }
+function highlight(id){
+  const n=nodeRefById[id]; if(!n) return;
+  chart.dispatchAction({type:"highlight",seriesIndex:0,name:n.name});
+}
 
-/* ---------- detail panel ---------- */
-let currentDetailId = null;
-const detailEl = document.getElementById("detail");
-
-function statusDot(id){ return '<i class="dot" style="background:' + STATUS[statusMap[id]].color + '"></i>'; }
-
-function renderDetail(id, type){
-  currentDetailId = id;
-  const body = document.getElementById("d-body");
-  if (type === "section"){
-    const s = sectionById[id];
-    const st = sectionStats(s);
-    document.getElementById("d-kind").textContent = "Section " + s.order;
-    document.getElementById("d-id").textContent = s.id + "  &middot;  " + st.done + "/" + st.tot + " done";
-    document.getElementById("d-id").innerHTML = esc(s.id) + '  &middot;  ' + st.done + '/' + st.tot + ' done';
-    document.getElementById("d-title").textContent = s.name;
-    let deps = (s.dependsOn || []).map(d =>
-      '<span class="dep" data-jump="' + d + '" data-type="section"><i class="dot" style="background:' + SECTION_COLORS[sectionIndex[d]] + '"></i>' + esc(d) + '</span>').join("");
-    let tasks = s.tasks.map(t =>
-      '<div class="task-mini" data-jump="' + t.id + '" data-type="task">'
-      + statusDot(t.id)
-      + '<span class="tid mono">' + esc(t.id) + '</span>'
-      + '<span class="tt">' + esc(t.title) + '</span></div>').join("");
-    body.innerHTML =
-      '<div class="kv"><div class="k">Goal</div><div class="v">' + esc(s.goal) + '</div></div>'
-      + (deps ? '<div class="kv"><div class="k">Depends on</div><div class="deps">' + deps + '</div></div>' : '')
-      + '<div class="kv"><div class="k">Tasks (' + s.tasks.length + ')</div><div class="tasklist">' + tasks + '</div></div>';
-  } else {
-    const t = taskById[id];
-    const stt = statusMap[id];
-    const ready = taskReady(t);
-    document.getElementById("d-kind").textContent = t._sectionId + " / task";
-    document.getElementById("d-id").innerHTML = esc(t.id);
-    document.getElementById("d-title").textContent = t.title;
-
-    const setBtns = STATUS_ORDER.map(s =>
-      '<button data-s="' + s + '" class="' + (stt===s?"on":"") + '"><i class="dot" style="background:' + STATUS[s].color + '"></i>' + STATUS[s].label + '</button>').join("");
-
-    const depChips = (t.dependsOn || []).length
-      ? (t.dependsOn.map(d => {
-          const nm = taskById[d] ? taskById[d].title : (sectionById[d] ? sectionById[d].name : d);
-          return '<span class="dep" data-jump="' + d + '" data-type="' + (taskById[d]?"task":"section") + '">' + statusDot(d) + '<span class="mono">' + esc(d) + '</span></span>';
-        }).join(""))
-      : '<span class="empty">None - can start anytime</span>';
-
-    const blocks = (reverseDeps[id] || []);
-    const blockChips = blocks.length
-      ? blocks.map(d => '<span class="dep" data-jump="' + d + '" data-type="task">' + statusDot(d) + '<span class="mono">' + esc(d) + '</span></span>').join("")
-      : '<span class="empty">Nothing waits on this</span>';
-
-    const readyRow = stt === "todo"
-      ? (ready ? '<div class="ready-tag">Ready to start</div>'
-               : '<div class="wait-tag">Waiting on ' + (t.dependsOn||[]).filter(d=>!isDone(d)).length + ' dependency(ies)</div>')
-      : '';
-
-    const ac = (t.acceptanceCriteria || []).map(a => '<li>' + esc(a) + '</li>').join("");
-    const tags = (t.tags || []).map(tg => '<span class="tag mono">' + esc(tg) + '</span>').join("");
-
-    body.innerHTML =
-      '<div class="kv"><div class="k">Status</div><div class="setstatus" id="d-setstatus">' + setBtns + '</div>'
-        + (readyRow ? '<div style="margin-top:9px">' + readyRow + '</div>' : '') + '</div>'
-      + '<div class="kv"><div class="k">Priority</div><div class="v"><span class="pill ' + esc(t.priority) + '">' + esc(t.priority) + '</span></div></div>'
-      + '<div class="kv"><div class="k">What to do</div><div class="details-text">' + esc(t.details) + '</div></div>'
-      + '<div class="kv"><div class="k">Done when</div><ul class="ac">' + ac + '</ul></div>'
-      + '<div class="kv"><div class="k">Depends on</div><div class="deps">' + depChips + '</div></div>'
-      + '<div class="kv"><div class="k">Blocks</div><div class="deps">' + blockChips + '</div></div>'
-      + (tags ? '<div class="kv"><div class="k">Tags</div><div class="tags">' + tags + '</div></div>' : '');
-
-    const ss = document.getElementById("d-setstatus");
-    ss.querySelectorAll("button").forEach(b => b.addEventListener("click", () => setStatus(id, b.dataset.s)));
+/* ---- detail ---- */
+let currentDetailId=null;
+const detailEl=document.getElementById("detail");
+function statusDot(id){return '<i class="dot" style="background:'+STATUS[statusMap[id]].color+'"></i>';}
+function renderDetail(id,type){
+  currentDetailId=id;
+  const body=document.getElementById("d-body");
+  if(type==="root"){
+    const ts=CHECKLIST.project.techStack;
+    document.getElementById("d-kind").textContent="Project";
+    document.getElementById("d-id").textContent=(CHECKLIST.revision||"");
+    document.getElementById("d-title").textContent=CHECKLIST.project.name;
+    body.innerHTML='<div class="kv"><div class="k">Overview</div><div class="details-text">'+esc(CHECKLIST.project.description)+'</div></div>'
+      +'<div class="kv"><div class="k">Stack</div><div class="deps">'+Object.keys(ts).map(k=>'<span class="tag mono">'+esc(k)+': '+esc(ts[k])+'</span>').join("")+'</div></div>';
+    detailEl.classList.add("open"); return;
   }
-
-  body.querySelectorAll("[data-jump]").forEach(el => el.addEventListener("click", () => {
-    const jid = el.getAttribute("data-jump");
-    const jtype = el.getAttribute("data-type");
-    openDetail({ id: jid, _type: jtype, _sectionIdx: (jtype==="section" ? sectionIndex[jid] : (taskById[jid] ? taskById[jid]._sectionIdx : 0)) });
-    chart.dispatchAction({ type:"highlight", seriesIndex:0, name: jid });
+  if(type==="section"){
+    const s=sectionById[id], st=sectionStats(s);
+    document.getElementById("d-kind").textContent="Phase "+s.order;
+    document.getElementById("d-id").innerHTML=esc(s.id)+'  &middot;  '+st.done+'/'+st.tot+' done';
+    document.getElementById("d-title").textContent=s.name;
+    const deps=(s.dependsOn||[]).map(d=>'<span class="dep" data-jump="'+d+'" data-type="section"><i class="dot" style="background:'+SECTION_COLORS[sectionIndex[d]]+'"></i>'+esc(d)+'</span>').join("");
+    const tasks=s.tasks.map(t=>'<div class="task-mini" data-jump="'+t.id+'" data-type="task">'+statusDot(t.id)+'<span class="tid mono">'+esc(t.id)+'</span><span class="tt">'+esc(t.title)+'</span></div>').join("");
+    body.innerHTML='<div class="kv"><div class="k">Goal</div><div class="v">'+esc(s.goal)+'</div></div>'
+      +(deps?'<div class="kv"><div class="k">Depends on phases</div><div class="deps">'+deps+'</div></div>':'')
+      +'<div class="kv"><div class="k">Tasks ('+s.tasks.length+')</div><div class="tasklist">'+tasks+'</div></div>';
+  } else {
+    const t=taskById[id], stt=statusMap[id], ready=taskReady(t);
+    document.getElementById("d-kind").textContent=t._sectionId+" / task";
+    document.getElementById("d-id").innerHTML=esc(t.id);
+    document.getElementById("d-title").textContent=t.title;
+    const setBtns=STATUS_ORDER.map(s=>'<button data-s="'+s+'" class="'+(stt===s?"on":"")+'"><i class="dot" style="background:'+STATUS[s].color+'"></i>'+STATUS[s].label+'</button>').join("");
+    const depChips=(t.dependsOn||[]).length?t.dependsOn.map(d=>'<span class="dep" data-jump="'+d+'" data-type="'+(taskById[d]?"task":"section")+'">'+statusDot(d)+'<span class="mono">'+esc(d)+'</span></span>').join(""):'<span class="empty">None - can start anytime</span>';
+    const blocks=reverseDeps[id]||[];
+    const blockChips=blocks.length?blocks.map(d=>'<span class="dep" data-jump="'+d+'" data-type="task">'+statusDot(d)+'<span class="mono">'+esc(d)+'</span></span>').join(""):'<span class="empty">Nothing waits on this</span>';
+    const readyRow=stt==="todo"?(ready?'<div class="ready-tag">Ready to start</div>':'<div class="wait-tag">Waiting on '+(t.dependsOn||[]).filter(d=>!isDone(d)).length+' dependency(ies)</div>'):'';
+    const ac=(t.acceptanceCriteria||[]).map(a=>'<li>'+esc(a)+'</li>').join("");
+    const tags=(t.tags||[]).map(g=>'<span class="tag mono">'+esc(g)+'</span>').join("");
+    body.innerHTML='<div class="kv"><div class="k">Status</div><div class="setstatus" id="d-setstatus">'+setBtns+'</div>'+(readyRow?'<div style="margin-top:9px">'+readyRow+'</div>':'')+'</div>'
+      +'<div class="kv"><div class="k">Priority</div><div class="v"><span class="pill '+esc(t.priority)+'">'+esc(t.priority)+'</span></div></div>'
+      +'<div class="kv"><div class="k">What to do</div><div class="details-text">'+esc(t.details)+'</div></div>'
+      +'<div class="kv"><div class="k">Done when</div><ul class="ac">'+ac+'</ul></div>'
+      +'<div class="kv"><div class="k">Depends on</div><div class="deps">'+depChips+'</div></div>'
+      +'<div class="kv"><div class="k">Blocks</div><div class="deps">'+blockChips+'</div></div>'
+      +(tags?'<div class="kv"><div class="k">Tags</div><div class="tags">'+tags+'</div></div>':'');
+    document.getElementById("d-setstatus").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>setStatus(id,b.dataset.s)));
+  }
+  body.querySelectorAll("[data-jump]").forEach(el=>el.addEventListener("click",()=>{
+    const jid=el.getAttribute("data-jump"), jt=el.getAttribute("data-type");
+    openDetail({_id:jid,_type:jt}); highlight(jid);
   }));
 }
-
 function openDetail(node){
-  const type = node._type === "section" ? "section" : "task";
-  renderDetail(node.id, type);
-  detailEl.classList.add("open");
+  const type=node._type==="section"?"section":node._type==="root"?"root":"task";
+  renderDetail(node._id,type); detailEl.classList.add("open");
 }
-function closeDetail(){ detailEl.classList.remove("open"); currentDetailId = null; }
+function closeDetail(){detailEl.classList.remove("open");currentDetailId=null;}
 
-/* ---------- status mutation ---------- */
-function setStatus(id, st){
-  if (!(id in statusMap)) return;
-  statusMap[id] = st;
-  persist();
-  applyStatusVisual();
-  updateProgress();
-  if (currentDetailId === id) renderDetail(id, "task");
+/* ---- status mutation ---- */
+function setStatus(id,st){
+  if(!(id in statusMap))return;
+  statusMap[id]=st; persist(); applyStatusVisual(); updateProgress();
+  if(currentDetailId===id) renderDetail(id,"task");
 }
 
-/* ---------- persistence (best-effort) ---------- */
-async function persist(){
-  if (window.storage && typeof window.storage.set === "function"){
-    try { await window.storage.set(STORAGE_KEY, JSON.stringify(statusMap)); } catch(e){}
-  }
-}
-async function loadPersisted(){
-  if (window.storage && typeof window.storage.get === "function"){
-    try {
-      const r = await window.storage.get(STORAGE_KEY);
-      if (r && r.value){
-        const m = JSON.parse(r.value);
-        Object.keys(m).forEach(k => { if (k in statusMap) statusMap[k] = m[k]; });
-      }
-      document.getElementById("persist-hint").textContent = "Progress auto-saves in this app. Use Save progress file to keep it offline.";
-    } catch(e){}
-  }
-}
+/* ---- persistence ---- */
+async function persist(){ if(window.storage&&window.storage.set){try{await window.storage.set(STORAGE_KEY,JSON.stringify(statusMap));}catch(e){}}}
+async function loadPersisted(){ if(window.storage&&window.storage.get){try{const r=await window.storage.get(STORAGE_KEY);if(r&&r.value){const m=JSON.parse(r.value);Object.keys(m).forEach(k=>{if(k in statusMap)statusMap[k]=m[k];});}document.getElementById("persist-hint").textContent="Progress auto-saves in this app. Use Save progress file to keep it offline.";}catch(e){}}}
 
-/* ---------- import / export ---------- */
+/* ---- import / export ---- */
 function exportProgress(){
-  const copy = JSON.parse(JSON.stringify(CHECKLIST));
-  copy.sections.forEach(s => s.tasks.forEach(t => t.status = statusMap[t.id]));
-  copy.exportedAt = new Date().toISOString();
-  const blob = new Blob([JSON.stringify(copy, null, 2)], { type:"application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "checklist-progress.json";
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(a.href);
+  const copy=JSON.parse(JSON.stringify(CHECKLIST));
+  copy.sections.forEach(s=>s.tasks.forEach(t=>t.status=statusMap[t.id]));
+  copy.exportedAt=new Date().toISOString();
+  const blob=new Blob([JSON.stringify(copy,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="checklist-progress.json";
+  document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);
 }
 function importProgress(file){
-  const fr = new FileReader();
-  fr.onload = () => {
-    try {
-      const obj = JSON.parse(fr.result);
-      if (obj && obj.sections){
-        obj.sections.forEach(s => (s.tasks || []).forEach(t => { if (t.id in statusMap && t.status) statusMap[t.id] = t.status; }));
-      } else if (obj && typeof obj === "object"){
-        Object.keys(obj).forEach(k => { if (k in statusMap && typeof obj[k] === "string") statusMap[k] = obj[k]; });
-      }
-      persist(); structuralRender(); applyStatusVisual(); updateProgress();
-    } catch(e){ alert("That file could not be read as a Medical View progress file."); }
-  };
+  const fr=new FileReader();
+  fr.onload=()=>{try{const obj=JSON.parse(fr.result);
+    if(obj&&obj.sections){obj.sections.forEach(s=>(s.tasks||[]).forEach(t=>{if(t.id in statusMap&&t.status)statusMap[t.id]=t.status;}));}
+    else if(obj&&typeof obj==="object"){Object.keys(obj).forEach(k=>{if(k in statusMap&&typeof obj[k]==="string")statusMap[k]=obj[k];});}
+    persist();structuralRender();applyStatusVisual();updateProgress();
+  }catch(e){alert("That file could not be read as a Medical View progress file.");}};
   fr.readAsText(file);
 }
-function resetAll(){
-  Object.keys(statusMap).forEach(k => statusMap[k] = "todo");
-  persist(); structuralRender(); applyStatusVisual(); updateProgress();
-}
+function resetAll(){Object.keys(statusMap).forEach(k=>statusMap[k]="todo");persist();structuralRender();applyStatusVisual();updateProgress();}
 
-/* ---------- legend ---------- */
+/* ---- legend ---- */
 function renderLegend(){
-  const el = document.getElementById("legend");
-  if (state.color === "status"){
-    el.innerHTML =
-      '<span><i class="dot" style="background:var(--todo)"></i>To do</span>'
-      + '<span><i class="dot" style="background:var(--prog)"></i>In progress</span>'
-      + '<span><i class="dot" style="background:var(--done)"></i>Done</span>'
-      + '<span><i class="ring"></i>Ready to start</span>'
-      + '<span style="color:#647599">arrows = depends on</span>';
+  const el=document.getElementById("legend");
+  if(state.color==="status"){
+    el.innerHTML='<span><i class="dot" style="background:var(--todo)"></i>To do</span><span><i class="dot" style="background:var(--prog)"></i>In progress</span><span><i class="dot" style="background:var(--done)"></i>Done</span><span><i class="ring"></i>Ready to start</span>';
   } else {
-    el.innerHTML =
-      '<span style="color:#93a6c6">Node color = section</span>'
-      + '<span><i class="ring"></i>Ready to start</span>'
-      + '<span style="color:#647599">arrows = depends on</span>';
+    el.innerHTML='<span style="color:#93a6c6">Node color = phase</span><span><i class="ring"></i>Ready to start</span>';
   }
 }
 
-/* ---------- controls wiring ---------- */
-function wireSeg(id, key, after){
-  document.getElementById(id).querySelectorAll("button").forEach(b => {
-    b.addEventListener("click", () => {
-      document.getElementById(id).querySelectorAll("button").forEach(x => x.classList.remove("active"));
-      b.classList.add("active");
-      state[key] = b.dataset[key === "view" ? "v" : key === "layout" ? "l" : "c"];
-      after();
+/* ---- controls ---- */
+function wireSeg(id,key,dataKey,after){
+  document.getElementById(id).querySelectorAll("button").forEach(b=>{
+    b.addEventListener("click",()=>{
+      document.getElementById(id).querySelectorAll("button").forEach(x=>x.classList.remove("active"));
+      b.classList.add("active"); state[key]=b.dataset[dataKey]; after();
     });
   });
 }
-wireSeg("seg-view", "view", () => { structuralRender(); updateProgress(); });
-wireSeg("seg-layout", "layout", () => { structuralRender(); });
-wireSeg("seg-color", "color", () => { structuralRender(); renderLegend(); });
-
-document.getElementById("filters").querySelectorAll(".fchip").forEach(chip => {
-  chip.addEventListener("click", () => {
-    const s = chip.dataset.s;
-    state.filter[s] = !state.filter[s];
-    chip.classList.toggle("off", !state.filter[s]);
-    structuralRender();
-  });
+wireSeg("seg-orient","orient","o",()=>structuralRender());
+wireSeg("seg-depth","depth","d",()=>structuralRender());
+wireSeg("seg-color","color","c",()=>{structuralRender();renderLegend();});
+document.getElementById("filters").querySelectorAll(".fchip").forEach(chip=>{
+  chip.addEventListener("click",()=>{const s=chip.dataset.s;state.filter[s]=!state.filter[s];chip.classList.toggle("off",!state.filter[s]);structuralRender();});
 });
+document.getElementById("btn-export").addEventListener("click",exportProgress);
+document.getElementById("btn-reset").addEventListener("click",()=>{if(confirm("Reset every task back to To do?"))resetAll();});
+document.getElementById("file-import").addEventListener("change",e=>{if(e.target.files[0])importProgress(e.target.files[0]);e.target.value="";});
+document.getElementById("d-close").addEventListener("click",closeDetail);
 
-document.getElementById("btn-export").addEventListener("click", exportProgress);
-document.getElementById("btn-reset").addEventListener("click", () => {
-  if (confirm("Reset every task back to To do?")) resetAll();
-});
-document.getElementById("file-import").addEventListener("change", e => { if (e.target.files[0]) importProgress(e.target.files[0]); e.target.value = ""; });
-document.getElementById("d-close").addEventListener("click", closeDetail);
-
-/* ---------- boot ---------- */
+/* ---- boot ---- */
 async function boot(){
-  chart = echarts.init(document.getElementById("chart"), null, { renderer:"canvas" });
+  chart=echarts.init(document.getElementById("chart"),null,{renderer:"canvas"});
   await loadPersisted();
-  structuralRender();
-  applyStatusVisual();
-  updateProgress();
-  renderLegend();
-  chart.on("click", p => { if (p.dataType === "node") openDetail(p.data); });
-  window.addEventListener("resize", () => chart.resize());
+  structuralRender(); applyStatusVisual(); updateProgress(); renderLegend();
+  chart.on("click",p=>{ if(p.data&&p.data._id) openDetail(p.data); });
+  window.addEventListener("resize",()=>chart.resize());
 }
 boot();
 </script>

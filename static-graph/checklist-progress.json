@@ -1,16 +1,20 @@
 {
   "project": {
     "name": "Medical View",
-    "description": "A cloud-native medical imaging and diagnosis platform where patients register and book checkups, doctors open a DICOM Viewport to diagnose a patient's Study (one DB row = one Study) under a single-writer distributed lock, save reports, and patients then receive results, prescriptions, drug purchases/billing, and follow-up appointments — built as .NET 10 microservices with Clean Architecture and deployed on Azure.",
+    "description": "A cloud-native medical imaging and diagnosis platform (MediView) where patients register and book checkups, doctors open a Cornerstone.js DICOM Viewport to diagnose a patient's Study (one DB row = one Study) under a single-writer distributed lock, save reports, and patients then receive results, prescriptions, drug purchases/billing, and follow-up appointments - built as .NET 10 microservices with Domain-Driven Design + Clean Architecture and deployed on Azure.",
     "techStack": {
       "backend": ".NET 10",
       "frontend": "Blazor",
-      "architecture": "Clean Architecture + Microservices + Repository pattern + Unit of Work + SOLID",
+      "architecture": "Domain-Driven Design + Clean Architecture (Domain / Application / Infrastructure / Api) + Microservices + Repository + Unit of Work + SOLID",
       "database": "PostgreSQL (EF Core / Npgsql)",
       "cache": "Redis (distributed lock via RedLock)",
       "messaging": "MassTransit over RabbitMQ (local) / Azure Service Bus (prod), Transactional Outbox",
-      "cloud": "Azure (Container Apps, Azure Database for PostgreSQL, Azure Cache for Redis, Service Bus, Key Vault, ACR, Blob Storage, Application Insights)"
-    }
+      "cloud": "Azure (Container Apps, Azure Database for PostgreSQL, Azure Cache for Redis, Service Bus, Key Vault, ACR, Blob Storage, Application Insights)",
+      "auth": "JWT access tokens + rotating refresh tokens",
+      "orm": "Entity Framework Core (Npgsql)",
+      "imaging": "DICOM via fo-dicom (WADO-RS/QIDO-RS) + Cornerstone.js viewport"
+    },
+    "revision": "v2"
   },
   "sections": [
     {
@@ -25,7 +29,7 @@
           "title": "Install and verify .NET 10 SDK",
           "details": "Install the .NET 10 SDK on all dev machines/CI. Verify with `dotnet --list-sdks` and `dotnet --version` (expect 10.x).",
           "priority": "high",
-          "status": "done",
+          "status": "todo",
           "dependsOn": [],
           "acceptanceCriteria": [
             "`dotnet --version` reports a 10.x SDK"
@@ -40,7 +44,7 @@
           "title": "Initialize git repository and .gitignore",
           "details": "Create the repo, run `dotnet new gitignore`, add README, LICENSE, and a CONTRIBUTING doc. Adopt trunk-based or GitFlow branching and document it.",
           "priority": "high",
-          "status": "done",
+          "status": "todo",
           "dependsOn": [
             "S01-T01"
           ],
@@ -57,7 +61,7 @@
           "title": "Create solution and top-level folders",
           "details": "Run `dotnet new sln -n MedicalView`. Create `src/`, `tests/`, `build/`, `deploy/`, `docs/` folders. Add solution folders per bounded context.",
           "priority": "high",
-          "status": "done",
+          "status": "todo",
           "dependsOn": [
             "S01-T02"
           ],
@@ -122,19 +126,57 @@
         },
         {
           "id": "S01-T07",
-          "title": "Document Clean Architecture conventions",
-          "details": "Write docs/architecture.md defining the 4 layers per service (Domain, Application, Infrastructure, Api), dependency rule (inward only), and folder naming.",
+          "title": "Document DDD + Clean Architecture layering",
+          "details": "Write docs/architecture.md defining Domain-Driven Design on top of Clean Architecture. Four concentric layers per service: (1) Domain = entities, aggregates, value objects, domain events, domain services and repository interfaces (Enterprise Business Rules); (2) Application = use cases as commands/queries/handlers, DTOs, validators (Application Business Rules); (3) Infrastructure = EF Core, Redis, message bus, blob and external gateways (Interface Adapters); (4) Api/Web = ASP.NET Core or Blazor host and DI composition root (Frameworks & Drivers). The dependency rule is absolute: source dependencies point inward only.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
             "S01-T03"
           ],
           "acceptanceCriteria": [
-            "docs/architecture.md reviewed and merged"
+            "docs/architecture.md shows the four DDD / Clean Architecture layers and the inward-only dependency rule"
           ],
           "tags": [
             "docs",
-            "architecture"
+            "architecture",
+            "ddd"
+          ]
+        },
+        {
+          "id": "S01-T08",
+          "title": "Define the per-microservice project template (separate projects per layer)",
+          "details": "Standardize every microservice as four SEPARATE projects, matching the reference solution layout: `MediView.<Service>.Domain` (classlib), `MediView.<Service>.Application` (classlib), `MediView.<Service>.Infrastructure` (classlib) and `MediView.<Service>.Api` (webapi startup project). Blazor host projects use the `.Web` suffix. Wire references inward only: Api -> Infrastructure -> Application -> Domain, and Application references Domain only. Commands: `dotnet new classlib -n MediView.<Service>.Domain`, `... .Application`, `... .Infrastructure`, `dotnet new webapi -n MediView.<Service>.Api`, then `dotnet sln add` and `dotnet add reference` to connect the layers.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S01-T07"
+          ],
+          "acceptanceCriteria": [
+            "A sample service exists as four projects with references pointing inward only"
+          ],
+          "tags": [
+            "setup",
+            "architecture",
+            "ddd",
+            "dotnet"
+          ]
+        },
+        {
+          "id": "S01-T09",
+          "title": "Create a reusable service scaffold",
+          "details": "Package the four-project layout as a `dotnet new` template (or a pwsh/bash generator) so every new microservice is created identically with the Domain/Application/Infrastructure/Api projects, base references, and analyzers already wired.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S01-T08"
+          ],
+          "acceptanceCriteria": [
+            "Running the scaffold produces a ready-to-build Clean Architecture service"
+          ],
+          "tags": [
+            "setup",
+            "automation",
+            "ddd"
           ]
         }
       ]
@@ -151,7 +193,7 @@
         {
           "id": "S02-T01",
           "title": "Create BuildingBlocks.Domain library",
-          "details": "`dotnet new classlib` for Entity/AuditableEntity base, AggregateRoot, ValueObject, IDomainEvent, and strongly-typed Id support.",
+          "details": "Create BuildingBlocks.Domain: Entity / AuditableEntity, AggregateRoot, ValueObject, IDomainEvent, DomainService marker, and strongly-typed ids - the DDD tactical building blocks every aggregate is composed from.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
@@ -301,6 +343,24 @@
           "tags": [
             "shared",
             "api"
+          ]
+        },
+        {
+          "id": "S02-T10",
+          "title": "Establish EF Core conventions",
+          "details": "Define the EF Core conventions every service follows: one DbContext per bounded context on Npgsql; an IEntityTypeConfiguration<T> per aggregate; value objects mapped as owned types; optimistic concurrency via the Postgres xmin token; connection resiliency with EnableRetryOnFailure; reads use AsNoTracking with projections; lazy loading disabled; and MassTransit EF Outbox tables. Migrations live in the Infrastructure project (`dotnet ef migrations add`, `dotnet ef database update`).",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S02-T04"
+          ],
+          "acceptanceCriteria": [
+            "A documented EF Core convention set is applied by the shared repository/UoW"
+          ],
+          "tags": [
+            "shared",
+            "efcore",
+            "ddd"
           ]
         }
       ]
@@ -465,19 +525,20 @@
         },
         {
           "id": "S04-T03",
-          "title": "Implement JWT access + refresh token issuance",
-          "details": "Add token service (signing key from config/Key Vault), access token with role/permission claims, rotating refresh tokens with persistence and revocation.",
+          "title": "Issue JWT access + rotating refresh tokens",
+          "details": "Issue short-lived JWT access tokens (~15 min) signed with a key from configuration / Key Vault. Use HS256 for a single issuer or RS256 (asymmetric) so any service or the gateway validates with the public key. Embed claims: sub (userId), email, role, permission claims, jti, iss, aud, exp. Issue long-lived refresh tokens stored hashed in the DB, single-use and rotated on each refresh, with server-side revocation.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
             "S04-T02"
           ],
           "acceptanceCriteria": [
-            "Login returns access+refresh; refresh rotates and revokes old token"
+            "Login returns a signed JWT carrying role/permission claims plus a rotating, revocable refresh token"
           ],
           "tags": [
             "auth",
-            "security"
+            "security",
+            "jwt"
           ]
         },
         {
@@ -517,36 +578,20 @@
         },
         {
           "id": "S04-T06",
-          "title": "Export shared JWT validation configuration",
-          "details": "Provide a shared AddJwtAuth() extension (issuer, audience, signing key) consumed by every downstream service and the gateway.",
+          "title": "Ship a shared JWT validation extension",
+          "details": "Provide an AddJwtAuth() extension configuring JwtBearer for every service and the gateway: ValidateIssuer, ValidateAudience, ValidateLifetime, ValidateIssuerSigningKey, a small ClockSkew, and (for RS256) the signing key / JWKS endpoint. Endpoints then use [Authorize] plus the permission policies from the Role service.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
             "S04-T03"
           ],
           "acceptanceCriteria": [
-            "A protected test endpoint accepts Auth-issued tokens"
+            "Any service validates Auth-issued JWTs through the shared extension"
           ],
           "tags": [
             "auth",
-            "security"
-          ]
-        },
-        {
-          "id": "S04-T07",
-          "title": "Write Auth unit + integration tests",
-          "details": "Unit test token service and handlers; integration test endpoints against a Postgres Testcontainer.",
-          "priority": "medium",
-          "status": "todo",
-          "dependsOn": [
-            "S04-T04"
-          ],
-          "acceptanceCriteria": [
-            "Auth test suite green in CI"
-          ],
-          "tags": [
-            "auth",
-            "testing"
+            "security",
+            "jwt"
           ]
         }
       ]
@@ -663,23 +708,6 @@
             "role",
             "api"
           ]
-        },
-        {
-          "id": "S05-T07",
-          "title": "Role service tests",
-          "details": "Unit test policy provider/handler; integration test admin endpoints.",
-          "priority": "medium",
-          "status": "todo",
-          "dependsOn": [
-            "S05-T06"
-          ],
-          "acceptanceCriteria": [
-            "Role test suite green"
-          ],
-          "tags": [
-            "role",
-            "testing"
-          ]
         }
       ]
     },
@@ -728,12 +756,13 @@
         },
         {
           "id": "S06-T03",
-          "title": "Persist with EF Core + migrations",
-          "details": "Configure mappings and run `dotnet ef migrations add InitPatients`; apply owned-type/value-object mappings.",
+          "title": "Persist Patients/Studies with EF Core (per conventions)",
+          "details": "Configure the Patients DbContext on Npgsql following the shared EF Core conventions: an IEntityTypeConfiguration per aggregate, Study mapped with its owned value objects, an xmin concurrency token, and EnableRetryOnFailure. Add the migration with `dotnet ef migrations add InitPatients` and apply it with `dotnet ef database update`.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
-            "S06-T02"
+            "S06-T02",
+            "S02-T10"
           ],
           "acceptanceCriteria": [
             "Patients + Studies tables created in Postgres"
@@ -811,23 +840,6 @@
           "tags": [
             "patient",
             "messaging"
-          ]
-        },
-        {
-          "id": "S06-T08",
-          "title": "Patient/Studies tests",
-          "details": "Unit test status transitions and assignment rules; integration test query endpoints.",
-          "priority": "medium",
-          "status": "todo",
-          "dependsOn": [
-            "S06-T05"
-          ],
-          "acceptanceCriteria": [
-            "Suite green including audit assertions"
-          ],
-          "tags": [
-            "patient",
-            "testing"
           ]
         }
       ]
@@ -926,23 +938,6 @@
             "booking",
             "messaging"
           ]
-        },
-        {
-          "id": "S07-T06",
-          "title": "Booking tests",
-          "details": "Unit test slot/conflict logic; integration test booking flow.",
-          "priority": "medium",
-          "status": "todo",
-          "dependsOn": [
-            "S07-T03"
-          ],
-          "acceptanceCriteria": [
-            "Suite green"
-          ],
-          "tags": [
-            "booking",
-            "testing"
-          ]
         }
       ]
     },
@@ -1008,19 +1003,20 @@
         },
         {
           "id": "S08-T04",
-          "title": "Implement WADO (retrieve) + QIDO (query)",
-          "details": "Serve instances/frames (WADO-RS) and query studies/series/instances (QIDO-RS).",
+          "title": "Serve WADO-RS + QIDO-RS for the Cornerstone viewer",
+          "details": "Serve WADO-RS (retrieve instances/frames) and QIDO-RS (query studies/series/instances) so the Blazor Cornerstone.js viewer can pull DICOM frames directly. Return frames in a Cornerstone-compatible form (DICOM P10 or rendered frames) and enable CORS for the front-end origin.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
             "S08-T03"
           ],
           "acceptanceCriteria": [
-            "Client can query and retrieve stored instances"
+            "WADO-RS frames load in a Cornerstone.js test page"
           ],
           "tags": [
             "dicom",
-            "api"
+            "api",
+            "cornerstone"
           ]
         },
         {
@@ -1038,23 +1034,6 @@
           "tags": [
             "dicom",
             "performance"
-          ]
-        },
-        {
-          "id": "S08-T06",
-          "title": "Imaging tests",
-          "details": "Unit test metadata extraction; integration test store/retrieve against Azurite + Postgres Testcontainers.",
-          "priority": "medium",
-          "status": "todo",
-          "dependsOn": [
-            "S08-T04"
-          ],
-          "acceptanceCriteria": [
-            "Suite green"
-          ],
-          "tags": [
-            "dicom",
-            "testing"
           ]
         }
       ]
@@ -1174,23 +1153,6 @@
             "api",
             "messaging"
           ]
-        },
-        {
-          "id": "S09-T07",
-          "title": "Concurrency tests for the lock",
-          "details": "Integration tests simulating concurrent doctors against a Redis Testcontainer, including expiry and fencing.",
-          "priority": "high",
-          "status": "todo",
-          "dependsOn": [
-            "S09-T06"
-          ],
-          "acceptanceCriteria": [
-            "Concurrent-access tests prove single-writer guarantee"
-          ],
-          "tags": [
-            "lock",
-            "testing"
-          ]
         }
       ]
     },
@@ -1306,23 +1268,6 @@
             "reporting",
             "pdf"
           ]
-        },
-        {
-          "id": "S10-T07",
-          "title": "Reporting tests",
-          "details": "Unit test state machine + ownership guard; integration test finalize + event emission.",
-          "priority": "medium",
-          "status": "todo",
-          "dependsOn": [
-            "S10-T05"
-          ],
-          "acceptanceCriteria": [
-            "Suite green"
-          ],
-          "tags": [
-            "reporting",
-            "testing"
-          ]
         }
       ]
     },
@@ -1403,23 +1348,6 @@
           "tags": [
             "prescription",
             "messaging"
-          ]
-        },
-        {
-          "id": "S11-T05",
-          "title": "Prescription tests",
-          "details": "Unit test creation rules; integration test event-driven creation.",
-          "priority": "medium",
-          "status": "todo",
-          "dependsOn": [
-            "S11-T04"
-          ],
-          "acceptanceCriteria": [
-            "Suite green"
-          ],
-          "tags": [
-            "prescription",
-            "testing"
           ]
         }
       ]
@@ -1536,23 +1464,6 @@
             "cart",
             "messaging"
           ]
-        },
-        {
-          "id": "S12-T07",
-          "title": "Cart/Billing tests",
-          "details": "Unit test totals/state; integration test checkout + payment confirmation.",
-          "priority": "medium",
-          "status": "todo",
-          "dependsOn": [
-            "S12-T06"
-          ],
-          "acceptanceCriteria": [
-            "Suite green"
-          ],
-          "tags": [
-            "cart",
-            "testing"
-          ]
         }
       ]
     },
@@ -1636,23 +1547,6 @@
           "tags": [
             "notify",
             "audit"
-          ]
-        },
-        {
-          "id": "S13-T05",
-          "title": "Notification tests",
-          "details": "Unit test template selection; integration test event->send with a mocked provider.",
-          "priority": "low",
-          "status": "todo",
-          "dependsOn": [
-            "S13-T04"
-          ],
-          "acceptanceCriteria": [
-            "Suite green"
-          ],
-          "tags": [
-            "notify",
-            "testing"
           ]
         }
       ]
@@ -1836,8 +1730,8 @@
         },
         {
           "id": "S15-T05",
-          "title": "Integrate DICOM Viewport (Cornerstone.js)",
-          "details": "Add JS interop to render DICOM (Cornerstone.js) in the Doctor viewport, loading frames via the Imaging service (WADO).",
+          "title": "Integrate the DICOM Viewport with Cornerstone.js",
+          "details": "Integrate the Cornerstone.js stack through Blazor JS interop: cornerstone-core, cornerstone-wado-image-loader with dicom-parser (loads DICOM from the Imaging service's WADO-RS endpoints) and cornerstone-tools for interactions. Build a Razor viewport component that hosts the canvas element and calls a JS module (IJSObjectReference) to display images, set window/level (VOI), zoom, pan, scroll through multi-frame stacks, and run measurement tools (length, angle, ROI).",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
@@ -1845,11 +1739,12 @@
             "S08-T04"
           ],
           "acceptanceCriteria": [
-            "DICOM images render and can be windowed/zoomed"
+            "A DICOM series renders in-browser with window/level, zoom, pan, and stack scrolling"
           ],
           "tags": [
             "blazor",
-            "dicom"
+            "dicom",
+            "cornerstone"
           ]
         },
         {
@@ -2159,8 +2054,8 @@
     },
     {
       "id": "S18",
-      "name": "Testing (Unit, Integration, Contract, E2E)",
-      "goal": "A layered test strategy with coverage gates: unit tests for domain/application, Testcontainers integration tests, consumer-driven contract tests, and Playwright E2E for the Blazor flows.",
+      "name": "CI/CD Pipeline",
+      "goal": "Automated build and gated deployment: build and analyze on every PR, containerize each service, scan and push images to ACR, run EF migrations, and deploy to Azure with environment approvals.",
       "order": 18,
       "dependsOn": [
         "S15",
@@ -2169,130 +2064,13 @@
       "tasks": [
         {
           "id": "S18-T01",
-          "title": "Establish test projects and conventions",
-          "details": "Add xUnit + FluentAssertions + NSubstitute test projects per service and a shared test utilities library.",
+          "title": "Build and analyze on every pull request",
+          "details": "GitHub Actions workflow: restore, build in Release, and run Roslyn analyzers plus `dotnet format` verification on every PR.",
           "priority": "high",
           "status": "todo",
-          "dependsOn": [
-            "S02-T02"
-          ],
+          "dependsOn": [],
           "acceptanceCriteria": [
-            "`dotnet test` discovers and runs all suites"
-          ],
-          "tags": [
-            "testing",
-            "setup"
-          ]
-        },
-        {
-          "id": "S18-T02",
-          "title": "Write domain/application unit tests",
-          "details": "Cover aggregates, state machines (Study status, report finalize), and handlers.",
-          "priority": "high",
-          "status": "todo",
-          "dependsOn": [
-            "S18-T01"
-          ],
-          "acceptanceCriteria": [
-            "Critical domain logic covered by unit tests"
-          ],
-          "tags": [
-            "testing",
-            "unit"
-          ]
-        },
-        {
-          "id": "S18-T03",
-          "title": "Integration tests with Testcontainers",
-          "details": "Spin up Postgres/Redis/RabbitMQ/Azurite via Testcontainers for repository, lock, and messaging tests.",
-          "priority": "high",
-          "status": "todo",
-          "dependsOn": [
-            "S18-T01",
-            "S16-T02"
-          ],
-          "acceptanceCriteria": [
-            "Integration tests run against real containers in CI"
-          ],
-          "tags": [
-            "testing",
-            "integration"
-          ]
-        },
-        {
-          "id": "S18-T04",
-          "title": "Consumer-driven contract tests",
-          "details": "Add Pact (or similar) contracts between event publishers/consumers and gateway/service HTTP contracts.",
-          "priority": "medium",
-          "status": "todo",
-          "dependsOn": [
-            "S18-T03"
-          ],
-          "acceptanceCriteria": [
-            "Breaking contract changes fail the build"
-          ],
-          "tags": [
-            "testing",
-            "contract"
-          ]
-        },
-        {
-          "id": "S18-T05",
-          "title": "End-to-end tests (Playwright)",
-          "details": "Automate key journeys: patient booking->report->prescription->payment, and doctor lock/report flow.",
-          "priority": "medium",
-          "status": "todo",
-          "dependsOn": [
-            "S15-T08"
-          ],
-          "acceptanceCriteria": [
-            "E2E covers the two primary journeys"
-          ],
-          "tags": [
-            "testing",
-            "e2e"
-          ]
-        },
-        {
-          "id": "S18-T06",
-          "title": "Coverage gate + load test the lock",
-          "details": "Add Coverlet coverage thresholds; add a k6/NBomber load test proving single-writer under concurrency.",
-          "priority": "medium",
-          "status": "todo",
-          "dependsOn": [
-            "S18-T03",
-            "S09-T07"
-          ],
-          "acceptanceCriteria": [
-            "Coverage gate enforced; lock holds under load"
-          ],
-          "tags": [
-            "testing",
-            "performance"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "S19",
-      "name": "CI/CD Pipeline",
-      "goal": "Automated build/test on PRs and gated deployment: containerize each service, scan and push to ACR, run migrations, and deploy to Azure with environment approvals.",
-      "order": 19,
-      "dependsOn": [
-        "S18"
-      ],
-      "tasks": [
-        {
-          "id": "S19-T01",
-          "title": "CI workflow: build + test on PR",
-          "details": "GitHub Actions workflow restoring, building, and running `dotnet test` (with Testcontainers) on every pull request.",
-          "priority": "high",
-          "status": "todo",
-          "dependsOn": [
-            "S18-T03"
-          ],
-          "acceptanceCriteria": [
-            "PRs are blocked unless build + tests pass"
+            "PRs are blocked unless the build and analyzers pass"
           ],
           "tags": [
             "cicd",
@@ -2300,13 +2078,13 @@
           ]
         },
         {
-          "id": "S19-T02",
+          "id": "S18-T02",
           "title": "Containerize each service",
-          "details": "Add multi-stage Dockerfiles (or `dotnet publish` container build) for every service and the gateway/Blazor app.",
+          "details": "Add multi-stage Dockerfiles (or `dotnet publish` container build) for every service, the gateway, and the Blazor app.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
-            "S19-T01"
+            "S18-T01"
           ],
           "acceptanceCriteria": [
             "Each service produces a runnable image locally"
@@ -2317,13 +2095,13 @@
           ]
         },
         {
-          "id": "S19-T03",
+          "id": "S18-T03",
           "title": "Scan and push images to ACR",
-          "details": "Add image vulnerability scanning (e.g., Trivy) then push tagged images to Azure Container Registry.",
+          "details": "Scan images (e.g., Trivy), then push tagged images to Azure Container Registry on main.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
-            "S19-T02",
+            "S18-T02",
             "S17-T07"
           ],
           "acceptanceCriteria": [
@@ -2336,16 +2114,16 @@
           ]
         },
         {
-          "id": "S19-T04",
-          "title": "Automate database migrations",
-          "details": "Run EF Core migrations as a pipeline step or startup migrator with safeguards for production.",
+          "id": "S18-T04",
+          "title": "Automate EF Core migrations",
+          "details": "Run EF Core migrations as a deploy step (or startup migrator with a production safeguard) per environment.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
-            "S19-T03"
+            "S18-T03"
           ],
           "acceptanceCriteria": [
-            "Migrations apply automatically per environment"
+            "Migrations apply automatically for each environment"
           ],
           "tags": [
             "cicd",
@@ -2353,16 +2131,16 @@
           ]
         },
         {
-          "id": "S19-T05",
-          "title": "CD workflow with environment approvals",
-          "details": "Deploy to dev/staging/prod (Azure Container Apps) with manual approval gates and environment secrets.",
+          "id": "S18-T05",
+          "title": "Deploy with environment approvals",
+          "details": "Deploy to dev/staging/prod (Azure Container Apps) with manual approval gates and per-environment secrets.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
-            "S19-T04"
+            "S18-T04"
           ],
           "acceptanceCriteria": [
-            "Promotion to prod requires approval"
+            "Promotion to production requires approval"
           ],
           "tags": [
             "cicd",
@@ -2370,16 +2148,16 @@
           ]
         },
         {
-          "id": "S19-T06",
-          "title": "Smoke tests post-deploy",
+          "id": "S18-T06",
+          "title": "Post-deploy smoke checks",
           "details": "Run health/smoke checks after each deployment and auto-rollback or alert on failure.",
           "priority": "medium",
           "status": "todo",
           "dependsOn": [
-            "S19-T05"
+            "S18-T05"
           ],
           "acceptanceCriteria": [
-            "Failed smoke checks block/rollback the release"
+            "Failed smoke checks block or roll back the release"
           ],
           "tags": [
             "cicd",
@@ -2389,26 +2167,26 @@
       ]
     },
     {
-      "id": "S20",
+      "id": "S19",
       "name": "Azure Infrastructure (IaC) & Production Deployment",
       "goal": "All Azure resources provisioned via Bicep and the system running in production on Azure Container Apps with managed identities, private networking, autoscaling, monitoring, and cost controls.",
-      "order": 20,
+      "order": 19,
       "dependsOn": [
         "S17",
-        "S19"
+        "S18"
       ],
       "tasks": [
         {
-          "id": "S20-T01",
+          "id": "S19-T01",
           "title": "Author Bicep modules for core resources",
-          "details": "Create Bicep for Resource Group, ACR, Container Apps Environment, Log Analytics, and Application Insights.",
+          "details": "Bicep for Resource Group, ACR, Container Apps Environment, Log Analytics, and Application Insights.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
-            "S19-T03"
+            "S18-T03"
           ],
           "acceptanceCriteria": [
-            "`az deployment` provisions core resources"
+            "`az deployment` provisions the core resources"
           ],
           "tags": [
             "azure",
@@ -2416,16 +2194,16 @@
           ]
         },
         {
-          "id": "S20-T02",
-          "title": "Provision data + messaging resources",
+          "id": "S19-T02",
+          "title": "Provision data and messaging resources",
           "details": "Bicep for Azure Database for PostgreSQL Flexible Server, Azure Cache for Redis, Azure Service Bus, and Blob Storage.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
-            "S20-T01"
+            "S19-T01"
           ],
           "acceptanceCriteria": [
-            "Data/cache/bus/storage provisioned via IaC"
+            "Data, cache, bus, and storage provisioned via IaC"
           ],
           "tags": [
             "azure",
@@ -2433,13 +2211,13 @@
           ]
         },
         {
-          "id": "S20-T03",
-          "title": "Provision Key Vault + managed identities",
+          "id": "S19-T03",
+          "title": "Provision Key Vault and managed identities",
           "details": "Bicep for Key Vault and user-assigned managed identities with scoped RBAC role assignments per service.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
-            "S20-T02",
+            "S19-T02",
             "S17-T05"
           ],
           "acceptanceCriteria": [
@@ -2451,14 +2229,14 @@
           ]
         },
         {
-          "id": "S20-T04",
-          "title": "Deploy Container Apps with config",
-          "details": "Deploy each service/gateway/Blazor app as a Container App, wiring Key Vault references and Service Bus/Redis/Postgres connections.",
+          "id": "S19-T04",
+          "title": "Deploy Container Apps with configuration",
+          "details": "Deploy each service, the gateway, and the Blazor app as Container Apps, wiring Key Vault references and Service Bus/Redis/Postgres connections.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
-            "S20-T03",
-            "S19-T05"
+            "S19-T03",
+            "S18-T05"
           ],
           "acceptanceCriteria": [
             "All apps run in the Container Apps environment"
@@ -2469,13 +2247,13 @@
           ]
         },
         {
-          "id": "S20-T05",
+          "id": "S19-T05",
           "title": "Networking and private endpoints",
           "details": "Add VNet integration and private endpoints for Postgres/Redis/Key Vault/Storage; restrict public access.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
-            "S20-T04"
+            "S19-T04"
           ],
           "acceptanceCriteria": [
             "Data services are not publicly reachable"
@@ -2487,16 +2265,16 @@
           ]
         },
         {
-          "id": "S20-T06",
+          "id": "S19-T06",
           "title": "Autoscaling, custom domain, and TLS",
-          "details": "Configure Container Apps scale rules (HTTP/queue length), a custom domain, and managed TLS certificates.",
+          "details": "Configure Container Apps scale rules, a custom domain, and managed TLS certificates.",
           "priority": "medium",
           "status": "todo",
           "dependsOn": [
-            "S20-T04"
+            "S19-T04"
           ],
           "acceptanceCriteria": [
-            "Apps autoscale; custom domain served over TLS"
+            "Apps autoscale and the custom domain is served over TLS"
           ],
           "tags": [
             "azure",
@@ -2504,16 +2282,16 @@
           ]
         },
         {
-          "id": "S20-T07",
-          "title": "Monitoring dashboards + cost alerts",
-          "details": "Build App Insights/Log Analytics dashboards and alerts (errors, latency, lock contention) and set budget/cost alerts.",
+          "id": "S19-T07",
+          "title": "Monitoring dashboards and cost alerts",
+          "details": "Build App Insights / Log Analytics dashboards and alerts (errors, latency, lock contention) and set budget alerts.",
           "priority": "medium",
           "status": "todo",
           "dependsOn": [
-            "S20-T04"
+            "S19-T04"
           ],
           "acceptanceCriteria": [
-            "Dashboards live; alerts fire on threshold breaches"
+            "Dashboards live and alerts fire on threshold breaches"
           ],
           "tags": [
             "azure",
@@ -2522,16 +2300,16 @@
           ]
         },
         {
-          "id": "S20-T08",
-          "title": "Production runbook + DR plan",
-          "details": "Document deploy/rollback runbook, backup/restore for Postgres/Blob, and a disaster-recovery/RTO-RPO plan.",
+          "id": "S19-T08",
+          "title": "Production runbook and DR plan",
+          "details": "Document deploy/rollback runbook, Postgres/Blob backup-restore, and a disaster-recovery RTO/RPO plan.",
           "priority": "medium",
           "status": "todo",
           "dependsOn": [
-            "S20-T07"
+            "S19-T07"
           ],
           "acceptanceCriteria": [
-            "Runbook + DR plan reviewed and stored in docs/"
+            "Runbook and DR plan reviewed and stored in docs/"
           ],
           "tags": [
             "azure",
@@ -2541,6 +2319,5 @@
         }
       ]
     }
-  ],
-  "exportedAt": "2026-08-04T13:29:45.114Z"
+  ]
 }
