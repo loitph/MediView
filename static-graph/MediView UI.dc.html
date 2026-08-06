@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#e6e9ef;font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#0d7d8c;text-decoration:none}a:hover{color:#0a5f6b;text-decoration:underline}
+</style>
+</helmet>
+
+<div style="padding:56px 60px 80px;display:flex;flex-direction:column;gap:52px;width:1560px">
+
+<div style="display:flex;flex-direction:column;gap:14px;max-width:1000px">
+<div style="display:flex;align-items:center;gap:14px">
+<div style="width:5px;height:38px;background:#0d7d8c;border-radius:2px"></div>
+<div style="font-size:34px;font-weight:700;color:#14284a;letter-spacing:-0.02em">MediView — UI mockups</div>
+</div>
+<div style="font-size:15.5px;line-height:1.65;color:#4a5a72;max-width:860px">Desktop Blazor app, hi-fi. One shell, three roles. Study status is the single source of truth and uses your exact labels everywhere — To&nbsp;do, In&nbsp;progress, Re-diagnosis, Done. Colour and type are carried over from your architecture diagrams: navy ink, teal accent, the same four status colours. Placeholder data throughout.</div>
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+<div style="font:500 11.5px 'IBM Plex Mono',monospace;color:#4a5a72;background:#fff;border:1px solid #d3d9e3;border-radius:20px;padding:6px 13px">IBM Plex Sans / Mono</div>
+<div style="font:500 11.5px 'IBM Plex Mono',monospace;color:#4a5a72;background:#fff;border:1px solid #d3d9e3;border-radius:20px;padding:6px 13px">1440 × desktop</div>
+<div style="font:500 11.5px 'IBM Plex Mono',monospace;color:#4a5a72;background:#fff;border:1px solid #d3d9e3;border-radius:20px;padding:6px 13px">dark reading view, light everywhere else</div>
+<div style="font:500 11.5px 'IBM Plex Mono',monospace;color:#4a5a72;background:#fff;border:1px solid #d3d9e3;border-radius:20px;padding:6px 13px">10 screens</div>
+</div>
+</div>
+
+<!-- ══ 01 LOGIN ══ -->
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#14284a;color:#fff;border-radius:4px;padding:4px 8px">01</span><span style="font-size:14px;font-weight:600;color:#14284a">Sign in / register</span><span style="font-size:13px;color:#7b8a9f">Self-registration creates a Patient account only</span></div>
+<div style="width:1440px;height:820px;background:#f1f3f7;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);display:flex">
+<div style="width:600px;background:#14284a;padding:56px 52px;display:flex;flex-direction:column;justify-content:space-between">
+<div style="display:flex;align-items:center;gap:12px"><div style="width:5px;height:30px;background:#25b3c4;border-radius:2px"></div><div style="font-size:25px;font-weight:700;color:#fff;letter-spacing:-0.01em">MediView</div></div>
+<div style="display:flex;flex-direction:column;gap:26px">
+<div style="font-size:29px;line-height:1.35;font-weight:500;color:#fff;max-width:400px;text-wrap:pretty">One study, one status, one source of truth.</div>
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;gap:12px;align-items:baseline"><div style="width:6px;height:6px;border-radius:50%;background:#25b3c4;flex:none;position:relative;top:-3px"></div><div style="font-size:14px;color:#9fb2cd;line-height:1.55">Patients book inside a doctor's working hours and follow the read live.</div></div>
+<div style="display:flex;gap:12px;align-items:baseline"><div style="width:6px;height:6px;border-radius:50%;background:#25b3c4;flex:none;position:relative;top:-3px"></div><div style="font-size:14px;color:#9fb2cd;line-height:1.55">Doctors diagnose in a locked DICOM viewport — one writer at a time.</div></div>
+<div style="display:flex;gap:12px;align-items:baseline"><div style="width:6px;height:6px;border-radius:50%;background:#25b3c4;flex:none;position:relative;top:-3px"></div><div style="font-size:14px;color:#9fb2cd;line-height:1.55">Admins onboard doctors and hold audited break-glass access.</div></div>
+</div>
+</div>
+<div style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5d738f">.NET 10 · Blazor · Cornerstone.js</div>
+</div>
+<div style="flex:1;display:flex;align-items:center;justify-content:center">
+<div style="width:392px;display:flex;flex-direction:column;gap:22px">
+<div style="display:flex;background:#e4e8ef;border-radius:7px;padding:4px;gap:4px">
+<div style="flex:1;text-align:center;padding:9px 0;border-radius:5px;background:#fff;color:#14284a;font-size:13.5px;font-weight:600;box-shadow:0 1px 2px rgba(20,40,74,.1)">Sign in</div>
+<div style="flex:1;text-align:center;padding:9px 0;border-radius:5px;color:#6b7c93;font-size:13.5px;font-weight:500">Register</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="font-size:12.5px;font-weight:600;color:#3d4d66">Email</div>
+<div style="height:44px;background:#fff;border:1px solid #ccd4e0;border-radius:7px;display:flex;align-items:center;padding:0 14px;font-size:14px;color:#14284a">patient.a@example.com</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:12.5px;font-weight:600;color:#3d4d66">Password</div><div style="font-size:12.5px;color:#0d7d8c;font-weight:500">Forgot?</div></div>
+<div style="height:44px;background:#fff;border:1.5px solid #0d7d8c;border-radius:7px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;box-shadow:0 0 0 3px rgba(13,125,140,.12)"><div style="font-size:16px;color:#14284a;letter-spacing:3px">••••••••••</div><div style="font-size:12.5px;color:#7b8a9f">Show</div></div>
+</div>
+<div style="height:46px;background:#14284a;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14.5px;font-weight:600;margin-top:2px">Sign in</div>
+<div style="display:flex;align-items:center;gap:12px"><div style="flex:1;height:1px;background:#dbe1ea"></div><div style="font-size:11.5px;color:#93a1b5">NEW PATIENT</div><div style="flex:1;height:1px;background:#dbe1ea"></div></div>
+<div style="height:46px;background:#fff;border:1px solid #ccd4e0;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#14284a;font-size:14.5px;font-weight:600">Create a patient account</div>
+<div style="font-size:12px;line-height:1.6;color:#7b8a9f;text-align:center;text-wrap:pretty">Doctor and admin accounts are provisioned internally. Contact your administrator.</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ══ 02 PATIENT BOOKING ══ -->
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#14284a;color:#fff;border-radius:4px;padding:4px 8px">02</span><span style="font-size:14px;font-weight:600;color:#14284a">Patient — book a checkup</span><span style="font-size:13px;color:#7b8a9f">Slots constrained to the doctor's working hours</span></div>
+<div style="width:1440px;height:880px;background:#f1f3f7;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);display:flex">
+  <div style="width:224px;background:#14284a;padding:22px 0;display:flex;flex-direction:column;gap:26px;flex:none">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 20px"><div style="width:4px;height:22px;background:#25b3c4;border-radius:2px"></div><div style="font-size:18px;font-weight:700;color:#fff">MediView</div></div>
+    <div style="display:flex;flex-direction:column;gap:2px;padding:0 12px">
+      <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#5d738f;letter-spacing:.08em;padding:0 8px 8px">PATIENT</div>
+      <div style="padding:10px 12px;border-radius:6px;background:rgba(37,179,196,.16);color:#fff;font-size:13.5px;font-weight:600">Book a checkup</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">My studies</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Results &amp; prescriptions</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Wallet &amp; bills</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">History</div>
+    </div>
+    <div style="margin-top:auto;padding:0 20px;display:flex;align-items:center;gap:10px">
+      <div style="width:32px;height:32px;border-radius:50%;background:#1d7f4e;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12.5px;font-weight:600">PA</div>
+      <div style="display:flex;flex-direction:column"><div style="font-size:13px;color:#fff;font-weight:500">Patient A</div><div style="font:400 10.5px 'IBM Plex Mono',monospace;color:#5d738f">MRN-1042</div></div>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <div style="height:62px;background:#fff;border-bottom:1px solid #dfe4ec;display:flex;align-items:center;justify-content:space-between;padding:0 30px;flex:none">
+      <div style="font-size:17px;font-weight:600;color:#14284a">Book a checkup</div>
+      <div style="display:flex;align-items:center;gap:10px"><div style="font-size:12.5px;color:#7b8a9f">Wallet</div><div style="font:600 13px 'IBM Plex Mono',monospace;color:#1d7f4e;background:#e2f2e8;border:1px solid #bfe0cc;border-radius:20px;padding:5px 12px">$240.00</div></div>
+    </div>
+    <div style="flex:1;padding:28px 30px;display:flex;gap:24px;min-height:0">
+      <div style="flex:1;display:flex;flex-direction:column;gap:20px;min-width:0">
+        <div style="display:flex;align-items:center;gap:0">
+          <div style="display:flex;align-items:center;gap:9px"><div style="width:24px;height:24px;border-radius:50%;background:#0d7d8c;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">1</div><div style="font-size:13px;font-weight:600;color:#14284a">Doctor</div></div>
+          <div style="width:44px;height:1px;background:#ccd4e0;margin:0 12px"></div>
+          <div style="display:flex;align-items:center;gap:9px"><div style="width:24px;height:24px;border-radius:50%;background:#0d7d8c;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">2</div><div style="font-size:13px;font-weight:600;color:#14284a">Slot</div></div>
+          <div style="width:44px;height:1px;background:#ccd4e0;margin:0 12px"></div>
+          <div style="display:flex;align-items:center;gap:9px"><div style="width:24px;height:24px;border-radius:50%;background:#e4e8ef;color:#8a98ad;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">3</div><div style="font-size:13px;font-weight:500;color:#8a98ad">Confirm</div></div>
+        </div>
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;padding:22px 24px;display:flex;flex-direction:column;gap:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:14.5px;font-weight:600;color:#14284a">Available slots — Dr. B</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#4a5a72"><span style="font:500 12px 'IBM Plex Mono',monospace;color:#7b8a9f">WORKING HOURS</span><span style="font-weight:600;color:#14284a">Mon–Fri · 08:00–16:00</span></div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <sc-for list="{{ days }}" as="d" hint-placeholder-count="5">
+              <div style="flex:1;border:1px solid #dfe4ec;border-radius:8px;padding:12px 0;text-align:center;background:#fbfcfe">
+                <div style="font:500 11px 'IBM Plex Mono',monospace;color:#7b8a9f;letter-spacing:.06em">{{ d.dow }}</div>
+                <div style="font-size:19px;font-weight:600;color:#14284a;margin-top:4px">{{ d.date }}</div>
+                <div style="font-size:11.5px;color:#0d7d8c;margin-top:3px">{{ d.free }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+            <sc-for list="{{ slots }}" as="s" hint-placeholder-count="12">
+              <div style="border:1px solid {{ s.bd }};background:{{ s.bg }};color:{{ s.fg }};border-radius:7px;padding:13px 0;text-align:center;font:600 14px 'IBM Plex Mono',monospace">{{ s.t }}</div>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#7b8a9f;padding-top:2px">
+            <div style="width:11px;height:11px;border-radius:3px;background:#f1f3f7;border:1px solid #dbe1ea"></div><span>Taken</span>
+            <div style="width:11px;height:11px;border-radius:3px;background:#fff;border:1px solid #ccd4e0;margin-left:10px"></div><span>Free</span>
+            <div style="width:11px;height:11px;border-radius:3px;background:#14284a;margin-left:10px"></div><span>Selected</span>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;padding:22px 24px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:14.5px;font-weight:600;color:#14284a">Reason for visit</div>
+          <div style="min-height:76px;border:1px solid #ccd4e0;border-radius:7px;padding:12px 14px;font-size:13.5px;color:#4a5a72;line-height:1.6">Persistent cough, chest x-ray requested by referring physician.</div>
+        </div>
+      </div>
+      <div style="width:352px;flex:none;display:flex;flex-direction:column;gap:16px">
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;overflow:hidden">
+          <div style="padding:18px 22px;border-bottom:1px solid #eef1f5;font-size:14.5px;font-weight:600;color:#14284a">Booking summary</div>
+          <div style="padding:20px 22px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;gap:12px;align-items:center">
+              <div style="width:44px;height:44px;border-radius:50%;background:#e7edf7;color:#1f5fa8;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none">DB</div>
+              <div><div style="font-size:14.5px;font-weight:600;color:#14284a">Dr. B</div><div style="font-size:12.5px;color:#7b8a9f">Radiology · 8 yrs · verified</div></div>
+            </div>
+            <div style="height:1px;background:#eef1f5"></div>
+            <sc-for list="{{ summary }}" as="r" hint-placeholder-count="4">
+              <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:13px;color:#7b8a9f">{{ r.k }}</div><div style="font-size:13.5px;font-weight:600;color:#14284a">{{ r.v }}</div></div>
+            </sc-for>
+            <div style="height:1px;background:#eef1f5"></div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:13.5px;font-weight:600;color:#14284a">Diagnosis fee</div><div style="font:600 16px 'IBM Plex Mono',monospace;color:#14284a">$60.00</div></div>
+            <div style="font-size:12px;color:#7b8a9f;line-height:1.55">Billed after the doctor finalizes the report. Paid from your wallet.</div>
+            <div style="height:44px;background:#14284a;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600">Confirm booking</div>
+          </div>
+        </div>
+        <div style="background:#eef6f7;border:1px solid #c5e0e4;border-radius:9px;padding:16px 18px;display:flex;gap:11px">
+          <div style="width:7px;height:7px;border-radius:50%;background:#0d7d8c;flex:none;margin-top:5px"></div>
+          <div style="font-size:12.5px;line-height:1.6;color:#3d5c63">Your x-ray images are attached to the study before the read. The study opens as <span style="font-weight:600">To do</span>.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 03 PATIENT STUDY STATUS + RESULT ══ -->
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#14284a;color:#fff;border-radius:4px;padding:4px 8px">03</span><span style="font-size:14px;font-weight:600;color:#14284a">Patient — study status, result &amp; prescription</span><span style="font-size:13px;color:#7b8a9f">Same four labels the doctor sees</span></div>
+<div style="width:1440px;height:900px;background:#f1f3f7;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);display:flex">
+  <div style="width:224px;background:#14284a;padding:22px 0;display:flex;flex-direction:column;gap:26px;flex:none">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 20px"><div style="width:4px;height:22px;background:#25b3c4;border-radius:2px"></div><div style="font-size:18px;font-weight:700;color:#fff">MediView</div></div>
+    <div style="display:flex;flex-direction:column;gap:2px;padding:0 12px">
+      <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#5d738f;letter-spacing:.08em;padding:0 8px 8px">PATIENT</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Book a checkup</div>
+      <div style="padding:10px 12px;border-radius:6px;background:rgba(37,179,196,.16);color:#fff;font-size:13.5px;font-weight:600">My studies</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Results &amp; prescriptions</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Wallet &amp; bills</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">History</div>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <div style="height:62px;background:#fff;border-bottom:1px solid #dfe4ec;display:flex;align-items:center;justify-content:space-between;padding:0 30px;flex:none">
+      <div style="display:flex;align-items:baseline;gap:12px"><div style="font-size:17px;font-weight:600;color:#14284a">Study 001</div><div style="font:400 12.5px 'IBM Plex Mono',monospace;color:#7b8a9f">Chest PA · booked 12 Mar, 09:00 · Dr. B</div></div>
+      <div style="font-size:13px;font-weight:600;color:#17724a;background:#e2f2e8;border:1px solid #bfe0cc;border-radius:20px;padding:6px 14px">Done</div>
+    </div>
+    <div style="flex:1;padding:28px 30px;display:flex;gap:24px;min-height:0;overflow:hidden">
+      <div style="flex:1;display:flex;flex-direction:column;gap:20px;min-width:0">
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;padding:24px 26px;display:flex;flex-direction:column;gap:20px">
+          <div style="font-size:14.5px;font-weight:600;color:#14284a">Progress</div>
+          <div style="display:flex;align-items:flex-start;gap:0">
+            <sc-for list="{{ patientTrack }}" as="p" hint-placeholder-count="4">
+              <div style="flex:1;display:flex;flex-direction:column;gap:9px">
+                <div style="display:flex;align-items:center"><div style="width:13px;height:13px;border-radius:50%;background:{{ p.dot }};flex:none"></div><div style="flex:1;height:2px;background:{{ p.bar }}"></div></div>
+                <div style="padding-right:16px"><div style="font-size:13.5px;font-weight:600;color:{{ p.fg }}">{{ p.label }}</div><div style="font:400 11.5px 'IBM Plex Mono',monospace;color:#93a1b5;margin-top:3px">{{ p.when }}</div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;overflow:hidden;display:flex;flex-direction:column">
+          <div style="padding:18px 26px;border-bottom:1px solid #eef1f5;display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:14.5px;font-weight:600;color:#14284a">Diagnosis result</div>
+            <div style="display:flex;gap:9px"><div style="border:1px solid #ccd4e0;border-radius:6px;padding:7px 13px;font-size:12.5px;font-weight:600;color:#14284a">Download PDF</div></div>
+          </div>
+          <div style="padding:22px 26px;display:flex;flex-direction:column;gap:18px">
+            <div style="display:flex;gap:34px">
+              <div><div style="font:500 11px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.06em">REPORTED BY</div><div style="font-size:14px;font-weight:600;color:#14284a;margin-top:5px">Dr. B</div></div>
+              <div><div style="font:500 11px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.06em">FINALIZED</div><div style="font-size:14px;font-weight:600;color:#14284a;margin-top:5px">12 Mar · 10:24</div></div>
+              <div><div style="font:500 11px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.06em">DECISION</div><div style="font-size:14px;font-weight:600;color:#17724a;margin-top:5px">No further read needed</div></div>
+            </div>
+            <div style="height:1px;background:#eef1f5"></div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div><div style="font:600 11px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.06em">FINDINGS</div><div style="font-size:14px;line-height:1.7;color:#2c3a4f;margin-top:7px;text-wrap:pretty">Placeholder findings text. Lung fields clear, no focal consolidation. Cardiomediastinal silhouette within normal limits. No pleural effusion or pneumothorax.</div></div>
+              <div><div style="font:600 11px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.06em">IMPRESSION</div><div style="font-size:14px;line-height:1.7;color:#2c3a4f;margin-top:7px">Placeholder impression text. No acute cardiopulmonary abnormality.</div></div>
+            </div>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;overflow:hidden">
+          <div style="padding:18px 26px;border-bottom:1px solid #eef1f5;display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:14.5px;font-weight:600;color:#14284a">Prescription</div>
+            <div style="display:flex;gap:9px"><div style="border:1px solid #ccd4e0;border-radius:6px;padding:7px 13px;font-size:12.5px;font-weight:600;color:#14284a">Download PDF</div><div style="background:#14284a;border-radius:6px;padding:7px 13px;font-size:12.5px;font-weight:600;color:#fff">Add all to cart</div></div>
+          </div>
+          <sc-for list="{{ rx }}" as="m" hint-placeholder-count="3">
+            <div style="padding:15px 26px;border-bottom:1px solid #f3f5f9;display:flex;align-items:center;justify-content:space-between">
+              <div><div style="font-size:14px;font-weight:600;color:#14284a">{{ m.name }}</div><div style="font-size:12.5px;color:#7b8a9f;margin-top:3px">{{ m.dose }}</div></div>
+              <div style="display:flex;align-items:center;gap:20px"><div style="font:600 14px 'IBM Plex Mono',monospace;color:#14284a">{{ m.price }}</div><div style="border:1px solid #ccd4e0;border-radius:6px;padding:6px 12px;font-size:12.5px;font-weight:600;color:#14284a">Add</div></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="width:330px;flex:none;display:flex;flex-direction:column;gap:16px">
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:14.5px;font-weight:600;color:#14284a">Images</div>
+          <div style="height:180px;border-radius:7px;background:repeating-linear-gradient(135deg,#20262f,#20262f 8px,#252c36 8px,#252c36 16px);display:flex;align-items:center;justify-content:center"><div style="font:500 11px 'IBM Plex Mono',monospace;color:#8b97a6;text-align:center;line-height:1.6">DICOM preview<br>chest PA · 1 series</div></div>
+          <div style="font-size:12.5px;color:#7b8a9f;line-height:1.55">Imported 12 Mar · 08:52. Images are read by your doctor, not by you.</div>
+        </div>
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;padding:22px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:14.5px;font-weight:600;color:#14284a">Bill</div>
+          <div style="display:flex;justify-content:space-between"><div style="font-size:13px;color:#7b8a9f">Diagnosis fee</div><div style="font:500 13.5px 'IBM Plex Mono',monospace;color:#14284a">$60.00</div></div>
+          <div style="display:flex;justify-content:space-between"><div style="font-size:13px;color:#7b8a9f">Prescription (3 items)</div><div style="font:500 13.5px 'IBM Plex Mono',monospace;color:#14284a">$34.20</div></div>
+          <div style="height:1px;background:#eef1f5"></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:13.5px;font-weight:600;color:#14284a">Total due</div><div style="font:600 19px 'IBM Plex Mono',monospace;color:#14284a">$94.20</div></div>
+          <div style="height:42px;background:#1d7f4e;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13.5px;font-weight:600">Pay from wallet</div>
+          <div style="font-size:12px;color:#7b8a9f;text-align:center">Wallet balance $240.00</div>
+        </div>
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;padding:22px;display:flex;flex-direction:column;gap:12px">
+          <div style="font-size:14.5px;font-weight:600;color:#14284a">Follow-up</div>
+          <div style="font-size:13px;color:#4a5a72;line-height:1.6">Your doctor suggested a follow-up in 6 weeks.</div>
+          <div style="height:38px;border:1px solid #ccd4e0;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#14284a;font-size:13px;font-weight:600">Book follow-up</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 04 PATIENT WALLET ══ -->
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#14284a;color:#fff;border-radius:4px;padding:4px 8px">04</span><span style="font-size:14px;font-weight:600;color:#14284a">Patient — wallet &amp; bill payment</span><span style="font-size:13px;color:#7b8a9f">Internal provider; external gateway swaps in behind the flag</span></div>
+<div style="width:1440px;height:760px;background:#f1f3f7;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);display:flex">
+  <div style="width:224px;background:#14284a;padding:22px 0;display:flex;flex-direction:column;gap:26px;flex:none">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 20px"><div style="width:4px;height:22px;background:#25b3c4;border-radius:2px"></div><div style="font-size:18px;font-weight:700;color:#fff">MediView</div></div>
+    <div style="display:flex;flex-direction:column;gap:2px;padding:0 12px">
+      <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#5d738f;letter-spacing:.08em;padding:0 8px 8px">PATIENT</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Book a checkup</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">My studies</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Results &amp; prescriptions</div>
+      <div style="padding:10px 12px;border-radius:6px;background:rgba(37,179,196,.16);color:#fff;font-size:13.5px;font-weight:600">Wallet &amp; bills</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">History</div>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <div style="height:62px;background:#fff;border-bottom:1px solid #dfe4ec;display:flex;align-items:center;padding:0 30px;flex:none"><div style="font-size:17px;font-weight:600;color:#14284a">Wallet &amp; bills</div></div>
+    <div style="flex:1;padding:28px 30px;display:flex;gap:24px;min-height:0">
+      <div style="flex:1;display:flex;flex-direction:column;gap:20px;min-width:0">
+        <div style="display:flex;gap:16px">
+          <div style="flex:1;background:#14284a;border-radius:9px;padding:24px 26px;display:flex;flex-direction:column;gap:8px">
+            <div style="font:500 11px 'IBM Plex Mono',monospace;color:#8ea3c0;letter-spacing:.06em">WALLET BALANCE</div>
+            <div style="font:600 34px 'IBM Plex Mono',monospace;color:#fff;letter-spacing:-0.02em">$240.00</div>
+            <div style="display:flex;gap:9px;margin-top:8px"><div style="background:#25b3c4;color:#06222a;border-radius:6px;padding:8px 15px;font-size:12.5px;font-weight:600">Top up</div><div style="border:1px solid #395580;color:#c8d5e6;border-radius:6px;padding:8px 15px;font-size:12.5px;font-weight:600">Statement</div></div>
+          </div>
+          <div style="flex:1;background:#fff;border:1px solid #dfe4ec;border-radius:9px;padding:24px 26px;display:flex;flex-direction:column;gap:8px">
+            <div style="font:500 11px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.06em">OUTSTANDING</div>
+            <div style="font:600 34px 'IBM Plex Mono',monospace;color:#b0402c;letter-spacing:-0.02em">$94.20</div>
+            <div style="font-size:12.5px;color:#7b8a9f;margin-top:8px">1 bill awaiting payment · Study 001</div>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;overflow:hidden">
+          <div style="padding:18px 24px;border-bottom:1px solid #eef1f5;font-size:14.5px;font-weight:600;color:#14284a">Bills</div>
+          <div style="display:grid;grid-template-columns:1.1fr 1.3fr 1fr .9fr .8fr;padding:11px 24px;background:#f8fafc;border-bottom:1px solid #eef1f5">
+            <sc-for list="{{ billCols }}" as="c" hint-placeholder-count="5"><div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.07em">{{ c }}</div></sc-for>
+          </div>
+          <sc-for list="{{ bills }}" as="b" hint-placeholder-count="4">
+            <div style="display:grid;grid-template-columns:1.1fr 1.3fr 1fr .9fr .8fr;padding:16px 24px;border-bottom:1px solid #f3f5f9;align-items:center">
+              <div style="font:500 13px 'IBM Plex Mono',monospace;color:#14284a">{{ b.id }}</div>
+              <div style="font-size:13.5px;color:#2c3a4f">{{ b.what }}</div>
+              <div style="font-size:13px;color:#7b8a9f">{{ b.date }}</div>
+              <div style="font:600 13.5px 'IBM Plex Mono',monospace;color:#14284a">{{ b.amt }}</div>
+              <div><span style="font-size:12px;font-weight:600;border-radius:20px;padding:4px 11px;background:{{ b.bg }};color:{{ b.fg }}">{{ b.state }}</span></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="width:360px;flex:none;background:#fff;border:1px solid #dfe4ec;border-radius:9px;overflow:hidden;display:flex;flex-direction:column">
+        <div style="padding:18px 22px;border-bottom:1px solid #eef1f5;font-size:14.5px;font-weight:600;color:#14284a">Pay bill INV-0031</div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;justify-content:space-between"><div style="font-size:13px;color:#7b8a9f">Diagnosis fee · Study 001</div><div style="font:500 13.5px 'IBM Plex Mono',monospace;color:#14284a">$60.00</div></div>
+          <div style="display:flex;justify-content:space-between"><div style="font-size:13px;color:#7b8a9f">Prescription · 3 items</div><div style="font:500 13.5px 'IBM Plex Mono',monospace;color:#14284a">$34.20</div></div>
+          <div style="height:1px;background:#eef1f5"></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:13.5px;font-weight:600;color:#14284a">Total</div><div style="font:600 20px 'IBM Plex Mono',monospace;color:#14284a">$94.20</div></div>
+          <div style="border:1.5px solid #1d7f4e;background:#f2faf5;border-radius:8px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:11px"><div style="width:16px;height:16px;border-radius:50%;border:5px solid #1d7f4e;background:#fff"></div><div><div style="font-size:13.5px;font-weight:600;color:#14284a">MediView wallet</div><div style="font-size:12px;color:#7b8a9f">Balance $240.00</div></div></div>
+            <div style="font:500 10.5px 'IBM Plex Mono',monospace;color:#1d7f4e;border:1px solid #bfe0cc;border-radius:20px;padding:3px 9px">INTERNAL</div>
+          </div>
+          <div style="border:1px solid #e4e8ef;border-radius:8px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;opacity:.6">
+            <div style="display:flex;align-items:center;gap:11px"><div style="width:16px;height:16px;border-radius:50%;border:1.5px solid #ccd4e0;background:#fff"></div><div><div style="font-size:13.5px;font-weight:600;color:#14284a">External gateway</div><div style="font-size:12px;color:#7b8a9f">Disabled · flag = internal</div></div></div>
+          </div>
+          <div style="height:44px;background:#1d7f4e;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600;margin-top:2px">Pay $94.20</div>
+          <div style="font-size:12px;line-height:1.55;color:#7b8a9f;text-align:center">Paying settles the visit. Balance after payment: $145.80.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 05 DOCTOR DASHBOARD ══ -->
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#14284a;color:#fff;border-radius:4px;padding:4px 8px">05</span><span style="font-size:14px;font-weight:600;color:#14284a">Doctor — dashboard</span><span style="font-size:13px;color:#7b8a9f">Studies booked inside the doctor's working hours</span></div>
+<div style="width:1440px;height:880px;background:#f1f3f7;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);display:flex">
+  <div style="width:224px;background:#14284a;padding:22px 0;display:flex;flex-direction:column;gap:26px;flex:none">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 20px"><div style="width:4px;height:22px;background:#25b3c4;border-radius:2px"></div><div style="font-size:18px;font-weight:700;color:#fff">MediView</div></div>
+    <div style="display:flex;flex-direction:column;gap:2px;padding:0 12px">
+      <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#5d738f;letter-spacing:.08em;padding:0 8px 8px">DOCTOR</div>
+      <div style="padding:10px 12px;border-radius:6px;background:rgba(37,179,196,.16);color:#fff;font-size:13.5px;font-weight:600">Worklist</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Reports</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Working hours</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Profile &amp; credentials</div>
+    </div>
+    <div style="margin-top:auto;padding:0 20px;display:flex;align-items:center;gap:10px">
+      <div style="width:32px;height:32px;border-radius:50%;background:#1f5fa8;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12.5px;font-weight:600">DB</div>
+      <div><div style="font-size:13px;color:#fff;font-weight:500">Dr. B</div><div style="font:400 10.5px 'IBM Plex Mono',monospace;color:#5d738f">Radiology</div></div>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <div style="height:62px;background:#fff;border-bottom:1px solid #dfe4ec;display:flex;align-items:center;justify-content:space-between;padding:0 30px;flex:none">
+      <div style="display:flex;align-items:baseline;gap:14px"><div style="font-size:17px;font-weight:600;color:#14284a">Worklist</div><div style="font-size:13px;color:#7b8a9f">Wed 12 Mar · your hours 08:00–16:00</div></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="height:34px;width:250px;border:1px solid #ccd4e0;border-radius:7px;display:flex;align-items:center;padding:0 12px;font-size:13px;color:#93a1b5">Search patient or study…</div>
+        <div style="height:34px;border:1px solid #ccd4e0;border-radius:7px;display:flex;align-items:center;padding:0 12px;font-size:13px;color:#14284a;font-weight:500">All statuses</div>
+      </div>
+    </div>
+    <div style="padding:24px 30px 0;display:flex;gap:14px">
+      <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+        <div style="flex:1;background:#fff;border:1px solid #dfe4ec;border-radius:9px;padding:18px 20px;display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;align-items:center;gap:8px"><div style="width:9px;height:9px;border-radius:3px;background:{{ k.dot }}"></div><div style="font:600 11px 'IBM Plex Mono',monospace;color:#7b8a9f;letter-spacing:.06em">{{ k.label }}</div></div>
+          <div style="font-size:30px;font-weight:600;color:#14284a;letter-spacing:-0.02em">{{ k.n }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="flex:1;padding:20px 30px 28px;min-height:0">
+      <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;overflow:hidden;height:100%">
+        <div style="display:grid;grid-template-columns:.75fr 1.1fr .9fr 1.2fr .95fr 1.15fr .8fr;padding:12px 24px;background:#f8fafc;border-bottom:1px solid #eef1f5">
+          <sc-for list="{{ wlCols }}" as="c" hint-placeholder-count="7"><div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.07em">{{ c }}</div></sc-for>
+        </div>
+        <sc-for list="{{ worklist }}" as="w" hint-placeholder-count="7">
+          <div style="display:grid;grid-template-columns:.75fr 1.1fr .9fr 1.2fr .95fr 1.15fr .8fr;padding:18px 24px;border-bottom:1px solid #f3f5f9;align-items:center">
+            <div style="font:600 13.5px 'IBM Plex Mono',monospace;color:#14284a">{{ w.time }}</div>
+            <div><div style="font-size:14px;font-weight:600;color:#14284a">{{ w.patient }}</div><div style="font:400 11.5px 'IBM Plex Mono',monospace;color:#93a1b5;margin-top:2px">{{ w.mrn }}</div></div>
+            <div style="font:500 13px 'IBM Plex Mono',monospace;color:#4a5a72">{{ w.study }}</div>
+            <div style="font-size:13.5px;color:#2c3a4f">{{ w.modality }}</div>
+            <div><span style="font-size:12px;font-weight:600;border-radius:20px;padding:5px 12px;background:{{ w.bg }};color:{{ w.fg }}">{{ w.status }}</span></div>
+            <div style="display:flex;align-items:center;gap:7px"><div style="width:7px;height:7px;border-radius:50%;background:{{ w.lockDot }}"></div><div style="font-size:12.5px;color:{{ w.lockFg }}">{{ w.lock }}</div></div>
+            <div style="display:flex;justify-content:flex-end"><div style="border:1px solid {{ w.btnBd }};background:{{ w.btnBg }};color:{{ w.btnFg }};border-radius:6px;padding:7px 14px;font-size:12.5px;font-weight:600">{{ w.action }}</div></div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 06 VIEWPORT — LOCK OWNER ══ -->
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#14284a;color:#fff;border-radius:4px;padding:4px 8px">06</span><span style="font-size:14px;font-weight:600;color:#14284a">Doctor — DICOM viewport, you hold the lock</span><span style="font-size:13px;color:#7b8a9f">Dark reading view · study moved To do → In progress on open</span></div>
+<div style="width:1440px;height:900px;background:#0f1319;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);display:flex;flex-direction:column">
+  <div style="height:56px;background:#171c24;border-bottom:1px solid #262d38;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex:none">
+    <div style="display:flex;align-items:center;gap:18px">
+      <div style="font-size:13px;color:#8b97a6">← Worklist</div>
+      <div style="width:1px;height:22px;background:#2b3340"></div>
+      <div style="display:flex;align-items:baseline;gap:11px"><div style="font-size:15px;font-weight:600;color:#eef2f7">Patient A</div><div style="font:400 12px 'IBM Plex Mono',monospace;color:#8b97a6">MRN-1042 · Study 001 · Chest PA · 12 Mar</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="font-size:12px;font-weight:600;border-radius:20px;padding:5px 13px;background:rgba(216,158,26,.16);color:#e2ab3c;border:1px solid rgba(216,158,26,.35)">In progress</div>
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(29,127,78,.14);border:1px solid rgba(41,168,105,.4);border-radius:20px;padding:5px 13px">
+        <div style="width:7px;height:7px;border-radius:50%;background:#31c67f"></div>
+        <div style="font-size:12px;font-weight:600;color:#5fd39c">You hold the lock</div>
+        <div style="font:500 11px 'IBM Plex Mono',monospace;color:#3f9c72">14:58</div>
+      </div>
+      <div style="width:30px;height:30px;border-radius:50%;background:#1f5fa8;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">DB</div>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;min-height:0">
+    <div style="width:74px;background:#171c24;border-right:1px solid #262d38;padding:14px 0;display:flex;flex-direction:column;align-items:center;gap:6px;flex:none">
+      <sc-for list="{{ tools }}" as="t" hint-placeholder-count="9">
+        <div style="width:56px;padding:9px 0;border-radius:7px;background:{{ t.bg }};display:flex;flex-direction:column;align-items:center;gap:5px">
+          <div style="font-size:15px;color:{{ t.fg }};font-weight:500;line-height:1">{{ t.icon }}</div>
+          <div style="font:500 9.5px 'IBM Plex Mono',monospace;color:{{ t.fg }};letter-spacing:.02em">{{ t.name }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="width:132px;background:#131820;border-right:1px solid #262d38;padding:14px 12px;display:flex;flex-direction:column;gap:10px;flex:none">
+      <div style="font:600 9.5px 'IBM Plex Mono',monospace;color:#6d7a8b;letter-spacing:.08em">SERIES</div>
+      <sc-for list="{{ series }}" as="s" hint-placeholder-count="3">
+        <div style="border:1.5px solid {{ s.bd }};border-radius:6px;overflow:hidden">
+          <div style="height:82px;background:repeating-linear-gradient(135deg,#20262f,#20262f 6px,#252c36 6px,#252c36 12px);display:flex;align-items:center;justify-content:center"><div style="font:500 9.5px 'IBM Plex Mono',monospace;color:#77828f">{{ s.n }}</div></div>
+          <div style="padding:6px 8px;background:#1a212b"><div style="font-size:11px;color:#c3ccd8;font-weight:500">{{ s.label }}</div><div style="font:400 9.5px 'IBM Plex Mono',monospace;color:#6d7a8b;margin-top:2px">{{ s.frames }}</div></div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="flex:1;position:relative;display:flex;flex-direction:column;min-width:0">
+      <div style="flex:1;background:#000;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden">
+        <div style="position:absolute;inset:0;background:radial-gradient(ellipse 46% 62% at 50% 52%,#5a5f66 0%,#2e3238 42%,#0c0d10 78%)"></div>
+        <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:10px">
+          <div style="width:300px;height:1px;background:rgba(255,255,255,.14)"></div>
+          <div style="font:500 12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.42);letter-spacing:.1em">DICOM FRAME — CHEST PA</div>
+          <div style="font:400 11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.26)">placeholder · real pixel data via WADO-RS</div>
+          <div style="width:300px;height:1px;background:rgba(255,255,255,.14)"></div>
+        </div>
+        <div style="position:absolute;top:16px;left:18px;display:flex;flex-direction:column;gap:3px;font:400 11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.55);line-height:1.6">
+          <div>Patient A · MRN-1042</div><div>Study 001 · SE 1 / IM 1</div><div>12 Mar 2026 08:52</div>
+        </div>
+        <div style="position:absolute;top:16px;right:18px;text-align:right;display:flex;flex-direction:column;gap:3px;font:400 11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.55);line-height:1.6">
+          <div>W 2048 / L 1024</div><div>Zoom 118%</div><div>DX · 2048×2500</div>
+        </div>
+        <div style="position:absolute;bottom:16px;left:18px;font:400 11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.4)">Length · 42.6 mm</div>
+        <div style="position:absolute;bottom:16px;right:18px;font:400 11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.4)">Cornerstone.js</div>
+        <div style="position:absolute;left:120px;top:110px;width:2px;height:150px;background:rgba(240,190,60,.8);transform:rotate(-22deg)"></div>
+        <div style="position:absolute;left:96px;top:262px;font:500 11px 'IBM Plex Mono',monospace;color:rgba(240,190,60,.95)">42.6 mm</div>
+      </div>
+      <div style="height:52px;background:#171c24;border-top:1px solid #262d38;display:flex;align-items:center;gap:16px;padding:0 20px;flex:none">
+        <div style="font:500 11px 'IBM Plex Mono',monospace;color:#8b97a6">FRAME 1 / 24</div>
+        <div style="flex:1;height:5px;background:#262d38;border-radius:3px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:14%;background:#25b3c4;border-radius:3px"></div><div style="position:absolute;left:14%;top:-4px;width:13px;height:13px;border-radius:50%;background:#fff;border:2px solid #25b3c4"></div></div>
+        <div style="display:flex;align-items:center;gap:10px;font:500 11px 'IBM Plex Mono',monospace;color:#8b97a6"><span>WINDOW</span><span style="color:#e5eaf1">2048</span><span>LEVEL</span><span style="color:#e5eaf1">1024</span></div>
+        <div style="border:1px solid #333c4a;border-radius:6px;padding:6px 12px;font-size:12px;color:#c3ccd8">Reset</div>
+      </div>
+    </div>
+    <div style="width:392px;background:#171c24;border-left:1px solid #262d38;display:flex;flex-direction:column;flex:none;min-height:0">
+      <div style="padding:16px 20px;border-bottom:1px solid #262d38;display:flex;justify-content:space-between;align-items:center;flex:none">
+        <div style="font-size:14.5px;font-weight:600;color:#eef2f7">Diagnosis</div>
+        <div style="font:500 11px 'IBM Plex Mono',monospace;color:#6d7a8b">DRAFT · saved 14:52</div>
+      </div>
+      <div style="flex:1;padding:18px 20px;display:flex;flex-direction:column;gap:16px;overflow:hidden">
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#6d7a8b;letter-spacing:.07em">FINDINGS</div>
+          <div style="min-height:132px;background:#0f141b;border:1px solid #2b3340;border-radius:7px;padding:12px 13px;font-size:13px;line-height:1.65;color:#c9d3df">Placeholder findings text. Lung fields clear, no focal consolidation. Cardiomediastinal silhouette within normal limits.<span style="display:inline-block;width:1.5px;height:14px;background:#25b3c4;vertical-align:-2px;margin-left:2px"></span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#6d7a8b;letter-spacing:.07em">IMPRESSION</div>
+          <div style="min-height:64px;background:#0f141b;border:1px solid #2b3340;border-radius:7px;padding:12px 13px;font-size:13px;line-height:1.65;color:#c9d3df">No acute cardiopulmonary abnormality.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#6d7a8b;letter-spacing:.07em">MEASUREMENTS</div>
+          <div style="background:#0f141b;border:1px solid #2b3340;border-radius:7px;overflow:hidden">
+            <sc-for list="{{ measures }}" as="m" hint-placeholder-count="2">
+              <div style="padding:9px 13px;display:flex;justify-content:space-between;border-bottom:1px solid #1d242e"><div style="font-size:12.5px;color:#c9d3df">{{ m.name }}</div><div style="font:500 12.5px 'IBM Plex Mono',monospace;color:#e2ab3c">{{ m.val }}</div></div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#6d7a8b;letter-spacing:.07em">DECISION ON FINALIZE</div>
+          <div style="border:1.5px solid #29a869;background:rgba(29,127,78,.12);border-radius:7px;padding:12px 14px;display:flex;align-items:center;gap:11px"><div style="width:14px;height:14px;border-radius:50%;border:4.5px solid #29a869;background:#0f141b"></div><div><div style="font-size:13px;font-weight:600;color:#eef2f7">No further read → Done</div></div></div>
+          <div style="border:1px solid #2b3340;border-radius:7px;padding:12px 14px;display:flex;align-items:center;gap:11px"><div style="width:14px;height:14px;border-radius:50%;border:1.5px solid #4a5566"></div><div><div style="font-size:13px;font-weight:600;color:#c9d3df">Another read needed → Re-diagnosis</div></div></div>
+        </div>
+      </div>
+      <div style="padding:16px 20px;border-top:1px solid #262d38;display:flex;flex-direction:column;gap:9px;flex:none">
+        <div style="display:flex;gap:9px">
+          <div style="flex:1;height:40px;border:1px solid #333c4a;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#c9d3df">Save draft</div>
+          <div style="flex:1;height:40px;border:1px solid #333c4a;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#c9d3df">Prescription</div>
+        </div>
+        <div style="height:44px;background:#25b3c4;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#06222a">Finalize &amp; release lock</div>
+        <div style="font-size:11.5px;color:#6d7a8b;text-align:center;line-height:1.5">Finalizing exports the result PDF and sets the study status.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 07 VIEWPORT — LOCKED BY ANOTHER DOCTOR ══ -->
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#b0402c;color:#fff;border-radius:4px;padding:4px 8px">07</span><span style="font-size:14px;font-weight:600;color:#14284a">Doctor — study locked by another doctor</span><span style="font-size:13px;color:#7b8a9f">Read-only; every write returns 409 with owner info</span></div>
+<div style="width:1440px;height:760px;background:#0f1319;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);display:flex;flex-direction:column">
+  <div style="height:56px;background:#171c24;border-bottom:1px solid #262d38;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex:none">
+    <div style="display:flex;align-items:center;gap:18px">
+      <div style="font-size:13px;color:#8b97a6">← Worklist</div>
+      <div style="width:1px;height:22px;background:#2b3340"></div>
+      <div style="display:flex;align-items:baseline;gap:11px"><div style="font-size:15px;font-weight:600;color:#eef2f7">Patient C</div><div style="font:400 12px 'IBM Plex Mono',monospace;color:#8b97a6">MRN-1077 · Study 003 · Chest PA · 12 Mar</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="font-size:12px;font-weight:600;border-radius:20px;padding:5px 13px;background:rgba(216,158,26,.16);color:#e2ab3c;border:1px solid rgba(216,158,26,.35)">In progress</div>
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(176,64,44,.16);border:1px solid rgba(214,98,74,.42);border-radius:20px;padding:5px 13px">
+        <div style="width:7px;height:7px;border-radius:50%;background:#e0705a"></div>
+        <div style="font-size:12px;font-weight:600;color:#eb9280">Locked by Dr. D</div>
+      </div>
+    </div>
+  </div>
+  <div style="height:52px;background:rgba(176,64,44,.13);border-bottom:1px solid rgba(214,98,74,.3);display:flex;align-items:center;justify-content:space-between;padding:0 22px;flex:none">
+    <div style="display:flex;align-items:center;gap:11px">
+      <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#eb9280;border:1px solid rgba(214,98,74,.45);border-radius:4px;padding:3px 8px">READ-ONLY</div>
+      <div style="font-size:13px;color:#e3b0a5">Dr. D is diagnosing this study. Images, measurements and the draft report are visible but not editable.</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="font:500 11.5px 'IBM Plex Mono',monospace;color:#c08b80">lock held 06:12 · auto-release after 15:00 idle</div>
+      <div style="border:1px solid rgba(214,98,74,.5);border-radius:6px;padding:6px 13px;font-size:12.5px;font-weight:600;color:#eb9280">Notify me when free</div>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;min-height:0">
+    <div style="width:74px;background:#171c24;border-right:1px solid #262d38;padding:14px 0;display:flex;flex-direction:column;align-items:center;gap:6px;flex:none;opacity:.45">
+      <sc-for list="{{ tools }}" as="t" hint-placeholder-count="9">
+        <div style="width:56px;padding:9px 0;border-radius:7px;display:flex;flex-direction:column;align-items:center;gap:5px">
+          <div style="font-size:15px;color:#8b97a6;font-weight:500;line-height:1">{{ t.icon }}</div>
+          <div style="font:500 9.5px 'IBM Plex Mono',monospace;color:#8b97a6">{{ t.name }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="flex:1;background:#000;position:relative;display:flex;align-items:center;justify-content:center;min-width:0">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 46% 62% at 50% 52%,#4a4e55 0%,#26292f 42%,#0c0d10 78%)"></div>
+      <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:10px">
+        <div style="font:500 12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.38);letter-spacing:.1em">DICOM FRAME — CHEST PA</div>
+        <div style="font:400 11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.24)">viewing only</div>
+      </div>
+      <div style="position:absolute;top:16px;left:18px;display:flex;flex-direction:column;gap:3px;font:400 11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.5);line-height:1.6"><div>Patient C · MRN-1077</div><div>Study 003 · SE 1 / IM 1</div></div>
+    </div>
+    <div style="width:392px;background:#171c24;border-left:1px solid #262d38;display:flex;flex-direction:column;flex:none">
+      <div style="padding:16px 20px;border-bottom:1px solid #262d38;font-size:14.5px;font-weight:600;color:#eef2f7">Diagnosis</div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:18px">
+        <div style="border:1px solid #2b3340;background:#0f141b;border-radius:8px;padding:18px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:40px;height:40px;border-radius:50%;background:#1f5fa8;color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center">DD</div>
+            <div><div style="font-size:14px;font-weight:600;color:#eef2f7">Dr. D</div><div style="font-size:12px;color:#8b97a6">holds the single-writer lock</div></div>
+          </div>
+          <div style="height:1px;background:#232a35"></div>
+          <sc-for list="{{ lockFacts }}" as="f" hint-placeholder-count="3">
+            <div style="display:flex;justify-content:space-between"><div style="font-size:12.5px;color:#8b97a6">{{ f.k }}</div><div style="font:500 12.5px 'IBM Plex Mono',monospace;color:#c9d3df">{{ f.v }}</div></div>
+          </sc-for>
+        </div>
+        <div style="opacity:.5;display:flex;flex-direction:column;gap:7px">
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#6d7a8b;letter-spacing:.07em">FINDINGS · DRAFT BY DR. D</div>
+          <div style="min-height:110px;background:#0f141b;border:1px dashed #2b3340;border-radius:7px;padding:12px 13px;font-size:13px;line-height:1.65;color:#8b97a6">Placeholder draft text, not editable while another doctor holds the lock.</div>
+        </div>
+        <div style="height:44px;border:1px solid #2b3340;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:600;color:#5c6878">Editing disabled</div>
+        <div style="font-size:11.5px;color:#6d7a8b;line-height:1.6;text-align:center">The lock releases on close, logout, or after TTL expiry. An admin can force a release as an audited break-glass action.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 08 ADMIN — DOCTOR ONBOARDING ══ -->
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#14284a;color:#fff;border-radius:4px;padding:4px 8px">08</span><span style="font-size:14px;font-weight:600;color:#14284a">Admin — doctor onboarding &amp; credential verification</span><span style="font-size:13px;color:#7b8a9f">Doctor role granted only after credentials are verified</span></div>
+<div style="width:1440px;height:840px;background:#f1f3f7;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);display:flex">
+  <div style="width:224px;background:#14284a;padding:22px 0;display:flex;flex-direction:column;gap:26px;flex:none">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 20px"><div style="width:4px;height:22px;background:#25b3c4;border-radius:2px"></div><div style="font-size:18px;font-weight:700;color:#fff">MediView</div></div>
+    <div style="display:flex;flex-direction:column;gap:2px;padding:0 12px">
+      <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#5d738f;letter-spacing:.08em;padding:0 8px 8px">ADMIN</div>
+      <div style="padding:10px 12px;border-radius:6px;background:rgba(37,179,196,.16);color:#fff;font-size:13.5px;font-weight:600">Doctors</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Studies &amp; import</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Roles &amp; permissions</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Audit log</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Feature flags</div>
+    </div>
+    <div style="margin-top:auto;padding:0 20px;display:flex;align-items:center;gap:10px">
+      <div style="width:32px;height:32px;border-radius:50%;background:#a1660a;color:#fff;font-size:12.5px;font-weight:600;display:flex;align-items:center;justify-content:center">AD</div>
+      <div><div style="font-size:13px;color:#fff;font-weight:500">Admin A</div><div style="font:400 10.5px 'IBM Plex Mono',monospace;color:#5d738f">seeded</div></div>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <div style="height:62px;background:#fff;border-bottom:1px solid #dfe4ec;display:flex;align-items:center;justify-content:space-between;padding:0 30px;flex:none">
+      <div style="font-size:17px;font-weight:600;color:#14284a">Doctors</div>
+      <div style="background:#14284a;border-radius:7px;padding:9px 16px;font-size:13px;font-weight:600;color:#fff">Create doctor account</div>
+    </div>
+    <div style="flex:1;padding:28px 30px;display:flex;gap:24px;min-height:0">
+      <div style="width:420px;flex:none;background:#fff;border:1px solid #dfe4ec;border-radius:9px;overflow:hidden;display:flex;flex-direction:column">
+        <div style="padding:16px 22px;border-bottom:1px solid #eef1f5;display:flex;justify-content:space-between;align-items:center"><div style="font-size:14.5px;font-weight:600;color:#14284a">Onboarding queue</div><div style="font:600 11.5px 'IBM Plex Mono',monospace;color:#a1660a;background:#fdf3dc;border:1px solid #f0dcae;border-radius:20px;padding:3px 10px">3 PENDING</div></div>
+        <sc-for list="{{ docQueue }}" as="d" hint-placeholder-count="5">
+          <div style="padding:16px 22px;border-bottom:1px solid #f3f5f9;display:flex;align-items:center;gap:13px;background:{{ d.rowBg }}">
+            <div style="width:38px;height:38px;border-radius:50%;background:#e7edf7;color:#1f5fa8;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none">{{ d.initials }}</div>
+            <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:#14284a">{{ d.name }}</div><div style="font-size:12.5px;color:#7b8a9f;margin-top:2px">{{ d.spec }}</div></div>
+            <span style="font-size:11.5px;font-weight:600;border-radius:20px;padding:4px 11px;background:{{ d.bg }};color:{{ d.fg }}">{{ d.state }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="flex:1;background:#fff;border:1px solid #dfe4ec;border-radius:9px;overflow:hidden;display:flex;flex-direction:column;min-width:0">
+        <div style="padding:22px 26px;border-bottom:1px solid #eef1f5;display:flex;align-items:center;gap:15px">
+          <div style="width:52px;height:52px;border-radius:50%;background:#e7edf7;color:#1f5fa8;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center">DE</div>
+          <div style="flex:1"><div style="font-size:18px;font-weight:600;color:#14284a">Dr. E</div><div style="font-size:13px;color:#7b8a9f;margin-top:2px">dr.e@example.com · Radiology · submitted 10 Mar</div></div>
+          <span style="font-size:12px;font-weight:600;border-radius:20px;padding:5px 13px;background:#fdf3dc;color:#a1660a">Awaiting verification</span>
+        </div>
+        <div style="padding:24px 26px;display:flex;flex-direction:column;gap:22px">
+          <div style="display:flex;flex-direction:column;gap:13px">
+            <div style="font:600 11px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.07em">SUBMITTED CREDENTIALS</div>
+            <sc-for list="{{ creds }}" as="c" hint-placeholder-count="4">
+              <div style="border:1px solid #e4e8ef;border-radius:8px;padding:14px 16px;display:flex;align-items:center;gap:14px">
+                <div style="width:38px;height:44px;border-radius:4px;background:repeating-linear-gradient(135deg,#eef1f5,#eef1f5 5px,#e4e8ef 5px,#e4e8ef 10px);border:1px solid #dbe1ea;display:flex;align-items:center;justify-content:center;flex:none"><div style="font:600 8px 'IBM Plex Mono',monospace;color:#93a1b5">PDF</div></div>
+                <div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;color:#14284a">{{ c.title }}</div><div style="font-size:12.5px;color:#7b8a9f;margin-top:2px">{{ c.meta }}</div></div>
+                <div style="display:flex;align-items:center;gap:9px">
+                  <div style="border:1px solid #ccd4e0;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;color:#14284a">View</div>
+                  <div style="width:22px;height:22px;border-radius:50%;background:{{ c.tickBg }};color:{{ c.tickFg }};font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">{{ c.tick }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:13px">
+            <div style="font:600 11px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.07em">ROLE &amp; ACCESS ON APPROVAL</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <sc-for list="{{ perms }}" as="p" hint-placeholder-count="5">
+                <div style="border:1px solid #c5e0e4;background:#eef6f7;border-radius:20px;padding:6px 13px;font:500 12px 'IBM Plex Mono',monospace;color:#0d6d7c">{{ p }}</div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <div style="font:600 11px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.07em">WORKING HOURS</div>
+            <div style="border:1px solid #e4e8ef;border-radius:8px;padding:14px 16px;font-size:13.5px;color:#2c3a4f">Mon–Fri · 08:00–16:00 <span style="color:#7b8a9f">· editable after approval</span></div>
+          </div>
+          <div style="height:1px;background:#eef1f5"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:12.5px;color:#7b8a9f;max-width:400px;line-height:1.55">Approving creates the account, grants the Doctor role, and writes an audit record.</div>
+            <div style="display:flex;gap:10px">
+              <div style="border:1px solid #ccd4e0;border-radius:7px;padding:11px 18px;font-size:13.5px;font-weight:600;color:#b0402c">Reject</div>
+              <div style="background:#1d7f4e;border-radius:7px;padding:11px 20px;font-size:13.5px;font-weight:600;color:#fff">Verify &amp; grant Doctor role</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 09 ADMIN — X-RAY IMPORT ══ -->
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#14284a;color:#fff;border-radius:4px;padding:4px 8px">09</span><span style="font-size:14px;font-weight:600;color:#14284a">Admin — x-ray import simulation</span><span style="font-size:13px;color:#7b8a9f">Stands in for the modality; attaches instances to a study</span></div>
+<div style="width:1440px;height:800px;background:#f1f3f7;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);display:flex">
+  <div style="width:224px;background:#14284a;padding:22px 0;display:flex;flex-direction:column;gap:26px;flex:none">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 20px"><div style="width:4px;height:22px;background:#25b3c4;border-radius:2px"></div><div style="font-size:18px;font-weight:700;color:#fff">MediView</div></div>
+    <div style="display:flex;flex-direction:column;gap:2px;padding:0 12px">
+      <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#5d738f;letter-spacing:.08em;padding:0 8px 8px">ADMIN</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Doctors</div>
+      <div style="padding:10px 12px;border-radius:6px;background:rgba(37,179,196,.16);color:#fff;font-size:13.5px;font-weight:600">Studies &amp; import</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Roles &amp; permissions</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Audit log</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Feature flags</div>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <div style="height:62px;background:#fff;border-bottom:1px solid #dfe4ec;display:flex;align-items:center;justify-content:space-between;padding:0 30px;flex:none">
+      <div style="font-size:17px;font-weight:600;color:#14284a">Import images into Study 002</div>
+      <div style="display:flex;align-items:center;gap:10px"><div style="font:500 11px 'IBM Plex Mono',monospace;color:#0d6d7c;background:#eef6f7;border:1px solid #c5e0e4;border-radius:20px;padding:5px 12px">DICOM IMPORT · INTERNAL</div></div>
+    </div>
+    <div style="flex:1;padding:28px 30px;display:flex;gap:24px;min-height:0">
+      <div style="flex:1;display:flex;flex-direction:column;gap:20px;min-width:0">
+        <div style="background:#fff;border:1.5px dashed #b7c6da;border-radius:9px;padding:40px;display:flex;flex-direction:column;align-items:center;gap:12px">
+          <div style="width:56px;height:56px;border-radius:10px;background:#eef1f5;border:1px solid #dbe1ea;display:flex;align-items:center;justify-content:center;font:600 10px 'IBM Plex Mono',monospace;color:#7b8a9f">DCM</div>
+          <div style="font-size:15.5px;font-weight:600;color:#14284a">Drop a DICOM file or folder</div>
+          <div style="font-size:13px;color:#7b8a9f;text-align:center;line-height:1.6;max-width:420px">There is no physical modality in this environment. Importing simulates the x-ray machine pushing a study.</div>
+          <div style="background:#14284a;border-radius:7px;padding:10px 18px;font-size:13px;font-weight:600;color:#fff;margin-top:4px">Browse files</div>
+        </div>
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;overflow:hidden">
+          <div style="padding:16px 24px;border-bottom:1px solid #eef1f5;display:flex;justify-content:space-between;align-items:center"><div style="font-size:14.5px;font-weight:600;color:#14284a">Staged instances</div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#7b8a9f">24 instances · 1 series · 48.2 MB</div></div>
+          <sc-for list="{{ instances }}" as="i" hint-placeholder-count="4">
+            <div style="padding:14px 24px;border-bottom:1px solid #f3f5f9;display:flex;align-items:center;gap:16px">
+              <div style="width:40px;height:40px;border-radius:5px;background:repeating-linear-gradient(135deg,#20262f,#20262f 5px,#252c36 5px,#252c36 10px);flex:none"></div>
+              <div style="flex:1;min-width:0"><div style="font:500 13px 'IBM Plex Mono',monospace;color:#14284a">{{ i.file }}</div><div style="font-size:12px;color:#7b8a9f;margin-top:3px">{{ i.meta }}</div></div>
+              <div style="font:500 12.5px 'IBM Plex Mono',monospace;color:#1d7f4e">{{ i.state }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="width:372px;flex:none;display:flex;flex-direction:column;gap:16px">
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;padding:22px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:14.5px;font-weight:600;color:#14284a">Target study</div>
+          <sc-for list="{{ target }}" as="t" hint-placeholder-count="5">
+            <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:13px;color:#7b8a9f">{{ t.k }}</div><div style="font-size:13.5px;font-weight:600;color:#14284a">{{ t.v }}</div></div>
+          </sc-for>
+          <div style="height:1px;background:#eef1f5"></div>
+          <div style="display:flex;align-items:center;gap:11px">
+            <span style="font-size:12px;font-weight:600;border-radius:20px;padding:5px 12px;background:#e8ecf2;color:#5b6b81">To do</span>
+            <div style="font-size:13px;color:#7b8a9f">→</div>
+            <span style="font-size:12px;font-weight:600;border-radius:20px;padding:5px 12px;background:#e8ecf2;color:#5b6b81">To do</span>
+          </div>
+          <div style="font-size:12.5px;color:#7b8a9f;line-height:1.6">Import does not change status. The study stays <span style="font-weight:600;color:#14284a">To do</span> until a doctor opens it under lock.</div>
+          <div style="height:44px;background:#0d7d8c;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600">Import 24 instances</div>
+        </div>
+        <div style="background:#fdf9ee;border:1px solid #f0dcae;border-radius:9px;padding:16px 18px;display:flex;gap:11px">
+          <div style="width:7px;height:7px;border-radius:50%;background:#a1660a;flex:none;margin-top:5px"></div>
+          <div style="font-size:12.5px;line-height:1.6;color:#6d5316">Every import is written to the audit log with the acting admin, the study, and the instance count.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 10 ADMIN — AUDIT LOG / BREAK-GLASS ══ -->
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#14284a;color:#fff;border-radius:4px;padding:4px 8px">10</span><span style="font-size:14px;font-weight:600;color:#14284a">Admin — audit log &amp; break-glass override</span><span style="font-size:13px;color:#7b8a9f">Actor · reason · before → after on every override</span></div>
+<div style="width:1440px;height:860px;background:#f1f3f7;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);display:flex">
+  <div style="width:224px;background:#14284a;padding:22px 0;display:flex;flex-direction:column;gap:26px;flex:none">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 20px"><div style="width:4px;height:22px;background:#25b3c4;border-radius:2px"></div><div style="font-size:18px;font-weight:700;color:#fff">MediView</div></div>
+    <div style="display:flex;flex-direction:column;gap:2px;padding:0 12px">
+      <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#5d738f;letter-spacing:.08em;padding:0 8px 8px">ADMIN</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Doctors</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Studies &amp; import</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Roles &amp; permissions</div>
+      <div style="padding:10px 12px;border-radius:6px;background:rgba(37,179,196,.16);color:#fff;font-size:13.5px;font-weight:600">Audit log</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Feature flags</div>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <div style="height:62px;background:#fff;border-bottom:1px solid #dfe4ec;display:flex;align-items:center;justify-content:space-between;padding:0 30px;flex:none">
+      <div style="font-size:17px;font-weight:600;color:#14284a">Audit log</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="height:34px;border:1px solid #ccd4e0;border-radius:7px;display:flex;align-items:center;padding:0 12px;font-size:13px;color:#14284a;font-weight:500">Last 7 days</div>
+        <div style="height:34px;border:1px solid #f0dcae;background:#fdf3dc;border-radius:7px;display:flex;align-items:center;padding:0 12px;font-size:13px;color:#a1660a;font-weight:600">Break-glass only</div>
+      </div>
+    </div>
+    <div style="flex:1;padding:26px 30px;display:flex;gap:24px;min-height:0">
+      <div style="flex:1;background:#fff;border:1px solid #dfe4ec;border-radius:9px;overflow:hidden;min-width:0">
+        <div style="display:grid;grid-template-columns:1fr .85fr 1.5fr 1.25fr;padding:12px 24px;background:#f8fafc;border-bottom:1px solid #eef1f5">
+          <sc-for list="{{ auditCols }}" as="c" hint-placeholder-count="4"><div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.07em">{{ c }}</div></sc-for>
+        </div>
+        <sc-for list="{{ audit }}" as="a" hint-placeholder-count="7">
+          <div style="display:grid;grid-template-columns:1fr .85fr 1.5fr 1.25fr;padding:16px 24px;border-bottom:1px solid #f3f5f9;align-items:center;background:{{ a.rowBg }}">
+            <div style="font:500 12.5px 'IBM Plex Mono',monospace;color:#4a5a72">{{ a.when }}</div>
+            <div style="display:flex;align-items:center;gap:8px"><div style="width:7px;height:7px;border-radius:50%;background:{{ a.dot }}"></div><div style="font-size:13px;color:#14284a;font-weight:500">{{ a.actor }}</div></div>
+            <div><div style="font-size:13.5px;color:#14284a;font-weight:500">{{ a.action }}</div><div style="font-size:12px;color:#7b8a9f;margin-top:2px">{{ a.target }}</div></div>
+            <div style="font:500 12px 'IBM Plex Mono',monospace;color:{{ a.deltaFg }}">{{ a.delta }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="width:396px;flex:none;display:flex;flex-direction:column;gap:16px">
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;overflow:hidden">
+          <div style="padding:14px 20px;background:#fdf3dc;border-bottom:1px solid #f0dcae;display:flex;align-items:center;gap:10px">
+            <div style="width:8px;height:8px;border-radius:50%;background:#a1660a"></div>
+            <div style="font:600 11px 'IBM Plex Mono',monospace;color:#8a5709;letter-spacing:.06em">BREAK-GLASS OVERRIDE</div>
+          </div>
+          <div style="padding:20px;display:flex;flex-direction:column;gap:17px">
+            <div style="font-size:13px;line-height:1.6;color:#4a5a72">Use only when the assigned doctor is unavailable. Admin is not a substitute for a doctor in the normal flow.</div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="font:600 11px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.07em">STUDY</div>
+              <div style="height:40px;border:1px solid #ccd4e0;border-radius:7px;display:flex;align-items:center;padding:0 13px;font:500 13px 'IBM Plex Mono',monospace;color:#14284a">Study 003 · Patient C</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="font:600 11px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.07em">FORCE TRANSITION</div>
+              <div style="display:flex;align-items:center;gap:11px">
+                <div style="flex:1;height:40px;border:1px solid #e4e8ef;background:#f8fafc;border-radius:7px;display:flex;align-items:center;justify-content:center"><span style="font-size:12.5px;font-weight:600;border-radius:20px;padding:4px 11px;background:#fdf3dc;color:#a1660a">In progress</span></div>
+                <div style="font-size:15px;color:#93a1b5">→</div>
+                <div style="flex:1;height:40px;border:1.5px solid #14284a;border-radius:7px;display:flex;align-items:center;justify-content:center"><span style="font-size:12.5px;font-weight:600;border-radius:20px;padding:4px 11px;background:#fbe7e1;color:#b0402c">Re-diagnosis</span></div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="font:600 11px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.07em">REASON <span style="color:#b0402c">· REQUIRED</span></div>
+              <div style="min-height:66px;border:1px solid #ccd4e0;border-radius:7px;padding:11px 13px;font-size:13px;line-height:1.6;color:#2c3a4f">Assigned doctor unavailable; second read requested by the referring clinician.</div>
+            </div>
+            <div style="border:1px solid #f0dcae;background:#fdf9ee;border-radius:7px;padding:13px 15px;font-size:12.5px;line-height:1.6;color:#6d5316">This action releases Dr. D's lock and records actor, reason, and before → after values.</div>
+            <div style="height:44px;background:#a1660a;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600">Force transition</div>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;padding:20px;display:flex;flex-direction:column;gap:13px">
+          <div style="font-size:14px;font-weight:600;color:#14284a">Feature flags</div>
+          <sc-for list="{{ flags }}" as="f" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:13px;color:#2c3a4f">{{ f.name }}</div><div style="font:600 11px 'IBM Plex Mono',monospace;color:#1d7f4e;background:#e2f2e8;border:1px solid #bfe0cc;border-radius:20px;padding:3px 10px">{{ f.val }}</div></div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div style="max-width:900px;font-size:13.5px;line-height:1.7;color:#5c6c84;padding-top:8px;border-top:1px solid #d3d9e3">
+<span style="font-weight:600;color:#14284a">Next steps.</span> Tell me which screens to push further. Open gaps I deliberately left out: the doctor's prescription composer, the cart/checkout page, follow-up booking, role &amp; permission management, and the patient's mobile view. Say the word and I'll add them in the same shell.
+</div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1560,&quot;height&quot;:1000}}">
+class Component extends DCLogic {
+  renderVals() {
+    const S = {
+      todo:  { bg:'#e8ecf2', fg:'#5b6b81' },
+      prog:  { bg:'#fdf3dc', fg:'#a1660a' },
+      redx:  { bg:'#fbe7e1', fg:'#b0402c' },
+      done:  { bg:'#e2f2e8', fg:'#17724a' }
+    };
+    return {
+      days: [
+        { dow:'MON', date:'10', free:'6 free' },
+        { dow:'TUE', date:'11', free:'2 free' },
+        { dow:'WED', date:'12', free:'8 free' },
+        { dow:'THU', date:'13', free:'4 free' },
+        { dow:'FRI', date:'14', free:'7 free' }
+      ],
+      slots: [
+        { t:'08:00', bg:'#f1f3f7', bd:'#dbe1ea', fg:'#a3aebe' },
+        { t:'08:30', bg:'#fff',    bd:'#ccd4e0', fg:'#14284a' },
+        { t:'09:00', bg:'#14284a', bd:'#14284a', fg:'#ffffff' },
+        { t:'09:30', bg:'#fff',    bd:'#ccd4e0', fg:'#14284a' },
+        { t:'10:00', bg:'#f1f3f7', bd:'#dbe1ea', fg:'#a3aebe' },
+        { t:'10:30', bg:'#fff',    bd:'#ccd4e0', fg:'#14284a' },
+        { t:'11:00', bg:'#fff',    bd:'#ccd4e0', fg:'#14284a' },
+        { t:'11:30', bg:'#f1f3f7', bd:'#dbe1ea', fg:'#a3aebe' },
+        { t:'13:00', bg:'#fff',    bd:'#ccd4e0', fg:'#14284a' },
+        { t:'13:30', bg:'#fff',    bd:'#ccd4e0', fg:'#14284a' },
+        { t:'14:00', bg:'#f1f3f7', bd:'#dbe1ea', fg:'#a3aebe' },
+        { t:'14:30', bg:'#fff',    bd:'#ccd4e0', fg:'#14284a' }
+      ],
+      summary: [
+        { k:'Date',      v:'Wed 12 Mar' },
+        { k:'Time',      v:'09:00' },
+        { k:'Location',  v:'Imaging suite 2' },
+        { k:'Study type',v:'Chest x-ray (PA)' }
+      ],
+      patientTrack: [
+        { label:'Booked',        when:'12 Mar · 08:10', dot:'#1d7f4e', bar:'#1d7f4e', fg:'#14284a' },
+        { label:'Images imported',when:'12 Mar · 08:52', dot:'#1d7f4e', bar:'#1d7f4e', fg:'#14284a' },
+        { label:'In progress',   when:'12 Mar · 09:58', dot:'#1d7f4e', bar:'#1d7f4e', fg:'#14284a' },
+        { label:'Done',          when:'12 Mar · 10:24', dot:'#1d7f4e', bar:'transparent', fg:'#14284a' }
+      ],
+      rx: [
+        { name:'Drug A 500 mg',  dose:'1 tablet · twice daily · 7 days', price:'$12.40' },
+        { name:'Drug B 250 mg',  dose:'1 capsule · once daily · 5 days', price:'$9.80' },
+        { name:'Drug C syrup',   dose:'10 ml · at night · 7 days',       price:'$12.00' }
+      ],
+      billCols: ['INVOICE','FOR','DATE','AMOUNT','STATUS'],
+      bills: [
+        { id:'INV-0031', what:'Study 001 · fee + prescription', date:'12 Mar', amt:'$94.20', state:'Unpaid', bg:'#fbe7e1', fg:'#b0402c' },
+        { id:'INV-0027', what:'Study 000 · diagnosis fee',      date:'02 Feb', amt:'$60.00', state:'Paid',   bg:'#e2f2e8', fg:'#17724a' },
+        { id:'INV-0019', what:'Prescription refill',            date:'14 Jan', amt:'$21.60', state:'Paid',   bg:'#e2f2e8', fg:'#17724a' },
+        { id:'INV-0012', what:'Study 000 · prescription',       date:'09 Jan', amt:'$38.00', state:'Paid',   bg:'#e2f2e8', fg:'#17724a' }
+      ],
+      kpis: [
+        { label:'TO DO',        n:'4',  dot:'#94a3b8' },
+        { label:'IN PROGRESS',  n:'1',  dot:'#d89e1a' },
+        { label:'RE-DIAGNOSIS', n:'2',  dot:'#b0402c' },
+        { label:'DONE TODAY',   n:'11', dot:'#1d7f4e' }
+      ],
+      wlCols: ['TIME','PATIENT','STUDY','MODALITY','STATUS','LOCK','' ],
+      worklist: [
+        { time:'08:30', patient:'Patient A', mrn:'MRN-1042', study:'STU-001', modality:'X-ray · Chest PA', status:'In progress', bg:S.prog.bg, fg:S.prog.fg, lock:'You', lockDot:'#1d7f4e', lockFg:'#1d7f4e', action:'Resume', btnBg:'#14284a', btnBd:'#14284a', btnFg:'#fff' },
+        { time:'09:00', patient:'Patient B', mrn:'MRN-1058', study:'STU-002', modality:'X-ray · Chest PA', status:'To do', bg:S.todo.bg, fg:S.todo.fg, lock:'Free', lockDot:'#c3ccd8', lockFg:'#7b8a9f', action:'Open', btnBg:'#fff', btnBd:'#ccd4e0', btnFg:'#14284a' },
+        { time:'09:30', patient:'Patient C', mrn:'MRN-1077', study:'STU-003', modality:'X-ray · Chest PA', status:'In progress', bg:S.prog.bg, fg:S.prog.fg, lock:'Dr. D', lockDot:'#b0402c', lockFg:'#b0402c', action:'View', btnBg:'#fff', btnBd:'#ccd4e0', btnFg:'#7b8a9f' },
+        { time:'10:00', patient:'Patient D', mrn:'MRN-1090', study:'STU-004', modality:'X-ray · Wrist AP', status:'Re-diagnosis', bg:S.redx.bg, fg:S.redx.fg, lock:'Free', lockDot:'#c3ccd8', lockFg:'#7b8a9f', action:'Open', btnBg:'#fff', btnBd:'#ccd4e0', btnFg:'#14284a' },
+        { time:'10:30', patient:'Patient E', mrn:'MRN-1103', study:'STU-005', modality:'X-ray · Chest LAT', status:'To do', bg:S.todo.bg, fg:S.todo.fg, lock:'Free', lockDot:'#c3ccd8', lockFg:'#7b8a9f', action:'Open', btnBg:'#fff', btnBd:'#ccd4e0', btnFg:'#14284a' },
+        { time:'11:00', patient:'Patient F', mrn:'MRN-1119', study:'STU-006', modality:'X-ray · Knee AP', status:'To do', bg:S.todo.bg, fg:S.todo.fg, lock:'Free', lockDot:'#c3ccd8', lockFg:'#7b8a9f', action:'Open', btnBg:'#fff', btnBd:'#ccd4e0', btnFg:'#14284a' },
+        { time:'11:30', patient:'Patient G', mrn:'MRN-1124', study:'STU-007', modality:'X-ray · Chest PA', status:'Done', bg:S.done.bg, fg:S.done.fg, lock:'Released', lockDot:'#c3ccd8', lockFg:'#7b8a9f', action:'Report', btnBg:'#fff', btnBd:'#ccd4e0', btnFg:'#14284a' }
+      ],
+      tools: [
+        { icon:'✥', name:'PAN',    bg:'transparent',            fg:'#8b97a6' },
+        { icon:'⌕', name:'ZOOM',   bg:'transparent',            fg:'#8b97a6' },
+        { icon:'◐', name:'W/L',    bg:'rgba(37,179,196,.16)',   fg:'#25b3c4' },
+        { icon:'╱', name:'LENGTH', bg:'transparent',            fg:'#8b97a6' },
+        { icon:'∠', name:'ANGLE',  bg:'transparent',            fg:'#8b97a6' },
+        { icon:'▭', name:'ROI',    bg:'transparent',            fg:'#8b97a6' },
+        { icon:'↕', name:'SCROLL', bg:'transparent',            fg:'#8b97a6' },
+        { icon:'⟲', name:'ROTATE', bg:'transparent',            fg:'#8b97a6' },
+        { icon:'⊘', name:'INVERT', bg:'transparent',            fg:'#8b97a6' }
+      ],
+      series: [
+        { n:'SE 1', label:'Chest PA',  frames:'24 frames', bd:'#25b3c4' },
+        { n:'SE 2', label:'Chest LAT', frames:'18 frames', bd:'#2b3340' },
+        { n:'SE 3', label:'Scout',     frames:'1 frame',   bd:'#2b3340' }
+      ],
+      measures: [
+        { name:'Length 1', val:'42.6 mm' },
+        { name:'ROI 1 · mean', val:'318 HU' }
+      ],
+      lockFacts: [
+        { k:'Acquired',      v:'14:46' },
+        { k:'Held for',      v:'06:12' },
+        { k:'Auto-release',  v:'15:00 idle' }
+      ],
+      docQueue: [
+        { initials:'DE', name:'Dr. E', spec:'Radiology · 6 yrs', state:'Pending',  bg:'#fdf3dc', fg:'#a1660a', rowBg:'#f8fafc' },
+        { initials:'DF', name:'Dr. F', spec:'Radiology · 11 yrs', state:'Pending', bg:'#fdf3dc', fg:'#a1660a', rowBg:'#fff' },
+        { initials:'DG', name:'Dr. G', spec:'Orthopaedics · 4 yrs', state:'Pending', bg:'#fdf3dc', fg:'#a1660a', rowBg:'#fff' },
+        { initials:'DB', name:'Dr. B', spec:'Radiology · 8 yrs', state:'Verified', bg:'#e2f2e8', fg:'#17724a', rowBg:'#fff' },
+        { initials:'DD', name:'Dr. D', spec:'Radiology · 9 yrs', state:'Verified', bg:'#e2f2e8', fg:'#17724a', rowBg:'#fff' }
+      ],
+      creds: [
+        { title:'Medical licence',        meta:'Placeholder document · expires 2029', tick:'✓', tickBg:'#e2f2e8', tickFg:'#17724a' },
+        { title:'Radiology board certificate', meta:'Placeholder document · issued 2019', tick:'✓', tickBg:'#e2f2e8', tickFg:'#17724a' },
+        { title:'Employment reference',   meta:'Placeholder document · 2 pages', tick:'✓', tickBg:'#e2f2e8', tickFg:'#17724a' },
+        { title:'Award / recognition',    meta:'Placeholder document · optional', tick:'–', tickBg:'#eef1f5', tickFg:'#93a1b5' }
+      ],
+      perms: ['studies.read','studies.diagnose','viewport.lock','reports.write','prescriptions.issue'],
+      instances: [
+        { file:'IM000001.dcm', meta:'SOP 1.2.840… · 2048×2500 · 2.1 MB', state:'Validated' },
+        { file:'IM000002.dcm', meta:'SOP 1.2.840… · 2048×2500 · 2.0 MB', state:'Validated' },
+        { file:'IM000003.dcm', meta:'SOP 1.2.840… · 2048×2500 · 2.1 MB', state:'Validated' },
+        { file:'IM000004.dcm', meta:'SOP 1.2.840… · 2048×2500 · 2.0 MB', state:'Validated' }
+      ],
+      target: [
+        { k:'Study',    v:'Study 002' },
+        { k:'Patient',  v:'Patient B · MRN-1058' },
+        { k:'Doctor',   v:'Dr. B' },
+        { k:'Booked',   v:'12 Mar · 09:00' },
+        { k:'Existing images', v:'None' }
+      ],
+      auditCols: ['WHEN','ACTOR','ACTION','BEFORE → AFTER'],
+      audit: [
+        { when:'12 Mar 10:41', actor:'Admin A', action:'Break-glass · forced status', target:'Study 003 · Patient C', delta:'in_progress → re_diagnosis', dot:'#a1660a', deltaFg:'#b0402c', rowBg:'#fdfaf2' },
+        { when:'12 Mar 10:24', actor:'Dr. B',   action:'Report finalized',            target:'Study 001 · Patient A', delta:'in_progress → done',        dot:'#1f5fa8', deltaFg:'#17724a', rowBg:'#fff' },
+        { when:'12 Mar 09:58', actor:'Dr. B',   action:'Viewport lock acquired',      target:'Study 001 · Patient A', delta:'todo → in_progress',        dot:'#1f5fa8', deltaFg:'#a1660a', rowBg:'#fff' },
+        { when:'12 Mar 08:52', actor:'Admin A', action:'DICOM import (simulated)',    target:'Study 001 · 24 instances', delta:'—',                      dot:'#a1660a', deltaFg:'#7b8a9f', rowBg:'#fff' },
+        { when:'11 Mar 16:20', actor:'Admin A', action:'Break-glass · released lock', target:'Study 998 · Patient H', delta:'locked → free',             dot:'#a1660a', deltaFg:'#b0402c', rowBg:'#fdfaf2' },
+        { when:'11 Mar 14:02', actor:'Admin A', action:'Doctor role granted',         target:'Dr. D · credentials verified', delta:'none → doctor',      dot:'#a1660a', deltaFg:'#17724a', rowBg:'#fff' },
+        { when:'11 Mar 11:35', actor:'Patient A', action:'Bill paid from wallet',     target:'INV-0027 · $60.00',    delta:'unpaid → paid',              dot:'#1d7f4e', deltaFg:'#17724a', rowBg:'#fff' }
+      ],
+      flags: [
+        { name:'Auth provider',    val:'INTERNAL' },
+        { name:'DICOM import',     val:'INTERNAL' },
+        { name:'Payment provider', val:'INTERNAL' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 {
   "project": {
     "name": "Medical View",
-    "description": "A cloud-native medical imaging and diagnosis platform (MediView) where patients register and book checkups, doctors open a Cornerstone.js DICOM Viewport to diagnose a patient's Study (one DB row = one Study) under a single-writer distributed lock, save reports, and patients then receive results, prescriptions, drug purchases/billing, and follow-up appointments - built as .NET 10 microservices with Domain-Driven Design + Clean Architecture and deployed on Azure.",
+    "description": "MediView is a medical imaging and diagnosis platform built around a single Study lifecycle (todo -> in-progress -> re-diagnosis -> done). Patients self-register, book a doctor within the doctor's working hours, and their x-ray images are imported into the Study (simulated by an admin, since there is no physical modality). A doctor opens the Study in a Cornerstone.js DICOM Viewport under a single-writer lock, diagnoses, exports the result and prescription, and marks the Study done or re-diagnosis. Patients then pay the bill from an in-app wallet. Admins are seeded, onboard doctors after verifying credentials, and hold audited break-glass permissions. Auth, DICOM import, and Payment each sit behind a feature flag so the platform runs fully in-house now and can adopt external providers later. Built as .NET 10 microservices with Domain-Driven Design + Clean Architecture, deployed on Azure.",
     "techStack": {
       "backend": ".NET 10",
       "frontend": "Blazor",
@@ -14,7 +14,7 @@
       "orm": "Entity Framework Core (Npgsql)",
       "imaging": "DICOM via fo-dicom (WADO-RS/QIDO-RS) + Cornerstone.js viewport"
     },
-    "revision": "v2"
+    "revision": "v3"
   },
   "sections": [
     {
@@ -526,7 +526,7 @@
         {
           "id": "S04-T03",
           "title": "Issue JWT access + rotating refresh tokens",
-          "details": "Issue short-lived JWT access tokens (~15 min) signed with a key from configuration / Key Vault. Use HS256 for a single issuer or RS256 (asymmetric) so any service or the gateway validates with the public key. Embed claims: sub (userId), email, role, permission claims, jti, iss, aud, exp. Issue long-lived refresh tokens stored hashed in the DB, single-use and rotated on each refresh, with server-side revocation.",
+          "details": "Issue short-lived JWT access tokens (~15 min) signed with a key from configuration / Key Vault. Use HS256 for a single issuer or RS256 (asymmetric) so any service or the gateway validates with the public key. Embed claims: sub (userId), email, role, permission claims, jti, iss, aud, exp. Issue long-lived refresh tokens stored hashed in the DB, single-use and rotated on each refresh, with server-side revocation. This internal JWT issuance is the DEFAULT auth provider (flag = internal); an external identity provider can be swapped in later behind the same flag.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
@@ -538,13 +538,14 @@
           "tags": [
             "auth",
             "security",
-            "jwt"
+            "jwt",
+            "providers"
           ]
         },
         {
           "id": "S04-T04",
-          "title": "Build Register / Login / Refresh / Logout endpoints",
-          "details": "Expose endpoints with FluentValidation, password policy, and Identity lockout on repeated failures.",
+          "title": "Register (Patient self-service) / Login / Refresh / Logout",
+          "details": "Self-registration through Register creates a PATIENT account only. Login / Refresh / Logout work for every role. Admin and Doctor accounts are never self-registered (see the seeding and doctor-onboarding tasks).",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
@@ -555,7 +556,8 @@
           ],
           "tags": [
             "auth",
-            "api"
+            "api",
+            "business"
           ]
         },
         {
@@ -592,6 +594,25 @@
             "auth",
             "security",
             "jwt"
+          ]
+        },
+        {
+          "id": "S04-T07",
+          "title": "Seed Admin in the database; restrict self-registration",
+          "details": "Seed the Admin account(s) directly in the database - admins are never self-registered. Enforce that the public Register endpoint can only create Patient accounts; Doctor and Admin roles are provisioned by an admin (see doctor onboarding).",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S04-T04",
+            "S05-T05"
+          ],
+          "acceptanceCriteria": [
+            "Register only yields Patient accounts; an Admin exists from seed data"
+          ],
+          "tags": [
+            "auth",
+            "roles",
+            "business"
           ]
         }
       ]
@@ -708,13 +729,53 @@
             "role",
             "api"
           ]
+        },
+        {
+          "id": "S05-T07",
+          "title": "Admin-only doctor onboarding with credential verification",
+          "details": "An admin creates each doctor account and attaches proof of experience - certificates, awards, qualifications. The Doctor role is granted only after those credentials are attached/verified; doctors cannot self-register. Store the credential metadata and attachments on the doctor profile.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S05-T06",
+            "S04-T07"
+          ],
+          "acceptanceCriteria": [
+            "A doctor account can only be created by an admin and requires attached credentials"
+          ],
+          "tags": [
+            "roles",
+            "doctor",
+            "onboarding",
+            "business"
+          ]
+        },
+        {
+          "id": "S05-T08",
+          "title": "Admin break-glass override (full permission, audited)",
+          "details": "Admin holds full permission over every resource but uses it only as break-glass - for example correcting a patient's data or diagnosis when the assigned doctor is unavailable. Admin does NOT replace the doctor in the normal flow. Every admin override is written to the audit log with actor, reason, and before/after values.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S05-T03",
+            "S17-T04"
+          ],
+          "acceptanceCriteria": [
+            "Admin can override any patient/study data and every override is audited"
+          ],
+          "tags": [
+            "roles",
+            "admin",
+            "audit",
+            "business"
+          ]
         }
       ]
     },
     {
       "id": "S06",
       "name": "Patient & Studies Microservice",
-      "goal": "The core clinical record service: Patients and Studies (each row = one Study) with multi-doctor assignment, a status enum including Locked, and full audit history.",
+      "goal": "Patient and Study aggregates persisted per EF Core conventions, with a Study status lifecycle (todo / in-progress / re-diagnosis / done) as the single source of truth for the whole diagnosis workflow.",
       "order": 6,
       "dependsOn": [
         "S05"
@@ -740,7 +801,7 @@
         {
           "id": "S06-T02",
           "title": "Model Patient and Study aggregates",
-          "details": "Study is an aggregate root with StudyStatus enum (Registered, InReview, Locked, Reported, Closed), AuditableEntity fields, and assigned-doctors collection.",
+          "details": "Study is an aggregate root with StudyStatus enum (Registered, InReview, Locked, Reported, Closed), AuditableEntity fields, and assigned-doctors collection. A Study also carries a Status that drives the whole workflow (see the Study status state machine).",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
@@ -751,7 +812,8 @@
           ],
           "tags": [
             "patient",
-            "ddd"
+            "ddd",
+            "state-machine"
           ]
         },
         {
@@ -840,6 +902,24 @@
           "tags": [
             "patient",
             "messaging"
+          ]
+        },
+        {
+          "id": "S06-T08",
+          "title": "Study status state machine: todo -> in-progress -> re-diagnosis -> done",
+          "details": "Model Study.Status with values todo, in_progress, re_diagnosis, done and enforce the allowed transitions: todo -> in_progress when a doctor starts the read; in_progress -> done when the doctor finalizes with no further read; in_progress -> re_diagnosis when the doctor requests another read; re_diagnosis -> in_progress when a read resumes. Doctor-driven transitions require viewport lock ownership; an admin may override them (audited). Patient and doctor views both read this single status.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S06-T02"
+          ],
+          "acceptanceCriteria": [
+            "Only allowed Study status transitions are accepted, guarded by role and lock ownership"
+          ],
+          "tags": [
+            "studies",
+            "state-machine",
+            "business"
           ]
         }
       ]
@@ -938,6 +1018,25 @@
             "booking",
             "messaging"
           ]
+        },
+        {
+          "id": "S07-T06",
+          "title": "Doctor working hours & availability",
+          "details": "Model each doctor's working hours. Patients can only book slots inside a doctor's working hours, and the doctor's dashboard lists exactly the studies booked within those hours. Admin or the doctor maintains the schedule.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S07-T02",
+            "S05-T07"
+          ],
+          "acceptanceCriteria": [
+            "Bookings are constrained to a doctor's working hours and surface on that doctor's dashboard"
+          ],
+          "tags": [
+            "booking",
+            "doctor",
+            "business"
+          ]
         }
       ]
     },
@@ -953,7 +1052,7 @@
         {
           "id": "S08-T01",
           "title": "Scaffold Imaging service + add fo-dicom",
-          "details": "Create Imaging.Domain/Application/Infrastructure/Api projects; add the fo-dicom package for parsing/serialization.",
+          "details": "Create Imaging.Domain/Application/Infrastructure/Api projects; add the fo-dicom package for parsing/serialization. This own-code DICOM handling is the DEFAULT import provider (flag = internal); a real PACS/modality can be plugged in later behind the same flag.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
@@ -964,7 +1063,8 @@
           ],
           "tags": [
             "dicom",
-            "microservice"
+            "microservice",
+            "providers"
           ]
         },
         {
@@ -1035,6 +1135,26 @@
             "dicom",
             "performance"
           ]
+        },
+        {
+          "id": "S08-T06",
+          "title": "Admin \"Import from X-ray\" simulation",
+          "details": "There is no physical modality, so provide an Import action (admin-triggered) that ingests a DICOM file/dataset and attaches its instances to the target Study - simulating an x-ray machine pushing images. After import the Study has images and is ready for a doctor to diagnose. Runs through the internal DICOM-import provider.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S08-T03",
+            "S06-T08"
+          ],
+          "acceptanceCriteria": [
+            "An admin can import a DICOM set into a Study, standing in for the x-ray machine"
+          ],
+          "tags": [
+            "imaging",
+            "import",
+            "admin",
+            "business"
+          ]
         }
       ]
     },
@@ -1070,18 +1190,20 @@
         {
           "id": "S09-T02",
           "title": "Acquire lock on Viewport open",
-          "details": "When a Doctor opens a Study viewport, acquire a lock keyed by study id with the doctor id as owner and a short TTL.",
+          "details": "When a Doctor opens a Study viewport, acquire a lock keyed by study id with the doctor id as owner and a short TTL. Opening a Study for diagnosis also moves its status todo -> in_progress (see the Study status state machine).",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
-            "S09-T01"
+            "S09-T01",
+            "S06-T08"
           ],
           "acceptanceCriteria": [
             "First doctor acquires; Study status set to Locked"
           ],
           "tags": [
             "lock",
-            "api"
+            "api",
+            "state-machine"
           ]
         },
         {
@@ -1219,19 +1341,22 @@
         },
         {
           "id": "S10-T04",
-          "title": "Draft save + finalize endpoints",
-          "details": "Allow incremental draft saves and a finalize action that transitions the Study to Reported.",
+          "title": "Draft save, finalize, and set the diagnosis decision",
+          "details": "Draft-save and finalize the report. Finalizing records the doctor's decision and sets the Study status accordingly: no further read -> done; another read needed -> re_diagnosis. The decision is what the patient ultimately sees.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
-            "S10-T03"
+            "S10-T03",
+            "S06-T08"
           ],
           "acceptanceCriteria": [
             "Draft->Finalize flow updates Study status"
           ],
           "tags": [
             "reporting",
-            "api"
+            "api",
+            "state-machine",
+            "business"
           ]
         },
         {
@@ -1254,9 +1379,9 @@
         },
         {
           "id": "S10-T06",
-          "title": "Generate PDF report (optional)",
-          "details": "Render the finalized report to PDF and store it (blob) for patient download.",
-          "priority": "low",
+          "title": "Export the diagnosis result as PDF",
+          "details": "Export the finalized diagnosis result as a PDF the patient receives.",
+          "priority": "high",
           "status": "todo",
           "dependsOn": [
             "S10-T04"
@@ -1266,7 +1391,9 @@
           ],
           "tags": [
             "reporting",
-            "pdf"
+            "pdf",
+            "export",
+            "business"
           ]
         }
       ]
@@ -1349,6 +1476,24 @@
             "prescription",
             "messaging"
           ]
+        },
+        {
+          "id": "S11-T05",
+          "title": "Export prescription as PDF",
+          "details": "Export the issued prescription as a PDF the patient receives alongside the diagnosis result.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "S11-T03"
+          ],
+          "acceptanceCriteria": [
+            "A finalized prescription can be exported as a PDF for the patient"
+          ],
+          "tags": [
+            "prescription",
+            "export",
+            "business"
+          ]
         }
       ]
     },
@@ -1381,7 +1526,7 @@
         {
           "id": "S12-T02",
           "title": "Model Cart, Order, and Invoice",
-          "details": "Cart with line items, Order, Invoice/Bill with totals and payment status. Add EF migration.",
+          "details": "Cart with line items, Order, Invoice/Bill with totals and payment status. Add EF migration. Add a patient wallet / account balance funded per patient; paying a bill debits the wallet.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
@@ -1392,7 +1537,9 @@
           ],
           "tags": [
             "cart",
-            "ddd"
+            "ddd",
+            "wallet",
+            "business"
           ]
         },
         {
@@ -1416,7 +1563,7 @@
         {
           "id": "S12-T04",
           "title": "Checkout creates a bill",
-          "details": "Checkout converts the cart to an order and generates an invoice with computed totals/taxes.",
+          "details": "Checkout creates the bill from the prescription (plus any diagnosis fee). Paying becomes available once the doctor has finalized the diagnosis.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
@@ -1427,13 +1574,14 @@
           ],
           "tags": [
             "cart",
-            "api"
+            "api",
+            "business"
           ]
         },
         {
           "id": "S12-T05",
-          "title": "Integrate payment (test gateway)",
-          "details": "Integrate Stripe test mode (or a mock provider) to complete payment; handle webhook/confirmation idempotently.",
+          "title": "Pay the bill from the patient wallet (internal, pluggable)",
+          "details": "Pay the bill by debiting the patient's wallet balance - the DEFAULT internal payment provider (flag = internal). A real external payment gateway can be plugged in later behind the same flag without changing callers.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
@@ -1444,25 +1592,31 @@
           ],
           "tags": [
             "cart",
-            "payments"
+            "payments",
+            "wallet",
+            "providers",
+            "business"
           ]
         },
         {
           "id": "S12-T06",
           "title": "Publish BillPaid + order history",
-          "details": "On payment success publish BillPaid (Outbox) and expose an order-history endpoint for the patient.",
+          "details": "On payment, settle the visit. If the doctor set the Study to re_diagnosis, keep it open for another read instead of closing; a done Study with a paid bill completes the journey.",
           "priority": "medium",
           "status": "todo",
           "dependsOn": [
             "S12-T05",
-            "S02-T08"
+            "S02-T08",
+            "S06-T08"
           ],
           "acceptanceCriteria": [
             "BillPaid emitted; history endpoint returns orders"
           ],
           "tags": [
             "cart",
-            "messaging"
+            "messaging",
+            "state-machine",
+            "business"
           ]
         }
       ]
@@ -1696,8 +1850,8 @@
         },
         {
           "id": "S15-T03",
-          "title": "Build the Patient portal",
-          "details": "Pages for register, book checkup, view final report, view prescription, cart/checkout, and follow-up scheduling.",
+          "title": "Build the Patient portal (booking, status, results, bill)",
+          "details": "The Patient portal shows the patient's booking, the live Study status (todo / in-progress / re-diagnosis / done), the diagnosis result and prescription once ready, and the bill - which the patient pays from their wallet.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
@@ -1708,24 +1862,27 @@
           ],
           "tags": [
             "blazor",
-            "patient"
+            "patient",
+            "business"
           ]
         },
         {
           "id": "S15-T04",
-          "title": "Build the Doctor portal + studies list",
-          "details": "Studies list with filters and a Study detail page showing assignment and status.",
+          "title": "Build the Doctor dashboard (booked studies within working hours)",
+          "details": "The Doctor dashboard lists the patients booked within the doctor's working hours with each Study's status, opens the DICOM Viewport to diagnose, exports the result and prescription, and sets the Study status to re-diagnosis or done.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
-            "S15-T02"
+            "S15-T02",
+            "S07-T06"
           ],
           "acceptanceCriteria": [
             "Doctor sees assigned Studies and can open one"
           ],
           "tags": [
             "blazor",
-            "doctor"
+            "doctor",
+            "business"
           ]
         },
         {
@@ -1915,6 +2072,25 @@
           "tags": [
             "resilience",
             "polly"
+          ]
+        },
+        {
+          "id": "S16-T07",
+          "title": "Pluggable provider abstraction (feature-flagged: internal now, external later)",
+          "details": "Put Auth, DICOM import, and Payment behind provider interfaces (IAuthProvider, IDicomImportProvider, IPaymentProvider), each with two implementations - an internal build-from-scratch one and an external third-party one - selected per provider by a config flag (false = internal, true = external). Default every flag to internal so the system runs end-to-end with no external dependencies now, and can switch to a real IdP / PACS / payment gateway later without touching callers.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "S02-T08"
+          ],
+          "acceptanceCriteria": [
+            "Auth, DICOM import, and Payment each resolve to an internal or external provider by config flag; internal is the default"
+          ],
+          "tags": [
+            "architecture",
+            "providers",
+            "feature-flag",
+            "business"
           ]
         }
       ]
