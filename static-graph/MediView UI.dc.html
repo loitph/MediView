@@ -30,7 +30,7 @@ a{color:#0d7d8c;text-decoration:none}a:hover{color:#0a5f6b;text-decoration:under
 <div style="font:500 11.5px 'IBM Plex Mono',monospace;color:#4a5a72;background:#fff;border:1px solid #d3d9e3;border-radius:20px;padding:6px 13px">IBM Plex Sans / Mono</div>
 <div style="font:500 11.5px 'IBM Plex Mono',monospace;color:#4a5a72;background:#fff;border:1px solid #d3d9e3;border-radius:20px;padding:6px 13px">1440 × desktop</div>
 <div style="font:500 11.5px 'IBM Plex Mono',monospace;color:#4a5a72;background:#fff;border:1px solid #d3d9e3;border-radius:20px;padding:6px 13px">dark reading view, light everywhere else</div>
-<div style="font:500 11.5px 'IBM Plex Mono',monospace;color:#4a5a72;background:#fff;border:1px solid #d3d9e3;border-radius:20px;padding:6px 13px">10 screens</div>
+<div style="font:500 11.5px 'IBM Plex Mono',monospace;color:#4a5a72;background:#fff;border:1px solid #d3d9e3;border-radius:20px;padding:6px 13px">15 screens</div>
 </div>
 </div>
 
@@ -559,7 +559,7 @@ a{color:#0d7d8c;text-decoration:none}a:hover{color:#0a5f6b;text-decoration:under
 <!-- ══ 08 ADMIN — DOCTOR ONBOARDING ══ -->
 <div style="display:flex;flex-direction:column;gap:11px">
 <div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#14284a;color:#fff;border-radius:4px;padding:4px 8px">08</span><span style="font-size:14px;font-weight:600;color:#14284a">Admin — doctor onboarding &amp; credential verification</span><span style="font-size:13px;color:#7b8a9f">Doctor role granted only after credentials are verified</span></div>
-<div style="width:1440px;height:840px;background:#f1f3f7;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);display:flex">
+<div style="width:1440px;height:960px;background:#f1f3f7;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);display:flex">
   <div style="width:224px;background:#14284a;padding:22px 0;display:flex;flex-direction:column;gap:26px;flex:none">
     <div style="display:flex;align-items:center;gap:10px;padding:0 20px"><div style="width:4px;height:22px;background:#25b3c4;border-radius:2px"></div><div style="font-size:18px;font-weight:700;color:#fff">MediView</div></div>
     <div style="display:flex;flex-direction:column;gap:2px;padding:0 12px">
@@ -779,8 +779,311 @@ a{color:#0d7d8c;text-decoration:none}a:hover{color:#0a5f6b;text-decoration:under
 </div>
 </div>
 
+<!-- ══ 11 PRESCRIPTION COMPOSER ══ -->
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#14284a;color:#fff;border-radius:4px;padding:4px 8px">11</span><span style="font-size:14px;font-weight:600;color:#14284a">Doctor — prescription composer</span><span style="font-size:13px;color:#7b8a9f">Opens over the viewport; issued together with the report on finalize</span></div>
+<div style="width:1440px;height:960px;background:#0f1319;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);position:relative;display:flex;align-items:center;justify-content:center">
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse 40% 55% at 34% 50%,#3a3e45 0%,#1e2127 45%,#0c0d10 80%)"></div>
+  <div style="position:absolute;inset:0;background:rgba(8,10,14,.66)"></div>
+  <div style="position:relative;z-index:1;width:1000px;background:#171c24;border:1px solid #2b3340;border-radius:11px;box-shadow:0 24px 60px rgba(0,0,0,.55);overflow:hidden;display:flex;flex-direction:column">
+    <div style="padding:18px 24px;border-bottom:1px solid #262d38;display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600;color:#eef2f7">Prescription</div><div style="font:400 12px 'IBM Plex Mono',monospace;color:#8b97a6">Patient A · MRN-1042 · Study 001</div></div>
+      <div style="display:flex;align-items:center;gap:11px"><div style="font:500 11px 'IBM Plex Mono',monospace;color:#5fd39c;border:1px solid rgba(41,168,105,.4);border-radius:20px;padding:4px 11px">LOCK HELD BY YOU</div><div style="font-size:17px;color:#6d7a8b">✕</div></div>
+    </div>
+    <div style="display:flex;min-height:0">
+      <div style="flex:1;padding:22px 24px;display:flex;flex-direction:column;gap:18px;min-width:0">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#6d7a8b;letter-spacing:.07em">ADD MEDICATION</div>
+          <div style="height:42px;background:#0f141b;border:1.5px solid #25b3c4;border-radius:7px;display:flex;align-items:center;justify-content:space-between;padding:0 13px"><div style="font-size:13.5px;color:#c9d3df">Drug A<span style="display:inline-block;width:1.5px;height:14px;background:#25b3c4;vertical-align:-2px;margin-left:2px"></span></div><div style="font:500 11px 'IBM Plex Mono',monospace;color:#6d7a8b">FORMULARY</div></div>
+          <div style="background:#0f141b;border:1px solid #2b3340;border-radius:7px;overflow:hidden">
+            <sc-for list="{{ formulary }}" as="f" hint-placeholder-count="3">
+              <div style="padding:10px 13px;border-bottom:1px solid #1d242e;display:flex;align-items:center;justify-content:space-between;background:{{ f.bg }}">
+                <div><div style="font-size:13px;color:#e5eaf1;font-weight:500">{{ f.name }}</div><div style="font:400 11px 'IBM Plex Mono',monospace;color:#6d7a8b;margin-top:2px">{{ f.form }}</div></div>
+                <div style="font:500 12px 'IBM Plex Mono',monospace;color:#8b97a6">{{ f.price }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#6d7a8b;letter-spacing:.07em">ON THIS PRESCRIPTION · 3</div>
+          <sc-for list="{{ rxDraft }}" as="d" hint-placeholder-count="3">
+            <div style="background:#0f141b;border:1px solid #2b3340;border-radius:8px;padding:14px 15px;display:flex;flex-direction:column;gap:11px">
+              <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:13.5px;font-weight:600;color:#eef2f7">{{ d.name }}</div><div style="font-size:12.5px;color:#8b97a6">Remove</div></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px">
+                <div style="border:1px solid #2b3340;border-radius:6px;padding:8px 10px"><div style="font:500 9.5px 'IBM Plex Mono',monospace;color:#6d7a8b;letter-spacing:.05em">DOSE</div><div style="font-size:12.5px;color:#c9d3df;margin-top:3px">{{ d.dose }}</div></div>
+                <div style="border:1px solid #2b3340;border-radius:6px;padding:8px 10px"><div style="font:500 9.5px 'IBM Plex Mono',monospace;color:#6d7a8b;letter-spacing:.05em">FREQUENCY</div><div style="font-size:12.5px;color:#c9d3df;margin-top:3px">{{ d.freq }}</div></div>
+                <div style="border:1px solid #2b3340;border-radius:6px;padding:8px 10px"><div style="font:500 9.5px 'IBM Plex Mono',monospace;color:#6d7a8b;letter-spacing:.05em">DURATION</div><div style="font-size:12.5px;color:#c9d3df;margin-top:3px">{{ d.days }}</div></div>
+              </div>
+              <div style="border:1px solid #2b3340;border-radius:6px;padding:8px 10px"><div style="font:500 9.5px 'IBM Plex Mono',monospace;color:#6d7a8b;letter-spacing:.05em">INSTRUCTIONS</div><div style="font-size:12.5px;color:#c9d3df;margin-top:3px">{{ d.note }}</div></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="width:340px;flex:none;border-left:1px solid #262d38;padding:22px;display:flex;flex-direction:column;gap:18px">
+        <div style="border:1px solid rgba(214,98,74,.4);background:rgba(176,64,44,.12);border-radius:8px;padding:14px 15px;display:flex;flex-direction:column;gap:8px">
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#eb9280;letter-spacing:.06em">INTERACTION CHECK</div>
+          <div style="font-size:12.5px;line-height:1.6;color:#e3b0a5">Placeholder warning. Drug A and Drug C share a metabolic pathway. Review before issuing.</div>
+          <div style="font-size:12.5px;font-weight:600;color:#eb9280">Acknowledge</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:13px">
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#6d7a8b;letter-spacing:.07em">SUMMARY</div>
+          <sc-for list="{{ rxSummary }}" as="s" hint-placeholder-count="4">
+            <div style="display:flex;justify-content:space-between"><div style="font-size:12.5px;color:#8b97a6">{{ s.k }}</div><div style="font:500 12.5px 'IBM Plex Mono',monospace;color:#e5eaf1">{{ s.v }}</div></div>
+          </sc-for>
+          <div style="height:1px;background:#232a35"></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:13px;font-weight:600;color:#eef2f7">Patient cost</div><div style="font:600 17px 'IBM Plex Mono',monospace;color:#eef2f7">$34.20</div></div>
+        </div>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:9px">
+          <div style="height:40px;border:1px solid #333c4a;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#c9d3df">Save draft</div>
+          <div style="height:44px;background:#25b3c4;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#06222a">Attach to report</div>
+          <div style="font-size:11.5px;color:#6d7a8b;text-align:center;line-height:1.5">Issued to the patient when the report is finalized.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 12 CART / CHECKOUT ══ -->
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#14284a;color:#fff;border-radius:4px;padding:4px 8px">12</span><span style="font-size:14px;font-weight:600;color:#14284a">Patient — prescription cart &amp; checkout</span><span style="font-size:13px;color:#7b8a9f">Only medications from an issued prescription can enter the cart</span></div>
+<div style="width:1440px;height:820px;background:#f1f3f7;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);display:flex">
+  <div style="width:224px;background:#14284a;padding:22px 0;display:flex;flex-direction:column;gap:26px;flex:none">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 20px"><div style="width:4px;height:22px;background:#25b3c4;border-radius:2px"></div><div style="font-size:18px;font-weight:700;color:#fff">MediView</div></div>
+    <div style="display:flex;flex-direction:column;gap:2px;padding:0 12px">
+      <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#5d738f;letter-spacing:.08em;padding:0 8px 8px">PATIENT</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Book a checkup</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">My studies</div>
+      <div style="padding:10px 12px;border-radius:6px;background:rgba(37,179,196,.16);color:#fff;font-size:13.5px;font-weight:600">Results &amp; prescriptions</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Wallet &amp; bills</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">History</div>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <div style="height:62px;background:#fff;border-bottom:1px solid #dfe4ec;display:flex;align-items:center;justify-content:space-between;padding:0 30px;flex:none">
+      <div style="display:flex;align-items:baseline;gap:12px"><div style="font-size:17px;font-weight:600;color:#14284a">Cart</div><div style="font-size:13px;color:#7b8a9f">From prescription RX-0114 · Dr. B · Study 001</div></div>
+      <div style="display:flex;align-items:center;gap:10px"><div style="font-size:12.5px;color:#7b8a9f">Wallet</div><div style="font:600 13px 'IBM Plex Mono',monospace;color:#1d7f4e;background:#e2f2e8;border:1px solid #bfe0cc;border-radius:20px;padding:5px 12px">$240.00</div></div>
+    </div>
+    <div style="flex:1;padding:28px 30px;display:flex;gap:24px;min-height:0">
+      <div style="flex:1;display:flex;flex-direction:column;gap:20px;min-width:0">
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;overflow:hidden">
+          <div style="padding:16px 24px;border-bottom:1px solid #eef1f5;display:flex;justify-content:space-between;align-items:center"><div style="font-size:14.5px;font-weight:600;color:#14284a">3 items</div><div style="font-size:12.5px;color:#7b8a9f">Quantities are fixed by the prescription</div></div>
+          <sc-for list="{{ cart }}" as="c" hint-placeholder-count="3">
+            <div style="padding:18px 24px;border-bottom:1px solid #f3f5f9;display:flex;align-items:center;gap:16px">
+              <div style="width:44px;height:44px;border-radius:7px;background:#eef1f5;border:1px solid #dbe1ea;display:flex;align-items:center;justify-content:center;font:600 9.5px 'IBM Plex Mono',monospace;color:#7b8a9f;flex:none">RX</div>
+              <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:#14284a">{{ c.name }}</div><div style="font-size:12.5px;color:#7b8a9f;margin-top:3px">{{ c.dose }}</div></div>
+              <div style="display:flex;align-items:center;gap:9px;border:1px solid #e4e8ef;border-radius:6px;padding:5px 11px"><div style="font-size:13px;color:#c3ccd8">−</div><div style="font:600 13px 'IBM Plex Mono',monospace;color:#14284a;min-width:16px;text-align:center">{{ c.qty }}</div><div style="font-size:13px;color:#c3ccd8">+</div></div>
+              <div style="font:600 14px 'IBM Plex Mono',monospace;color:#14284a;width:70px;text-align:right">{{ c.price }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:14.5px;font-weight:600;color:#14284a">Fulfilment</div>
+          <div style="display:flex;gap:12px">
+            <div style="flex:1;border:1.5px solid #0d7d8c;background:#f4fafb;border-radius:8px;padding:15px 16px;display:flex;gap:12px;align-items:flex-start">
+              <div style="width:15px;height:15px;border-radius:50%;border:4.5px solid #0d7d8c;background:#fff;flex:none;margin-top:2px"></div>
+              <div><div style="font-size:13.5px;font-weight:600;color:#14284a">Collect at pharmacy</div><div style="font-size:12.5px;color:#7b8a9f;margin-top:4px;line-height:1.55">Ready in 2 hours · Imaging suite 2, ground floor</div></div>
+            </div>
+            <div style="flex:1;border:1px solid #e4e8ef;border-radius:8px;padding:15px 16px;display:flex;gap:12px;align-items:flex-start">
+              <div style="width:15px;height:15px;border-radius:50%;border:1.5px solid #ccd4e0;background:#fff;flex:none;margin-top:2px"></div>
+              <div><div style="font-size:13.5px;font-weight:600;color:#14284a">Deliver to address</div><div style="font-size:12.5px;color:#7b8a9f;margin-top:4px;line-height:1.55">2–3 business days · $4.50</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="width:360px;flex:none;background:#fff;border:1px solid #dfe4ec;border-radius:9px;overflow:hidden;display:flex;flex-direction:column">
+        <div style="padding:18px 22px;border-bottom:1px solid #eef1f5;font-size:14.5px;font-weight:600;color:#14284a">Order summary</div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:15px">
+          <sc-for list="{{ checkoutLines }}" as="l" hint-placeholder-count="3">
+            <div style="display:flex;justify-content:space-between"><div style="font-size:13px;color:#7b8a9f">{{ l.k }}</div><div style="font:500 13.5px 'IBM Plex Mono',monospace;color:#14284a">{{ l.v }}</div></div>
+          </sc-for>
+          <div style="height:1px;background:#eef1f5"></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:13.5px;font-weight:600;color:#14284a">Total</div><div style="font:600 20px 'IBM Plex Mono',monospace;color:#14284a">$34.20</div></div>
+          <div style="border:1.5px solid #1d7f4e;background:#f2faf5;border-radius:8px;padding:14px 16px;display:flex;align-items:center;gap:11px">
+            <div style="width:16px;height:16px;border-radius:50%;border:5px solid #1d7f4e;background:#fff;flex:none"></div>
+            <div><div style="font-size:13.5px;font-weight:600;color:#14284a">MediView wallet</div><div style="font-size:12px;color:#7b8a9f">Balance after order $205.80</div></div>
+          </div>
+          <div style="height:44px;background:#1d7f4e;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600">Place order</div>
+          <div style="font-size:12px;line-height:1.55;color:#7b8a9f;text-align:center">The diagnosis fee is billed separately on INV-0031.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 13 FOLLOW-UP BOOKING ══ -->
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#14284a;color:#fff;border-radius:4px;padding:4px 8px">13</span><span style="font-size:14px;font-weight:600;color:#14284a">Patient — follow-up booking</span><span style="font-size:13px;color:#7b8a9f">Prefilled from the prior study; links the new study to the old one</span></div>
+<div style="width:1440px;height:760px;background:#f1f3f7;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);position:relative;display:flex;align-items:center;justify-content:center">
+  <div style="position:absolute;inset:0;display:flex">
+    <div style="width:224px;background:#14284a"></div>
+    <div style="flex:1;display:flex;flex-direction:column"><div style="height:62px;background:#fff;border-bottom:1px solid #dfe4ec"></div><div style="flex:1"></div></div>
+  </div>
+  <div style="position:absolute;inset:0;background:rgba(20,32,55,.42)"></div>
+  <div style="position:relative;z-index:1;width:880px;background:#fff;border-radius:11px;box-shadow:0 24px 60px rgba(12,22,44,.3);overflow:hidden;display:flex;flex-direction:column">
+    <div style="padding:20px 26px;border-bottom:1px solid #eef1f5;display:flex;align-items:center;justify-content:space-between">
+      <div><div style="font-size:16.5px;font-weight:600;color:#14284a">Book follow-up</div><div style="font-size:13px;color:#7b8a9f;margin-top:3px">Follows Study 001 · Chest PA · Dr. B</div></div>
+      <div style="font-size:17px;color:#93a1b5">✕</div>
+    </div>
+    <div style="display:flex;min-height:0">
+      <div style="flex:1;padding:24px 26px;display:flex;flex-direction:column;gap:20px;min-width:0">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="font:600 11px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.07em">DOCTOR</div>
+          <div style="border:1.5px solid #0d7d8c;background:#f4fafb;border-radius:8px;padding:14px 16px;display:flex;align-items:center;gap:13px">
+            <div style="width:40px;height:40px;border-radius:50%;background:#e7edf7;color:#1f5fa8;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center">DB</div>
+            <div style="flex:1"><div style="font-size:14px;font-weight:600;color:#14284a">Dr. B — same doctor</div><div style="font-size:12.5px;color:#7b8a9f;margin-top:2px">Has the prior study and report in context</div></div>
+            <div style="font:500 11px 'IBM Plex Mono',monospace;color:#0d6d7c;border:1px solid #c5e0e4;border-radius:20px;padding:4px 10px">RECOMMENDED</div>
+          </div>
+          <div style="border:1px solid #e4e8ef;border-radius:8px;padding:14px 16px;font-size:13.5px;color:#4a5a72">Choose a different doctor</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <div style="font:600 11px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.07em">SUGGESTED WINDOW · WEEK OF 20 APR</div>
+            <div style="font-size:12.5px;color:#7b8a9f">Dr. B · Mon–Fri 08:00–16:00</div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <sc-for list="{{ fuDays }}" as="d" hint-placeholder-count="5">
+              <div style="flex:1;border:1px solid {{ d.bd }};background:{{ d.bg }};border-radius:8px;padding:12px 0;text-align:center">
+                <div style="font:500 11px 'IBM Plex Mono',monospace;color:{{ d.sub }};letter-spacing:.06em">{{ d.dow }}</div>
+                <div style="font-size:19px;font-weight:600;color:{{ d.fg }};margin-top:4px">{{ d.date }}</div>
+                <div style="font-size:11.5px;color:{{ d.sub }};margin-top:3px">{{ d.free }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:2px">
+            <sc-for list="{{ fuSlots }}" as="s" hint-placeholder-count="8">
+              <div style="border:1px solid {{ s.bd }};background:{{ s.bg }};color:{{ s.fg }};border-radius:7px;padding:12px 0;text-align:center;font:600 14px 'IBM Plex Mono',monospace">{{ s.t }}</div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      <div style="width:320px;flex:none;border-left:1px solid #eef1f5;padding:24px;display:flex;flex-direction:column;gap:16px;background:#fbfcfe">
+        <div style="font-size:14.5px;font-weight:600;color:#14284a">Carried over</div>
+        <sc-for list="{{ fuCarry }}" as="c" hint-placeholder-count="4">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:13px;color:#7b8a9f">{{ c.k }}</div><div style="font-size:13.5px;font-weight:600;color:#14284a;text-align:right;max-width:170px">{{ c.v }}</div></div>
+        </sc-for>
+        <div style="height:1px;background:#eef1f5"></div>
+        <div style="background:#eef6f7;border:1px solid #c5e0e4;border-radius:8px;padding:14px 15px;font-size:12.5px;line-height:1.6;color:#3d5c63">The new study links to Study 001. Dr. B sees both series side by side.</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:13.5px;font-weight:600;color:#14284a">Diagnosis fee</div><div style="font:600 16px 'IBM Plex Mono',monospace;color:#14284a">$60.00</div></div>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:9px">
+          <div style="height:44px;background:#14284a;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600">Confirm follow-up</div>
+          <div style="height:40px;border:1px solid #ccd4e0;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#14284a;font-size:13px;font-weight:600">Cancel</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 14 ROLES & PERMISSIONS ══ -->
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#14284a;color:#fff;border-radius:4px;padding:4px 8px">14</span><span style="font-size:14px;font-weight:600;color:#14284a">Admin — roles &amp; permissions</span><span style="font-size:13px;color:#7b8a9f">Three roles; admin cannot diagnose</span></div>
+<div style="width:1440px;height:960px;background:#f1f3f7;border:1px solid #d3d9e3;border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(20,40,74,.08);display:flex">
+  <div style="width:224px;background:#14284a;padding:22px 0;display:flex;flex-direction:column;gap:26px;flex:none">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 20px"><div style="width:4px;height:22px;background:#25b3c4;border-radius:2px"></div><div style="font-size:18px;font-weight:700;color:#fff">MediView</div></div>
+    <div style="display:flex;flex-direction:column;gap:2px;padding:0 12px">
+      <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#5d738f;letter-spacing:.08em;padding:0 8px 8px">ADMIN</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Doctors</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Studies &amp; import</div>
+      <div style="padding:10px 12px;border-radius:6px;background:rgba(37,179,196,.16);color:#fff;font-size:13.5px;font-weight:600">Roles &amp; permissions</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Audit log</div>
+      <div style="padding:10px 12px;border-radius:6px;color:#a4b5cb;font-size:13.5px">Feature flags</div>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <div style="height:62px;background:#fff;border-bottom:1px solid #dfe4ec;display:flex;align-items:center;justify-content:space-between;padding:0 30px;flex:none">
+      <div style="font-size:17px;font-weight:600;color:#14284a">Roles &amp; permissions</div>
+      <div style="display:flex;align-items:center;gap:10px"><div style="border:1px solid #ccd4e0;border-radius:7px;padding:8px 14px;font-size:13px;font-weight:600;color:#14284a">Export matrix</div><div style="background:#14284a;border-radius:7px;padding:9px 16px;font-size:13px;font-weight:600;color:#fff">Save changes</div></div>
+    </div>
+    <div style="flex:1;padding:28px 30px;display:flex;gap:24px;min-height:0">
+      <div style="flex:1;display:flex;flex-direction:column;gap:20px;min-width:0">
+        <div style="display:flex;gap:16px">
+          <sc-for list="{{ roleCards }}" as="r" hint-placeholder-count="3">
+            <div style="flex:1;background:#fff;border:1px solid {{ r.bd }};border-radius:9px;padding:18px 20px;display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:14.5px;font-weight:600;color:#14284a">{{ r.name }}</div><div style="width:9px;height:9px;border-radius:3px;background:{{ r.dot }}"></div></div>
+              <div style="font-size:26px;font-weight:600;color:#14284a;letter-spacing:-0.02em">{{ r.n }}</div>
+              <div style="font-size:12.5px;color:#7b8a9f;line-height:1.55">{{ r.note }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;overflow:hidden">
+          <div style="padding:16px 24px;border-bottom:1px solid #eef1f5;display:flex;justify-content:space-between;align-items:center"><div style="font-size:14.5px;font-weight:600;color:#14284a">Permission matrix</div><div style="font-size:12.5px;color:#7b8a9f">Greyed cells are enforced server-side and cannot be granted</div></div>
+          <div style="display:grid;grid-template-columns:1.7fr .7fr .7fr .7fr;padding:12px 24px;background:#f8fafc;border-bottom:1px solid #eef1f5">
+            <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.07em">PERMISSION</div>
+            <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.07em;text-align:center">PATIENT</div>
+            <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.07em;text-align:center">DOCTOR</div>
+            <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#93a1b5;letter-spacing:.07em;text-align:center">ADMIN</div>
+          </div>
+          <sc-for list="{{ matrix }}" as="m" hint-placeholder-count="9">
+            <div style="display:grid;grid-template-columns:1.7fr .7fr .7fr .7fr;padding:13px 24px;border-bottom:1px solid #f3f5f9;align-items:center">
+              <div><div style="font:500 12.5px 'IBM Plex Mono',monospace;color:#14284a">{{ m.key }}</div><div style="font-size:12px;color:#7b8a9f;margin-top:2px">{{ m.desc }}</div></div>
+              <div style="display:flex;justify-content:center"><div style="width:24px;height:24px;border-radius:6px;background:{{ m.pBg }};color:{{ m.pFg }};font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">{{ m.p }}</div></div>
+              <div style="display:flex;justify-content:center"><div style="width:24px;height:24px;border-radius:6px;background:{{ m.dBg }};color:{{ m.dFg }};font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">{{ m.d }}</div></div>
+              <div style="display:flex;justify-content:center"><div style="width:24px;height:24px;border-radius:6px;background:{{ m.aBg }};color:{{ m.aFg }};font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">{{ m.a }}</div></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="width:352px;flex:none;display:flex;flex-direction:column;gap:16px">
+        <div style="background:#fff;border:1px solid #dfe4ec;border-radius:9px;padding:22px;display:flex;flex-direction:column;gap:15px">
+          <div style="font-size:14.5px;font-weight:600;color:#14284a">Doctor role</div>
+          <div style="font-size:13px;line-height:1.6;color:#4a5a72">Granted only through credential verification. Cannot be assigned from this screen.</div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <sc-for list="{{ roleHolders }}" as="h" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:11px;border:1px solid #e4e8ef;border-radius:7px;padding:10px 12px">
+                <div style="width:30px;height:30px;border-radius:50%;background:#e7edf7;color:#1f5fa8;font-size:11.5px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none">{{ h.i }}</div>
+                <div style="flex:1"><div style="font-size:13px;font-weight:600;color:#14284a">{{ h.name }}</div><div style="font-size:11.5px;color:#7b8a9f;margin-top:1px">{{ h.since }}</div></div>
+                <div style="font-size:12.5px;color:#b0402c;font-weight:600">Revoke</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="background:#fdf9ee;border:1px solid #f0dcae;border-radius:9px;padding:16px 18px;display:flex;gap:11px">
+          <div style="width:7px;height:7px;border-radius:50%;background:#a1660a;flex:none;margin-top:5px"></div>
+          <div style="font-size:12.5px;line-height:1.6;color:#6d5316">Admin is deliberately excluded from <span style="font-family:'IBM Plex Mono',monospace;font-weight:600">studies.diagnose</span>. Break-glass changes status, never authorship of a report.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 15 PATIENT MOBILE ══ -->
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:11px"><span style="font:600 11px 'IBM Plex Mono',monospace;background:#14284a;color:#fff;border-radius:4px;padding:4px 8px">15</span><span style="font-size:14px;font-weight:600;color:#14284a">Patient — mobile</span><span style="font-size:13px;color:#7b8a9f">Responsive fall-back of the patient side; doctor and admin stay desktop-only</span></div>
+<div style="width:1440px;background:#fff;border:1px solid #d3d9e3;border-radius:10px;box-shadow:0 2px 14px rgba(20,40,74,.08);padding:36px 40px;display:flex;gap:34px;justify-content:center">
+  <sc-for list="{{ phones }}" as="p" hint-placeholder-count="3">
+    <div style="display:flex;flex-direction:column;gap:14px;align-items:center">
+      <div style="width:320px;height:660px;background:#f1f3f7;border:9px solid #14284a;border-radius:32px;overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:34px;background:#14284a;display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex:none"><div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#fff">9:41</div><div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#8ea3c0">▮▮▮ ▰</div></div>
+        <div style="height:52px;background:#fff;border-bottom:1px solid #dfe4ec;display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex:none"><div style="font-size:15px;font-weight:600;color:#14284a">{{ p.title }}</div><div style="font-size:16px;color:#7b8a9f">☰</div></div>
+        <div style="flex:1;padding:16px;display:flex;flex-direction:column;gap:12px;min-height:0">
+          <sc-for list="{{ p.cards }}" as="c" hint-placeholder-count="3">
+            <div style="background:{{ c.cardBg }};border:1px solid {{ c.cardBd }};border-radius:9px;padding:14px 15px;display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <div style="font-size:13.5px;font-weight:600;color:{{ c.titleFg }}">{{ c.title }}</div>
+                <span style="font-size:10.5px;font-weight:600;border-radius:20px;padding:3px 9px;background:{{ c.pillBg }};color:{{ c.pillFg }}">{{ c.pill }}</span>
+              </div>
+              <div style="font-size:12px;line-height:1.55;color:{{ c.bodyFg }}">{{ c.body }}</div>
+              <div style="font:500 11px 'IBM Plex Mono',monospace;color:{{ c.metaFg }}">{{ c.meta }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="height:58px;background:#fff;border-top:1px solid #dfe4ec;display:flex;align-items:center;justify-content:space-around;padding:0 8px;flex:none">
+          <sc-for list="{{ p.tabs }}" as="t" hint-placeholder-count="4">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="font-size:14px;color:{{ t.fg }}">{{ t.icon }}</div><div style="font-size:10px;font-weight:600;color:{{ t.fg }}">{{ t.label }}</div></div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="font-size:12.5px;color:#7b8a9f">{{ p.caption }}</div>
+    </div>
+  </sc-for>
+</div>
+</div>
+
 <div style="max-width:900px;font-size:13.5px;line-height:1.7;color:#5c6c84;padding-top:8px;border-top:1px solid #d3d9e3">
-<span style="font-weight:600;color:#14284a">Next steps.</span> Tell me which screens to push further. Open gaps I deliberately left out: the doctor's prescription composer, the cart/checkout page, follow-up booking, role &amp; permission management, and the patient's mobile view. Say the word and I'll add them in the same shell.
+<span style="font-weight:600;color:#14284a">Fifteen screens.</span> The five gaps are closed: prescription composer (11), cart &amp; checkout (12), follow-up booking (13), roles &amp; permissions (14), patient mobile (15).
 </div>
 
 </div>
@@ -919,6 +1222,111 @@ class Component extends DCLogic {
         { when:'11 Mar 14:02', actor:'Admin A', action:'Doctor role granted',         target:'Dr. D · credentials verified', delta:'none → doctor',      dot:'#a1660a', deltaFg:'#17724a', rowBg:'#fff' },
         { when:'11 Mar 11:35', actor:'Patient A', action:'Bill paid from wallet',     target:'INV-0027 · $60.00',    delta:'unpaid → paid',              dot:'#1d7f4e', deltaFg:'#17724a', rowBg:'#fff' }
       ],
+      formulary: [
+        { name:'Drug A 500 mg', form:'Tablet · 14 per pack', price:'$12.40', bg:'rgba(37,179,196,.10)' },
+        { name:'Drug A 250 mg', form:'Tablet · 14 per pack', price:'$8.90',  bg:'transparent' },
+        { name:'Drug A-ER 500 mg', form:'Extended release · 10 per pack', price:'$16.20', bg:'transparent' }
+      ],
+      rxDraft: [
+        { name:'Drug A 500 mg', dose:'1 tablet', freq:'Twice daily', days:'7 days', note:'Take with food.' },
+        { name:'Drug B 250 mg', dose:'1 capsule', freq:'Once daily', days:'5 days', note:'Morning, with water.' },
+        { name:'Drug C syrup',  dose:'10 ml',     freq:'At night',   days:'7 days', note:'Shake before use.' }
+      ],
+      rxSummary: [
+        { k:'Items',     v:'3' },
+        { k:'Longest course', v:'7 days' },
+        { k:'Issued by', v:'Dr. B' },
+        { k:'Study',     v:'Study 001' }
+      ],
+      cart: [
+        { name:'Drug A 500 mg', dose:'1 tablet · twice daily · 7 days', qty:'1', price:'$12.40' },
+        { name:'Drug B 250 mg', dose:'1 capsule · once daily · 5 days', qty:'1', price:'$9.80' },
+        { name:'Drug C syrup',  dose:'10 ml · at night · 7 days',       qty:'1', price:'$12.00' }
+      ],
+      checkoutLines: [
+        { k:'Medications (3)', v:'$34.20' },
+        { k:'Collection',      v:'$0.00' },
+        { k:'Insurance',       v:'Not applied' }
+      ],
+      fuDays: [
+        { dow:'MON', date:'20', free:'5 free', bg:'#fff',    bd:'#e4e8ef', fg:'#14284a', sub:'#7b8a9f' },
+        { dow:'TUE', date:'21', free:'3 free', bg:'#f4fafb', bd:'#0d7d8c', fg:'#0d6d7c', sub:'#0d7d8c' },
+        { dow:'WED', date:'22', free:'6 free', bg:'#fff',    bd:'#e4e8ef', fg:'#14284a', sub:'#7b8a9f' },
+        { dow:'THU', date:'23', free:'1 free', bg:'#fff',    bd:'#e4e8ef', fg:'#14284a', sub:'#7b8a9f' },
+        { dow:'FRI', date:'24', free:'4 free', bg:'#fff',    bd:'#e4e8ef', fg:'#14284a', sub:'#7b8a9f' }
+      ],
+      fuSlots: [
+        { t:'08:00', bg:'#fff',    bd:'#ccd4e0', fg:'#14284a' },
+        { t:'08:30', bg:'#f1f3f7', bd:'#dbe1ea', fg:'#a3aebe' },
+        { t:'09:00', bg:'#fff',    bd:'#ccd4e0', fg:'#14284a' },
+        { t:'09:30', bg:'#14284a', bd:'#14284a', fg:'#ffffff' },
+        { t:'10:00', bg:'#fff',    bd:'#ccd4e0', fg:'#14284a' },
+        { t:'10:30', bg:'#f1f3f7', bd:'#dbe1ea', fg:'#a3aebe' },
+        { t:'11:00', bg:'#fff',    bd:'#ccd4e0', fg:'#14284a' },
+        { t:'13:00', bg:'#fff',    bd:'#ccd4e0', fg:'#14284a' }
+      ],
+      fuCarry: [
+        { k:'Prior study', v:'Study 001' },
+        { k:'Study type',  v:'Chest x-ray (PA)' },
+        { k:'Reason',      v:'6-week follow-up' },
+        { k:'Location',    v:'Imaging suite 2' }
+      ],
+      roleCards: [
+        { name:'Patient', n:'1,284', note:'Self-registered. Sees only their own studies.', dot:'#1d7f4e', bd:'#dfe4ec' },
+        { name:'Doctor',  n:'12',    note:'Verified credentials. Diagnoses under lock.',   dot:'#1f5fa8', bd:'#c8d8ea' },
+        { name:'Admin',   n:'2',     note:'Seeded. Onboarding, import, break-glass.',      dot:'#a1660a', bd:'#f0dcae' }
+      ],
+      matrix: (function(){
+        const Y = { bg:'#e2f2e8', fg:'#17724a', ch:'✓' };
+        const N = { bg:'#f4f6f9', fg:'#c3ccd8', ch:'–' };
+        const L = { bg:'#e8ecf2', fg:'#93a1b5', ch:'✕' };
+        const rows = [
+          ['studies.read.own',    'View own studies and results',        Y, Y, Y],
+          ['studies.read.all',    'View every study in the tenant',      N, Y, Y],
+          ['studies.book',        'Book inside a doctor\u2019s hours',    Y, N, N],
+          ['studies.diagnose',    'Write findings and finalize a report', N, Y, L],
+          ['viewport.lock',       'Acquire the single-writer lock',      N, Y, N],
+          ['prescriptions.issue', 'Issue a prescription',                N, Y, L],
+          ['images.import',       'Attach DICOM instances to a study',   N, N, Y],
+          ['users.verify',        'Verify credentials, grant Doctor',    N, N, Y],
+          ['audit.override',      'Break-glass status transition',       N, N, Y]
+        ];
+        return rows.map(([key, desc, p, d, a]) => ({
+          key, desc,
+          p:p.ch, pBg:p.bg, pFg:p.fg,
+          d:d.ch, dBg:d.bg, dFg:d.fg,
+          a:a.ch, aBg:a.bg, aFg:a.fg
+        }));
+      })(),
+      roleHolders: [
+        { i:'DB', name:'Dr. B', since:'verified 04 Jan' },
+        { i:'DD', name:'Dr. D', since:'verified 11 Mar' },
+        { i:'DH', name:'Dr. H', since:'verified 22 Feb' },
+        { i:'DJ', name:'Dr. J', since:'verified 18 Dec' }
+      ],
+      phones: (function(){
+        const tabs = (active) => ['Book','Studies','Wallet','More'].map(l => ({
+          label:l, icon:{Book:'＋',Studies:'▤',Wallet:'◧',More:'⋯'}[l],
+          fg: l === active ? '#0d7d8c' : '#93a1b5'
+        }));
+        return [
+          { key:'studies', title:'My studies', caption:'Study list', tabs:tabs('Studies'), cards:[
+            { title:'Study 001 · Chest PA', pill:'Done', pillBg:'#e2f2e8', pillFg:'#17724a', body:'Report and prescription ready. Dr. B.', meta:'12 MAR · 10:24', cardBg:'#fff', cardBd:'#dfe4ec', titleFg:'#14284a', bodyFg:'#4a5a72', metaFg:'#93a1b5' },
+            { title:'Study 002 · Chest PA', pill:'To do', pillBg:'#e8ecf2', pillFg:'#5b6b81', body:'Images imported. Waiting for your doctor to open the study.', meta:'12 MAR · 09:00', cardBg:'#fff', cardBd:'#dfe4ec', titleFg:'#14284a', bodyFg:'#4a5a72', metaFg:'#93a1b5' },
+            { title:'Study 000 · Wrist AP', pill:'Done', pillBg:'#e2f2e8', pillFg:'#17724a', body:'Report available. Bill settled.', meta:'02 FEB · 11:40', cardBg:'#fff', cardBd:'#dfe4ec', titleFg:'#14284a', bodyFg:'#4a5a72', metaFg:'#93a1b5' }
+          ]},
+          { key:'result', title:'Study 001', caption:'Result & prescription', tabs:tabs('Studies'), cards:[
+            { title:'Status', pill:'Done', pillBg:'#e2f2e8', pillFg:'#17724a', body:'Booked → Imported → In progress → Done.', meta:'FINALIZED 12 MAR · 10:24', cardBg:'#fff', cardBd:'#dfe4ec', titleFg:'#14284a', bodyFg:'#4a5a72', metaFg:'#93a1b5' },
+            { title:'Impression', pill:'PDF', pillBg:'#eef6f7', pillFg:'#0d6d7c', body:'Placeholder impression text. No acute cardiopulmonary abnormality.', meta:'DR. B · RADIOLOGY', cardBg:'#fff', cardBd:'#dfe4ec', titleFg:'#14284a', bodyFg:'#4a5a72', metaFg:'#93a1b5' },
+            { title:'Prescription', pill:'3 items', pillBg:'#eef6f7', pillFg:'#0d6d7c', body:'Drug A 500 mg · Drug B 250 mg · Drug C syrup.', meta:'ADD ALL TO CART · $34.20', cardBg:'#fff', cardBd:'#dfe4ec', titleFg:'#14284a', bodyFg:'#4a5a72', metaFg:'#0d7d8c' }
+          ]},
+          { key:'wallet', title:'Wallet', caption:'Wallet & bill', tabs:tabs('Wallet'), cards:[
+            { title:'Balance', pill:'INTERNAL', pillBg:'rgba(37,179,196,.18)', pillFg:'#9fe6ef', body:'$240.00 available.', meta:'TOP UP · STATEMENT', cardBg:'#14284a', cardBd:'#14284a', titleFg:'#ffffff', bodyFg:'#c8d5e6', metaFg:'#8ea3c0' },
+            { title:'INV-0031', pill:'Unpaid', pillBg:'#fbe7e1', pillFg:'#b0402c', body:'Study 001 · diagnosis fee and prescription.', meta:'$94.20 · PAY FROM WALLET', cardBg:'#fff', cardBd:'#dfe4ec', titleFg:'#14284a', bodyFg:'#4a5a72', metaFg:'#0d7d8c' },
+            { title:'INV-0027', pill:'Paid', pillBg:'#e2f2e8', pillFg:'#17724a', body:'Study 000 · diagnosis fee.', meta:'$60.00 · 02 FEB', cardBg:'#fff', cardBd:'#dfe4ec', titleFg:'#14284a', bodyFg:'#4a5a72', metaFg:'#93a1b5' }
+          ]}
+        ];
+      })(),
       flags: [
         { name:'Auth provider',    val:'INTERNAL' },
         { name:'DICOM import',     val:'INTERNAL' },
