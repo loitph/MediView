@@ -1,44 +1,12 @@
 // =====================================================================
-// MediView - MVP database design (v4-compact)
+// MediView - MVP database design
 // Paste into https://dbdiagram.io
-//
-// WHY THIS FILE EXISTS
-//   v3 (mediview.dbml) is the "real product" schema: 41 tables, 11
-//   deployables, 15 screens. It is a correct design and a 6-month build.
-//   This file is the 45-day teaching cut of the same product: 15 tables,
-//   4 services + gateway + web, 9 screens.
-//
-// WHAT WAS CUT AND WHY  (full rationale in scope-cut.md)
-//   - billing/*  (7 tables)  cart, wallet, bills, payments = an e-commerce
-//     sub-domain. Teaches checkout, not medical imaging or DDD.
-//   - prescription/* (3 tables) collapsed into ONE child collection on the
-//     Report aggregate (reporting.report_medications). Same clinical fact,
-//     one table, no extra service.
-//   - identity role/permission matrix (3 tables) -> a single `role` column.
-//     A 3-role system does not need a permission matrix to teach authz.
-//   - doctor_credentials, patient_allergies, diseases, study_diseases,
-//     lock_watchers, doctor_studies, report_addenda, notifications,
-//     feature_flags, import_jobs, annotations, access_log = features, not
-//     lessons. Each is re-addable later without moving a single boundary.
-//
-// WHAT WAS KEPT AND WHY
-//   Every table below earns its place by teaching something:
-//     studies            -> a rich aggregate root with a state machine
-//     study_status_history -> an owned child collection + audit trail
-//     study_locks        -> distributed single-writer concurrency (the star)
-//     series/instances   -> DICOM hierarchy + blob-backed infrastructure
-//     reports(+meds)     -> a second aggregate + cross-service choreography
-//     audit_log          -> break-glass, the healthcare-specific lesson
-//
-// BOUNDARY RULE (unchanged): one schema per microservice. Refs inside a
-// schema are real FKs. Refs marked "logical" cross a service boundary -
-// drawn for readability, NOT created as database-level FKs.
 // =====================================================================
 
 Project MediView_MVP {
   database_type: 'PostgreSQL'
   Note: '''
-Medical imaging + diagnosis platform - 45-day MVP.
+Medical imaging + diagnosis platform.
 
 The Study status (todo -> in_progress -> re_diagnosis -> done) is the single
 source of truth for the whole workflow. A patient self-registers and books
@@ -236,6 +204,7 @@ replaces the v3 gRPC-plus-local-replica machinery.
 '''
 }
 Ref: studies.studies.appointment_id - studies.appointments.id
+Ref: studies.studies.id < imaging.series.study_id
 
 Table studies.study_status_history {
   id          uuid         [pk, not null, default: `gen_random_uuid()`]
@@ -356,7 +325,7 @@ the outbox row for ReportFinalized, and release the lock.
 Table reporting.report_medications {
   id         uuid         [pk, not null, default: `gen_random_uuid()`]
   report_id  uuid         [not null]
-  drug_id    uuid         [note: 'logical -> reporting.drugs.id; null = free-text entry']
+  drug_id    uuid         [not null, note: 'logical -> reporting.drugs.id; null = free-text entry']
   drug_name  varchar(255) [not null, note: 'SNAPSHOT at finalize time']
   dosage     varchar(100) [note: 'e.g. 500 mg']
   frequency  varchar(100) [note: 'e.g. twice daily']
