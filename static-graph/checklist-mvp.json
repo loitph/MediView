@@ -67,7 +67,8 @@
         "imaging.series + instances": "the DICOM hierarchy and a blob-backed infrastructure adapter",
         "studies.audit_log": "break-glass - the healthcare-specific lesson, kept small"
       }
-    }
+    },
+    "schemaNote": "Enriched tasks carry three extra fields alongside the original ones: files[] ({path,lang,content}), commands[] and verify[]. steps[] remain strings so the checklist-tree-mvp.html renderer is unaffected."
   },
   "sections": [
     {
@@ -93,10 +94,27 @@
             "dotnet"
           ],
           "steps": [
-            "Run `dotnet --list-sdks` and confirm a 10.x SDK is present.",
-            "At the repo root run `dotnet new globaljson --sdk-version 10.0.100 --roll-forward latestFeature`.",
-            "Commit global.json."
-          ]
+            "Confirm a 10.x SDK is installed: `dotnet --list-sdks` must show a line beginning `10.0.` (e.g. `10.0.100 [C:\\Program Files\\dotnet\\sdk]`).",
+            "At the repo root generate the pin file: `dotnet new globaljson --sdk-version 10.0.100 --roll-forward latestFeature`. This writes global.json.",
+            "Commit global.json so every dev machine and the CI runner resolve the identical SDK; `roll-forward latestFeature` allows 10.0.1xx patch bumps but never a major/minor jump."
+          ],
+          "files": [
+            {
+              "path": "global.json",
+              "lang": "json",
+              "content": "{\n  \"sdk\": {\n    \"version\": \"10.0.100\",\n    \"rollForward\": \"latestFeature\"\n  }\n}"
+            }
+          ],
+          "commands": [
+            "dotnet --list-sdks",
+            "dotnet new globaljson --sdk-version 10.0.100 --roll-forward latestFeature",
+            "dotnet --version   # must print 10.x when run from the repo root",
+            "git add global.json && git commit -m \"chore: pin .NET 10 SDK\""
+          ],
+          "verify": [
+            "`dotnet --version` prints a 10.x version from the repo root, and a different folder without global.json may print something else."
+          ],
+          "enriched": true
         },
         {
           "id": "P01-T02",
@@ -116,11 +134,28 @@
             "architecture"
           ],
           "steps": [
-            "Keep the existing MedicalView.sln; add solution folders BuildingBlocks, Services, Gateway, Web.",
-            "For each of the 4 services run 4 `dotnet new` commands (classlib x3 + web) named MediView.<Svc>.{Domain,Application,Infrastructure,Api}.",
-            "Wire the inward-only references: Application->Domain, Infrastructure->Application, Api->Infrastructure.",
-            "Add every project to the solution and run `dotnet build` - it must be green before you write a line of logic."
-          ]
+            "Create the folder tree: src/BuildingBlocks, src/Services/{Identity,Studies,Imaging,Reporting}, src/Gateway, src/Web. Folders are named after domain concepts, never after patterns.",
+            "For each of the 4 services create 4 projects — MediView.<Svc>.Domain (classlib), .Application (classlib), .Infrastructure (classlib), .Api (web) — 16 projects total.",
+            "Add the gateway (MediView.Gateway, web/empty) and the web app (MediView.Web, Blazor Server). That is the 18-project skeleton the acceptance criterion expects.",
+            "Wire inward-only project references per service: Application→Domain, Infrastructure→Application, Api→Infrastructure. The Domain project must have zero references.",
+            "Add every project to MedicalView.sln and run `dotnet build` — it must be green before any logic is written."
+          ],
+          "files": [
+            {
+              "path": "scaffold.sh",
+              "lang": "bash",
+              "content": "#!/usr/bin/env bash\nset -euo pipefail\nSOLN=MedicalView.sln\nSERVICES=(Identity Studies Imaging Reporting)\n\nfor S in \"${SERVICES[@]}\"; do\n  base=\"src/Services/$S\"\n  dotnet new classlib -n \"MediView.$S.Domain\"         -o \"$base/MediView.$S.Domain\"\n  dotnet new classlib -n \"MediView.$S.Application\"    -o \"$base/MediView.$S.Application\"\n  dotnet new classlib -n \"MediView.$S.Infrastructure\" -o \"$base/MediView.$S.Infrastructure\"\n  dotnet new web      -n \"MediView.$S.Api\"            -o \"$base/MediView.$S.Api\"\n\n  # inward-only references\n  dotnet add \"$base/MediView.$S.Application/MediView.$S.Application.csproj\"       reference \"$base/MediView.$S.Domain/MediView.$S.Domain.csproj\"\n  dotnet add \"$base/MediView.$S.Infrastructure/MediView.$S.Infrastructure.csproj\" reference \"$base/MediView.$S.Application/MediView.$S.Application.csproj\"\n  dotnet add \"$base/MediView.$S.Api/MediView.$S.Api.csproj\"                       reference \"$base/MediView.$S.Infrastructure/MediView.$S.Infrastructure.csproj\"\ndone\n\n# gateway + web\ndotnet new web        -n MediView.Gateway -o src/Gateway/MediView.Gateway\ndotnet new blazorserver -n MediView.Web   -o src/Web/MediView.Web\n\n# add everything to the solution\nfind src -name '*.csproj' -exec dotnet sln \"$SOLN\" add {} +\ndotnet build"
+            }
+          ],
+          "commands": [
+            "chmod +x scaffold.sh && ./scaffold.sh",
+            "dotnet build   # 18 projects, must be green"
+          ],
+          "verify": [
+            "`dotnet build` succeeds on the empty 18-project solution.",
+            "Every MediView.*.Domain.csproj has zero <PackageReference> and zero project references."
+          ],
+          "enriched": true
         },
         {
           "id": "P01-T03",
@@ -137,10 +172,29 @@
             "build"
           ],
           "steps": [
-            "Confirm Directory.Build.props has Nullable, LangVersion latest, ImplicitUsings, TreatWarningsAsErrors.",
-            "Confirm Directory.Packages.props has ManagePackageVersionsCentrally=true.",
-            "Add the first PackageVersion entries as you need them - never a Version= on an individual PackageReference."
-          ]
+            "Add Directory.Build.props at the repo root so nullable, implicit usings, latest C# and warnings-as-errors apply to all projects at once.",
+            "Add Directory.Packages.props with ManagePackageVersionsCentrally=true — every NuGet version is declared here, once.",
+            "From now on, PackageReference entries carry NO Version= attribute; you add a <PackageVersion> line here instead. A version bump then happens in exactly one file."
+          ],
+          "files": [
+            {
+              "path": "Directory.Build.props",
+              "lang": "xml",
+              "content": "<Project>\n  <PropertyGroup>\n    <TargetFramework>net10.0</TargetFramework>\n    <Nullable>enable</Nullable>\n    <ImplicitUsings>enable</ImplicitUsings>\n    <LangVersion>latest</LangVersion>\n    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>\n    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>\n    <AnalysisLevel>latest-recommended</AnalysisLevel>\n  </PropertyGroup>\n</Project>"
+            },
+            {
+              "path": "Directory.Packages.props",
+              "lang": "xml",
+              "content": "<Project>\n  <PropertyGroup>\n    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>\n  </PropertyGroup>\n  <ItemGroup>\n    <!-- add PackageVersion lines here as you need them, e.g. -->\n    <!-- <PackageVersion Include=\"FluentValidation\" Version=\"11.9.2\" /> -->\n  </ItemGroup>\n</Project>"
+            }
+          ],
+          "commands": [
+            "dotnet build   # still green after centralising versions"
+          ],
+          "verify": [
+            "A NuGet version bump requires editing exactly one file (Directory.Packages.props)."
+          ],
+          "enriched": true
         },
         {
           "id": "P01-T04",
@@ -159,10 +213,26 @@
             "quality"
           ],
           "steps": [
-            "Add a .editorconfig at the repo root (4-space C#, file-scoped namespaces, `var` where apparent).",
-            "Set EnforceCodeStyleInBuild and AnalysisLevel=latest-recommended in Directory.Build.props.",
-            "Run `dotnet format` once and commit the result as a formatting-only commit."
-          ]
+            "Add a .editorconfig at the repo root: 4-space C#, file-scoped namespaces, `var` when the type is apparent.",
+            "Analyzers and code-style enforcement were already switched on in Directory.Build.props (EnforceCodeStyleInBuild, AnalysisLevel=latest-recommended).",
+            "Run `dotnet format` once and commit the result as a single formatting-only commit so future diffs are about logic, not whitespace."
+          ],
+          "files": [
+            {
+              "path": ".editorconfig",
+              "lang": "ini",
+              "content": "root = true\n\n[*.cs]\nindent_style = space\nindent_size = 4\ncsharp_style_namespace_declarations = file_scoped:warning\ncsharp_style_var_when_type_is_apparent = true:suggestion\ncsharp_style_var_for_built_in_types = true:suggestion\ndotnet_sort_system_directives_first = true\ndotnet_style_require_accessibility_modifiers = always:warning\n\n[*.{json,yml,yaml,csproj,props}]\nindent_style = space\nindent_size = 2"
+            }
+          ],
+          "commands": [
+            "dotnet format",
+            "git commit -am \"style: apply dotnet format (formatting only)\"",
+            "dotnet format --verify-no-changes   # must pass in CI"
+          ],
+          "verify": [
+            "`dotnet format --verify-no-changes` passes with exit code 0."
+          ],
+          "enriched": true
         },
         {
           "id": "P01-T05",
@@ -182,11 +252,41 @@
             "shared-kernel"
           ],
           "steps": [
-            "Create Entity<TId> with an Id and identity-based Equals/GetHashCode.",
-            "Create IDomainEvent (a marker record with OccurredOn) and AggregateRoot<TId> with `Raise(IDomainEvent)`, `IReadOnlyCollection<IDomainEvent> DomainEvents` and `ClearDomainEvents()`.",
-            "Create ValueObject with structural equality (or just use C# `record` - decide once and write it in the ADR).",
-            "Create DomainException, the base for every invariant violation."
-          ]
+            "Create MediView.BuildingBlocks.Domain (classlib, zero packages) — the base types every aggregate inherits.",
+            "Entity<TId>: an Id plus identity-based Equals/GetHashCode so two entities are equal iff their ids match.",
+            "IDomainEvent (marker record with OccurredOn) and AggregateRoot<TId> that collects events in a private list and exposes them read-only via Raise / DomainEvents / ClearDomainEvents.",
+            "DomainException — the base for every invariant violation. Decide record-vs-ValueObject once and note it in an ADR."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Domain/Entity.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.BuildingBlocks.Domain;\n\npublic abstract class Entity<TId> where TId : notnull\n{\n    public TId Id { get; protected set; } = default!;\n\n    public override bool Equals(object? obj) =>\n        obj is Entity<TId> other && other.GetType() == GetType() && other.Id.Equals(Id);\n\n    public override int GetHashCode() => Id.GetHashCode();\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Domain/IDomainEvent.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.BuildingBlocks.Domain;\n\npublic interface IDomainEvent\n{\n    DateTimeOffset OccurredOn { get; }\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Domain/AggregateRoot.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.BuildingBlocks.Domain;\n\npublic abstract class AggregateRoot<TId> : Entity<TId> where TId : notnull\n{\n    private readonly List<IDomainEvent> _domainEvents = new();\n    public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();\n\n    protected void Raise(IDomainEvent domainEvent) => _domainEvents.Add(domainEvent);\n    public void ClearDomainEvents() => _domainEvents.Clear();\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Domain/DomainException.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.BuildingBlocks.Domain;\n\npublic class DomainException(string message) : Exception(message);"
+            }
+          ],
+          "commands": [
+            "dotnet build src/BuildingBlocks/MediView.BuildingBlocks.Domain"
+          ],
+          "verify": [
+            "A test aggregate can Raise an event and read it back via DomainEvents, then ClearDomainEvents empties it.",
+            "The project still has zero package references."
+          ],
+          "enriched": true
         },
         {
           "id": "P01-T06",
@@ -206,11 +306,41 @@
             "shared-kernel"
           ],
           "steps": [
-            "Create Error(code, message) and Result / Result<T> with Success/Failure and an implicit conversion.",
-            "Define ICommand<TResponse>, IQuery<TResponse>, ICommandHandler<TCommand,TResponse>, IQueryHandler<,>.",
-            "Write ISender with `Send<TResponse>(IRequest<TResponse>)` that resolves the handler from IServiceProvider via a closed generic type lookup.",
-            "Add an AddApplication() extension that scans the assembly and registers every handler as scoped."
-          ]
+            "Create MediView.BuildingBlocks.Application. Add Error(code, message) and Result / Result<T> with Success/Failure factories and an implicit conversion from T to Result<T>.",
+            "Define the CQRS marker interfaces: ICommand<TResponse>, IQuery<TResponse>, ICommandHandler<TCommand,TResponse>, IQueryHandler<TQuery,TResponse> (both commands and queries derive from IRequest<TResponse>).",
+            "Write ISender.Send<TResponse>(IRequest<TResponse>) that builds the closed handler type and resolves it from IServiceProvider — ~40 lines, no MediatR.",
+            "Add AddApplication(this IServiceCollection) that scans the assembly and registers every handler as scoped."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Application/Result.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.BuildingBlocks.Application;\n\npublic sealed record Error(string Code, string Message)\n{\n    public static readonly Error None = new(string.Empty, string.Empty);\n}\n\npublic class Result\n{\n    protected Result(bool isSuccess, Error error)\n    {\n        if (isSuccess && error != Error.None) throw new InvalidOperationException();\n        IsSuccess = isSuccess; Error = error;\n    }\n    public bool IsSuccess { get; }\n    public bool IsFailure => !IsSuccess;\n    public Error Error { get; }\n\n    public static Result Success() => new(true, Error.None);\n    public static Result Failure(Error error) => new(false, error);\n    public static Result<T> Success<T>(T value) => new(value, true, Error.None);\n    public static Result<T> Failure<T>(Error error) => new(default, false, error);\n}\n\npublic class Result<T> : Result\n{\n    private readonly T? _value;\n    protected internal Result(T? value, bool isSuccess, Error error) : base(isSuccess, error) => _value = value;\n    public T Value => IsSuccess ? _value! : throw new InvalidOperationException(\"No value on a failure.\");\n    public static implicit operator Result<T>(T value) => Success(value);\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Application/Messaging.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.BuildingBlocks.Application;\n\npublic interface IRequest<TResponse>;\npublic interface ICommand<TResponse> : IRequest<TResponse>;\npublic interface IQuery<TResponse> : IRequest<TResponse>;\n\npublic interface IRequestHandler<in TRequest, TResponse> where TRequest : IRequest<TResponse>\n{\n    Task<TResponse> Handle(TRequest request, CancellationToken ct);\n}\npublic interface ICommandHandler<in TCommand, TResponse> : IRequestHandler<TCommand, TResponse>\n    where TCommand : ICommand<TResponse>;\npublic interface IQueryHandler<in TQuery, TResponse> : IRequestHandler<TQuery, TResponse>\n    where TQuery : IQuery<TResponse>;\n\npublic interface ISender\n{\n    Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct = default);\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Application/Sender.cs",
+              "lang": "csharp",
+              "content": "using Microsoft.Extensions.DependencyInjection;\nnamespace MediView.BuildingBlocks.Application;\n\ninternal sealed class Sender(IServiceProvider provider) : ISender\n{\n    public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct = default)\n    {\n        var handlerType = typeof(IRequestHandler<,>).MakeGenericType(request.GetType(), typeof(TResponse));\n        dynamic handler = provider.GetRequiredService(handlerType);\n        return handler.Handle((dynamic)request, ct);\n    }\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Application/DependencyInjection.cs",
+              "lang": "csharp",
+              "content": "using System.Reflection;\nusing Microsoft.Extensions.DependencyInjection;\nnamespace MediView.BuildingBlocks.Application;\n\npublic static class DependencyInjection\n{\n    public static IServiceCollection AddApplication(this IServiceCollection services, Assembly assembly)\n    {\n        services.AddScoped<ISender, Sender>();\n        var handlerInterface = typeof(IRequestHandler<,>);\n        foreach (var type in assembly.GetTypes().Where(t => t is { IsAbstract: false, IsInterface: false }))\n            foreach (var i in type.GetInterfaces().Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == handlerInterface))\n                services.AddScoped(i, type);\n        return services;\n    }\n}"
+            }
+          ],
+          "commands": [
+            "dotnet build src/BuildingBlocks/MediView.BuildingBlocks.Application"
+          ],
+          "verify": [
+            "A sample command round-trips through ISender in a unit test.",
+            "`grep -ri MediatR src` returns nothing — no MediatR reference anywhere."
+          ],
+          "enriched": true
         },
         {
           "id": "P01-T07",
@@ -230,10 +360,30 @@
             "validation"
           ],
           "steps": [
-            "Add FluentValidation and a ValidationBehaviour that runs all validators for the request and returns a Failure result on the first error set.",
-            "Add a LoggingBehaviour that logs the request name, elapsed ms and outcome - structured, never interpolated.",
-            "Chain the behaviours in the dispatcher (a decorator list is enough; you do not need a pipeline framework)."
-          ]
+            "Add the FluentValidation package (one <PackageVersion> line) and a ValidationBehaviour that runs every validator registered for the request and returns Result.Failure on the first error set — the handler is never reached.",
+            "Add a LoggingBehaviour that logs request name, elapsed ms and outcome as structured properties (never string-interpolated).",
+            "Chain the behaviours around the handler resolution in the Sender (a simple decorator list is enough; you do not need a pipeline framework)."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Application/Behaviours/ValidationBehaviour.cs",
+              "lang": "csharp",
+              "content": "using FluentValidation;\nnamespace MediView.BuildingBlocks.Application.Behaviours;\n\npublic interface IPipelineBehaviour<TRequest, TResponse>\n{\n    Task<TResponse> Handle(TRequest request, Func<Task<TResponse>> next, CancellationToken ct);\n}\n\npublic sealed class ValidationBehaviour<TRequest, TResponse>(IEnumerable<IValidator<TRequest>> validators)\n    : IPipelineBehaviour<TRequest, TResponse>\n{\n    public async Task<TResponse> Handle(TRequest request, Func<Task<TResponse>> next, CancellationToken ct)\n    {\n        var context = new ValidationContext<TRequest>(request);\n        var failures = validators\n            .Select(v => v.Validate(context))\n            .SelectMany(r => r.Errors)\n            .Where(f => f is not null)\n            .ToList();\n        if (failures.Count != 0)\n            throw new ValidationException(failures);   // mapped to 400 by ExceptionHandlingMiddleware\n        return await next();\n    }\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Application/Behaviours/LoggingBehaviour.cs",
+              "lang": "csharp",
+              "content": "using System.Diagnostics;\nusing Microsoft.Extensions.Logging;\nnamespace MediView.BuildingBlocks.Application.Behaviours;\n\npublic sealed class LoggingBehaviour<TRequest, TResponse>(ILogger<LoggingBehaviour<TRequest, TResponse>> logger)\n    : IPipelineBehaviour<TRequest, TResponse>\n{\n    public async Task<TResponse> Handle(TRequest request, Func<Task<TResponse>> next, CancellationToken ct)\n    {\n        var name = typeof(TRequest).Name;\n        var sw = Stopwatch.StartNew();\n        try\n        {\n            var response = await next();\n            logger.LogInformation(\"Handled {RequestName} in {ElapsedMs}ms ({Outcome})\", name, sw.ElapsedMilliseconds, \"ok\");\n            return response;\n        }\n        catch\n        {\n            logger.LogWarning(\"Failed {RequestName} in {ElapsedMs}ms ({Outcome})\", name, sw.ElapsedMilliseconds, \"error\");\n            throw;\n        }\n    }\n}"
+            }
+          ],
+          "commands": [
+            "dotnet build src/BuildingBlocks/MediView.BuildingBlocks.Application"
+          ],
+          "verify": [
+            "An invalid command never reaches its handler (a validator failure short-circuits).",
+            "Every handled request produces exactly one structured log line with RequestName + ElapsedMs."
+          ],
+          "enriched": true
         },
         {
           "id": "P01-T08",
@@ -253,11 +403,36 @@
             "cross-cutting"
           ],
           "steps": [
-            "Write CorrelationIdMiddleware: read or create X-Correlation-Id, push it into the Serilog log scope, echo it on the response.",
-            "Write ExceptionHandlingMiddleware mapping DomainException->400, NotFoundException->404, StudyLockedException->409, DbUpdateConcurrencyException->409, everything else->500.",
-            "Return ProblemDetails with type/title/status/detail plus the correlation id as an extension member.",
-            "Package both as an AddApiDefaults() extension the four Api projects call in one line."
-          ]
+            "Write CorrelationIdMiddleware: read X-Correlation-Id from the request or create a new Guid, push it into the Serilog LogContext, and echo it back on the response header.",
+            "Write ExceptionHandlingMiddleware mapping DomainException→400, NotFoundException→404, StudyLockedException→409, DbUpdateConcurrencyException→409, and everything else→500 — never leaking a stack trace.",
+            "Return an RFC-7807 ProblemDetails (type/title/status/detail) with the correlation id attached as an extension member.",
+            "Package both plus the ProblemDetails wiring as one AddApiDefaults()/UseApiDefaults() pair the four Api projects call in a single line."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Api/CorrelationIdMiddleware.cs",
+              "lang": "csharp",
+              "content": "using Microsoft.AspNetCore.Http;\nusing Serilog.Context;\nnamespace MediView.BuildingBlocks.Api;\n\npublic sealed class CorrelationIdMiddleware(RequestDelegate next)\n{\n    private const string Header = \"X-Correlation-Id\";\n    public async Task Invoke(HttpContext ctx)\n    {\n        var id = ctx.Request.Headers.TryGetValue(Header, out var v) && !string.IsNullOrWhiteSpace(v)\n            ? v.ToString() : Guid.NewGuid().ToString(\"N\");\n        ctx.Response.Headers[Header] = id;\n        using (LogContext.PushProperty(\"CorrelationId\", id))\n            await next(ctx);\n    }\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Api/ExceptionHandlingMiddleware.cs",
+              "lang": "csharp",
+              "content": "using FluentValidation;\nusing Microsoft.AspNetCore.Http;\nusing Microsoft.AspNetCore.Mvc;\nusing MediView.BuildingBlocks.Domain;\nnamespace MediView.BuildingBlocks.Api;\n\npublic sealed class ExceptionHandlingMiddleware(RequestDelegate next)\n{\n    public async Task Invoke(HttpContext ctx)\n    {\n        try { await next(ctx); }\n        catch (Exception ex)\n        {\n            var (status, title) = ex switch\n            {\n                ValidationException            => (400, \"Validation failed\"),\n                DomainException                => (400, \"Domain rule violated\"),\n                // NotFoundException            => (404, \"Not found\"),\n                // StudyLockedException         => (409, \"Study is locked\"),\n                // DbUpdateConcurrencyException => (409, \"Concurrency conflict\"),\n                _                              => (500, \"Unexpected error\")\n            };\n            var problem = new ProblemDetails { Status = status, Title = title,\n                Detail = status == 500 ? \"An unexpected error occurred.\" : ex.Message };\n            problem.Extensions[\"correlationId\"] = ctx.Response.Headers[\"X-Correlation-Id\"].ToString();\n            ctx.Response.StatusCode = status;\n            await ctx.Response.WriteAsJsonAsync(problem);\n        }\n    }\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Api/ApiDefaults.cs",
+              "lang": "csharp",
+              "content": "using Microsoft.AspNetCore.Builder;\nnamespace MediView.BuildingBlocks.Api;\n\npublic static class ApiDefaults\n{\n    public static WebApplication UseApiDefaults(this WebApplication app)\n    {\n        app.UseMiddleware<CorrelationIdMiddleware>();     // first: id is available to everything after\n        app.UseMiddleware<ExceptionHandlingMiddleware>();\n        return app;\n    }\n}"
+            }
+          ],
+          "commands": [
+            "dotnet build"
+          ],
+          "verify": [
+            "A thrown DomainException returns 400 ProblemDetails carrying the correlationId extension.",
+            "An unhandled exception returns 500 and never leaks a stack trace to the client."
+          ],
+          "enriched": true
         },
         {
           "id": "P01-T09",
@@ -276,12 +451,27 @@
             "contracts"
           ],
           "steps": [
-            "Create MediView.Contracts as a classlib referenced by every Api and Infrastructure project.",
-            "Declare the three MVP events as records: ImagesImported, ReportFinalized, DoctorRegistered.",
-            "Write the rule at the top of the file: additive changes only."
-          ]
+            "Create MediView.Contracts (classlib) referenced by every Api and Infrastructure project. It holds only immutable event records.",
+            "Declare the three MVP integration events as records: ImagesImported, ReportFinalized, DoctorRegistered — carrying ids and primitives, never entities.",
+            "Write the rule at the top of the file: additive changes only. You version an event by adding a field, never by repurposing an existing one."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.Contracts/IntegrationEvents.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.Contracts;\n\n// RULE: additive changes only. Version an event by ADDING a field,\n// never by changing the meaning of an existing one.\n\npublic sealed record ImagesImported(\n    Guid StudyId,\n    int SeriesCount,\n    int InstanceCount,\n    DateTimeOffset OccurredOn);\n\npublic sealed record ReportFinalized(\n    Guid StudyId,\n    Guid ReportId,\n    string Decision,          // \"done\" | \"re_diagnosis\"\n    DateTimeOffset OccurredOn);\n\npublic sealed record DoctorRegistered(\n    Guid DoctorId,\n    Guid UserId,\n    string LicenseNumber,\n    DateTimeOffset OccurredOn);"
+            }
+          ],
+          "commands": [
+            "dotnet build src/BuildingBlocks/MediView.Contracts"
+          ],
+          "verify": [
+            "The publisher (Imaging/Reporting) and the consumer (Studies) compile against the same record type in MediView.Contracts."
+          ],
+          "enriched": true
         }
-      ]
+      ],
+      "enrichmentStatus": "detailed"
     },
     {
       "id": "P02",
@@ -309,10 +499,38 @@
             "infra"
           ],
           "steps": [
-            "Write docker-compose.yml with the four services, fixed host ports and named volumes.",
-            "Add healthchecks to each so `docker compose up --wait` blocks until they are actually ready.",
-            "Create one database per service (mediview_identity, mediview_studies, ...) via an init SQL script mounted into the postgres container."
-          ]
+            "Write .env at the repo root holding dev-only infra credentials and every host port (POSTGRES_PORT, REDIS_PORT, RABBITMQ_PORT, RABBITMQ_UI_PORT=15672, SEQ_PORT=5341). If a local Postgres already owns 5432, set POSTGRES_PORT=5433 here and mirror it in every connection string.",
+            "Write infra/postgres/init.sql that CREATE DATABASEs the four service databases (mediview_identity/studies/imaging/reporting). NOTE: init scripts run only on the FIRST boot of an empty pgdata volume — to re-seed later, `docker compose down -v`.",
+            "Write docker-compose.yml with the four services, fixed host ports, named volumes and a dedicated network. Give postgres/redis/rabbitmq real healthchecks.",
+            "Map Seq as 5341:80 — modern Seq serves BOTH the UI and log ingestion on container port 80, so the human and the Serilog sink both use :5341. Give Seq NO healthcheck (its image has no reliable curl, so `--wait` would hang).",
+            "Bring it up: `docker compose up -d --wait` blocks until postgres/redis/rabbitmq report healthy."
+          ],
+          "files": [
+            {
+              "path": ".env",
+              "lang": "dotenv",
+              "content": "# local development only — never reuse these values anywhere real\nPOSTGRES_USER=mediview\nPOSTGRES_PASSWORD=localdev_change_me\nRABBITMQ_DEFAULT_USER=mediview\nRABBITMQ_DEFAULT_PASS=localdev_change_me\n\n# host ports (change the LEFT side only if something already uses it)\nPOSTGRES_PORT=5432\nREDIS_PORT=6379\nRABBITMQ_PORT=5672\nRABBITMQ_UI_PORT=15672\nSEQ_PORT=5341"
+            },
+            {
+              "path": "infra/postgres/init.sql",
+              "lang": "sql",
+              "content": "-- runs ONCE, only when the pgdata volume is first created (empty).\n-- add a DB later? `docker compose down -v` to re-seed, or CREATE it by hand.\nCREATE DATABASE mediview_identity;\nCREATE DATABASE mediview_studies;\nCREATE DATABASE mediview_imaging;\nCREATE DATABASE mediview_reporting;"
+            },
+            {
+              "path": "docker-compose.yml",
+              "lang": "yaml",
+              "content": "name: mediview\n\nservices:\n  postgres:\n    image: postgres:16\n    container_name: mediview-postgres\n    restart: unless-stopped\n    environment:\n      POSTGRES_USER: ${POSTGRES_USER}\n      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}\n      POSTGRES_DB: postgres            # init.sql creates the 4 app databases\n    ports:\n      - \"${POSTGRES_PORT}:5432\"\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U $${POSTGRES_USER} -d postgres\"]\n      interval: 5s\n      timeout: 3s\n      retries: 10\n    networks: [mediview]\n\n  redis:\n    image: redis:7\n    container_name: mediview-redis\n    restart: unless-stopped\n    command: [\"redis-server\", \"--appendonly\", \"yes\"]\n    ports:\n      - \"${REDIS_PORT}:6379\"\n    volumes:\n      - redisdata:/data\n    healthcheck:\n      test: [\"CMD\", \"redis-cli\", \"ping\"]\n      interval: 5s\n      timeout: 3s\n      retries: 10\n    networks: [mediview]\n\n  rabbitmq:\n    image: rabbitmq:3.13-management\n    container_name: mediview-rabbitmq\n    restart: unless-stopped\n    environment:\n      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}\n      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}\n    ports:\n      - \"${RABBITMQ_PORT}:5672\"\n      - \"${RABBITMQ_UI_PORT}:15672\"\n    volumes:\n      - rabbitmqdata:/var/lib/rabbitmq\n    healthcheck:\n      test: [\"CMD\", \"rabbitmq-diagnostics\", \"-q\", \"ping\"]\n      interval: 10s\n      timeout: 5s\n      retries: 10\n    networks: [mediview]\n\n  seq:\n    image: datalust/seq:2024.3\n    container_name: mediview-seq\n    restart: unless-stopped\n    environment:\n      ACCEPT_EULA: \"Y\"\n    ports:\n      - \"${SEQ_PORT}:80\"               # UI + ingestion share port 80 in modern Seq\n    volumes:\n      - seqdata:/data\n    networks: [mediview]\n    # no healthcheck: the Seq image ships no reliable curl, so `--wait` would hang.\n\nvolumes:\n  pgdata:\n  redisdata:\n  rabbitmqdata:\n  seqdata:\n\nnetworks:\n  mediview:\n    driver: bridge"
+            }
+          ],
+          "commands": [
+            "docker compose up -d --wait",
+            "docker compose ps    # postgres/redis/rabbitmq must show 'healthy'"
+          ],
+          "verify": [
+            "`docker compose up -d --wait` returns healthy for postgres, redis and rabbitmq.",
+            "RabbitMQ management UI reachable at http://localhost:15672 ; Seq UI at http://localhost:5341."
+          ],
+          "enriched": true
         },
         {
           "id": "P02-T02",
@@ -331,10 +549,38 @@
             "security"
           ],
           "steps": [
-            "Add appsettings.Development.json with non-secret defaults (hosts, ports, database names).",
-            "Run `dotnet user-secrets init` in each Api project and store passwords there.",
-            "Bind a typed options class per concern and call .ValidateDataAnnotations().ValidateOnStart()."
-          ]
+            "Add appsettings.Development.json to each Api project with NON-secret defaults only — hosts are localhost (services run from the IDE, not inside the compose network) and the Database name differs per service.",
+            "Run `dotnet user-secrets init` in each Api project and store the password-bearing connection string there, so secrets never touch the repo.",
+            "Bind a typed options class per concern (DatabaseOptions, RedisOptions, RabbitMqOptions, SeqOptions) with [Required] and call .ValidateDataAnnotations().ValidateOnStart() so a missing secret fails at boot with a clear message, not a null ref at 2 a.m."
+          ],
+          "files": [
+            {
+              "path": "src/Services/Studies/MediView.Studies.Api/appsettings.Development.json",
+              "lang": "json",
+              "content": "{\n  \"ConnectionStrings\": {\n    \"Postgres\": \"Host=localhost;Port=5432;Database=mediview_studies;Username=mediview\"\n  },\n  \"Redis\":    { \"Configuration\": \"localhost:6379\" },\n  \"RabbitMq\": { \"Host\": \"localhost\", \"Port\": 5672, \"VirtualHost\": \"/\", \"Username\": \"mediview\" },\n  \"Seq\":      { \"ServerUrl\": \"http://localhost:5341\" }\n}"
+            },
+            {
+              "path": "src/Services/Studies/MediView.Studies.Infrastructure/Configuration/DatabaseOptions.cs",
+              "lang": "csharp",
+              "content": "using System.ComponentModel.DataAnnotations;\nnamespace MediView.Studies.Infrastructure.Configuration;\n\npublic sealed class DatabaseOptions\n{\n    public const string SectionName = \"ConnectionStrings\";\n\n    [Required(AllowEmptyStrings = false,\n        ErrorMessage = \"ConnectionStrings:Postgres is missing. Did you run `dotnet user-secrets set`?\")]\n    public string Postgres { get; init; } = string.Empty;\n}"
+            },
+            {
+              "path": "src/Services/Studies/MediView.Studies.Api/Program.cs (excerpt)",
+              "lang": "csharp",
+              "content": "builder.Services\n    .AddOptions<DatabaseOptions>()\n    .Bind(builder.Configuration.GetSection(DatabaseOptions.SectionName))\n    .ValidateDataAnnotations()\n    .ValidateOnStart();   // missing secret => fails at startup, not at runtime"
+            }
+          ],
+          "commands": [
+            "cd src/Services/Studies/MediView.Studies.Api",
+            "dotnet user-secrets init",
+            "dotnet user-secrets set \"ConnectionStrings:Postgres\" \"Host=localhost;Port=5432;Database=mediview_studies;Username=mediview;Password=localdev_change_me\"",
+            "dotnet user-secrets set \"RabbitMq:Password\" \"localdev_change_me\"",
+            "# repeat for Identity/Imaging/Reporting, swapping the Database= name"
+          ],
+          "verify": [
+            "Cloning the repo and running a service without setting the secret fails with the clear 'ConnectionStrings:Postgres is missing' message, not a NullReferenceException."
+          ],
+          "enriched": true
         },
         {
           "id": "P02-T03",
@@ -354,11 +600,31 @@
             "logging"
           ],
           "steps": [
-            "Add Serilog with the Console and Seq sinks in a shared AddLogging extension.",
-            "Enrich with ServiceName from the assembly name plus the correlation id from the log scope.",
-            "Add UseSerilogRequestLogging() to the pipeline.",
-            "Write the rule in the README: no patient name, DOB or report text in any log statement."
-          ]
+            "Add the Serilog.AspNetCore, Serilog.Sinks.Seq and Serilog.Enrichers.Environment packages (one <PackageVersion> line each), then a shared UseMediViewLogging() extension in BuildingBlocks with the Console and Seq sinks.",
+            "Enrich every log line with ServiceName (from the entry assembly name) and CorrelationId (from the log scope pushed by CorrelationIdMiddleware).",
+            "Add app.UseSerilogRequestLogging() to each Api pipeline for one summary line per HTTP request.",
+            "Write the rule in the README: never log a patient name, DOB, MRN or report text — log ids only."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Api/LoggingExtensions.cs",
+              "lang": "csharp",
+              "content": "using System.Reflection;\nusing Microsoft.Extensions.Configuration;\nusing Microsoft.Extensions.Hosting;\nusing Serilog;\nnamespace MediView.BuildingBlocks.Api;\n\npublic static class LoggingExtensions\n{\n    public static IHostBuilder UseMediViewLogging(this IHostBuilder host) =>\n        host.UseSerilog((ctx, cfg) =>\n        {\n            var serviceName = Assembly.GetEntryAssembly()!.GetName().Name!;\n            cfg.ReadFrom.Configuration(ctx.Configuration)\n               .Enrich.FromLogContext()\n               .Enrich.WithProperty(\"ServiceName\", serviceName)\n               .WriteTo.Console(outputTemplate:\n                   \"[{Timestamp:HH:mm:ss} {Level:u3}] {ServiceName} {CorrelationId} {Message:lj}{NewLine}{Exception}\")\n               .WriteTo.Seq(ctx.Configuration[\"Seq:ServerUrl\"] ?? \"http://localhost:5341\");\n        });\n}"
+            },
+            {
+              "path": "README.md (logging rule)",
+              "lang": "markdown",
+              "content": "## Logging rule (non-negotiable)\nLog identifiers, never protected health information.\n- OK:  StudyId, PatientId, DoctorId, CorrelationId\n- NO:  patient name, DOB, MRN, blood type, report text, medication notes"
+            }
+          ],
+          "commands": [
+            "dotnet build"
+          ],
+          "verify": [
+            "A request produces one enriched log line visible in Seq, tagged with ServiceName and CorrelationId.",
+            "Filtering Seq by CorrelationId shows the whole request."
+          ],
+          "enriched": true
         },
         {
           "id": "P02-T04",
@@ -377,12 +643,43 @@
             "docs"
           ],
           "steps": [
-            "Add /health/live and /health/ready (ready checks Postgres + Redis) to every Api.",
-            "Add a run.sh / run.ps1 that brings up compose then `dotnet run` the gateway and services.",
-            "Write the 6-line 'getting started' block in the README and follow it on a clean clone."
-          ]
+            "Add the AspNetCore.HealthChecks.NpgSql, .Redis and .Rabbitmq packages, then register /health/live (process up) and /health/ready (Postgres + Redis + RabbitMQ reachable) in every Api.",
+            "Add run.sh (macOS/Linux) and run.ps1 (Windows) that bring up compose with --wait, then `dotnet run` the gateway and four services.",
+            "Write the 6-line 'getting started' block in the README and actually follow it on a fresh clone, timing it — it must be under 5 minutes."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Api/HealthChecks.cs (excerpt)",
+              "lang": "csharp",
+              "content": "builder.Services.AddHealthChecks()\n    .AddNpgSql(builder.Configuration.GetConnectionString(\"Postgres\")!, name: \"postgres\", tags: [\"ready\"])\n    .AddRedis(builder.Configuration[\"Redis:Configuration\"]!,           name: \"redis\",    tags: [\"ready\"])\n    .AddRabbitMQ(name: \"rabbitmq\", tags: [\"ready\"]);\n\napp.MapHealthChecks(\"/health/live\",  new() { Predicate = _ => false });\napp.MapHealthChecks(\"/health/ready\", new() { Predicate = c => c.Tags.Contains(\"ready\") });"
+            },
+            {
+              "path": "run.sh",
+              "lang": "bash",
+              "content": "#!/usr/bin/env bash\nset -euo pipefail\necho \"bringing up infrastructure...\"\ndocker compose up -d --wait          # Compose >= 2.1 required for --wait\necho \"starting services (Ctrl-C stops all)...\"\ndotnet run --project src/Services/Identity/MediView.Identity.Api &\ndotnet run --project src/Services/Studies/MediView.Studies.Api &\ndotnet run --project src/Services/Imaging/MediView.Imaging.Api &\ndotnet run --project src/Services/Reporting/MediView.Reporting.Api &\ndotnet run --project src/Gateway/MediView.Gateway &\ndotnet run --project src/Web/MediView.Web &\nwait"
+            },
+            {
+              "path": "run.ps1",
+              "lang": "powershell",
+              "content": "$ErrorActionPreference = \"Stop\"\nWrite-Host \"Bringing up infrastructure...\"\ndocker compose up -d --wait\n$projects = @(\n  \"src/Services/Identity/MediView.Identity.Api\",\n  \"src/Services/Studies/MediView.Studies.Api\",\n  \"src/Services/Imaging/MediView.Imaging.Api\",\n  \"src/Services/Reporting/MediView.Reporting.Api\",\n  \"src/Gateway/MediView.Gateway\",\n  \"src/Web/MediView.Web\"\n)\nforeach ($p in $projects) { Start-Process dotnet -ArgumentList \"run --project $p\" }"
+            },
+            {
+              "path": "README.md (getting started)",
+              "lang": "markdown",
+              "content": "## Getting started\n1. Install Docker Desktop and the .NET 10 SDK.\n2. In each *.Api project run the `dotnet user-secrets set` lines in docs/secrets.md.\n3. `./run.sh`  (Windows: `./run.ps1`)\n4. Gateway readiness: http://localhost:<gateway-port>/health/ready\n5. Logs: http://localhost:5341 (Seq)  ·  Queues: http://localhost:15672 (RabbitMQ)\n6. Stop: Ctrl-C, then `docker compose down` (add -v to wipe data)."
+            }
+          ],
+          "commands": [
+            "chmod +x run.sh",
+            "./run.sh"
+          ],
+          "verify": [
+            "A clean clone is running end to end in under 5 minutes."
+          ],
+          "enriched": true
         }
-      ]
+      ],
+      "enrichmentStatus": "detailed"
     },
     {
       "id": "P03",
