@@ -1,0 +1,414 @@
+// =====================================================================
+// MediView - MVP database design (v4-compact)
+// Paste into https://dbdiagram.io
+//
+// WHY THIS FILE EXISTS
+//   v3 (mediview.dbml) is the "real product" schema: 41 tables, 11
+//   deployables, 15 screens. It is a correct design and a 6-month build.
+//   This file is the 45-day teaching cut of the same product: 15 tables,
+//   4 services + gateway + web, 9 screens.
+//
+// WHAT WAS CUT AND WHY  (full rationale in scope-cut.md)
+//   - billing/*  (7 tables)  cart, wallet, bills, payments = an e-commerce
+//     sub-domain. Teaches checkout, not medical imaging or DDD.
+//   - prescription/* (3 tables) collapsed into ONE child collection on the
+//     Report aggregate (reporting.report_medications). Same clinical fact,
+//     one table, no extra service.
+//   - identity role/permission matrix (3 tables) -> a single `role` column.
+//     A 3-role system does not need a permission matrix to teach authz.
+//   - doctor_credentials, patient_allergies, diseases, study_diseases,
+//     lock_watchers, doctor_studies, report_addenda, notifications,
+//     feature_flags, import_jobs, annotations, access_log = features, not
+//     lessons. Each is re-addable later without moving a single boundary.
+//
+// WHAT WAS KEPT AND WHY
+//   Every table below earns its place by teaching something:
+//     studies            -> a rich aggregate root with a state machine
+//     study_status_history -> an owned child collection + audit trail
+//     study_locks        -> distributed single-writer concurrency (the star)
+//     series/instances   -> DICOM hierarchy + blob-backed infrastructure
+//     reports(+meds)     -> a second aggregate + cross-service choreography
+//     audit_log          -> break-glass, the healthcare-specific lesson
+//
+// BOUNDARY RULE (unchanged): one schema per microservice. Refs inside a
+// schema are real FKs. Refs marked "logical" cross a service boundary -
+// drawn for readability, NOT created as database-level FKs.
+// =====================================================================
+
+Project MediView_MVP {
+  database_type: 'PostgreSQL'
+  Note: '''
+Medical imaging + diagnosis platform - 45-day MVP.
+
+The Study status (todo -> in_progress -> re_diagnosis -> done) is the single
+source of truth for the whole workflow. A patient self-registers and books
+inside a doctor's schedule; an admin simulates the x-ray import; a doctor
+reads the study in a single-writer locked viewport and finalizes a report
+with medications; the study closes or goes back for another read.
+
+4 services: Identity, Studies, Imaging, Reporting. Plus a YARP gateway and a
+Blazor Server web app.
+'''
+}
+
+// ---------------------------------------------------------------------
+// Enums  (mapped as strings by EF Core: HasConversion<string>())
+// ---------------------------------------------------------------------
+
+Enum gender {
+  male
+  female
+  other
+  unspecified
+}
+
+Enum user_role {
+  patient [note: 'self-registers']
+  doctor  [note: 'created by an admin']
+  admin   [note: 'seeded']
+}
+
+Enum study_status {
+  todo         [note: 'booked; images may be imported, not yet read']
+  in_progress  [note: 'a doctor holds the lock and is reading']
+  re_diagnosis [note: 'another read requested']
+  done         [note: 'finalized; no further read']
+}
+
+Enum study_priority {
+  routine
+  urgent
+  stat
+}
+
+Enum appointment_status {
+  booked
+  cancelled
+  completed
+}
+
+Enum report_status {
+  draft
+  finalized
+}
+
+Enum report_decision {
+  done
+  re_diagnosis
+}
+
+Enum lock_release_reason {
+  manual      [note: 'doctor finalized or closed the viewport']
+  ttl_expired [note: 'idle auto-release']
+  admin_force [note: 'break-glass; always audited']
+}
+
+// =====================================================================
+// SERVICE 1of4 - IDENTITY
+// Auth + who people are. Merges the old auth.* and identity.* schemas.
+// =====================================================================
+
+Table identity.users {
+  id            uuid         [pk, not null, default: `gen_random_uuid()`]
+  email         varchar(255) [not null, unique]
+  password_hash varchar(255) [not null]
+  full_name     varchar(255) [not null]
+  role          user_role    [not null, note: 'ONE role per user - no permission matrix in the MVP']
+  dob           date
+  gender        gender       [not null, default: 'unspecified']
+  is_active     boolean      [not null, default: true]
+  last_login_at timestamptz
+  created_at    timestamptz  [not null, default: `now()`]
+  updated_at    timestamptz  [not null, default: `now()`]
+
+  Note: 'Admins are seeded. Doctors are created by an admin. Only patients self-register. Authorization is a role claim in the JWT plus 3 policies (PatientOnly / DoctorOnly / AdminOnly).'
+}
+
+Table identity.refresh_tokens {
+  id         uuid         [pk, not null, default: `gen_random_uuid()`]
+  user_id    uuid         [not null]
+  token_hash varchar(255) [not null, unique, note: 'hashed, single-use, rotated']
+  expires_at timestamptz  [not null]
+  revoked_at timestamptz
+  created_at timestamptz  [not null, default: `now()`]
+
+  indexes { user_id }
+}
+Ref: identity.refresh_tokens.user_id > identity.users.id [delete: cascade]
+
+Table identity.patients {
+  id         uuid        [pk, not null, default: `gen_random_uuid()`]
+  user_id    uuid        [not null, unique]
+  mrn        varchar(20) [not null, unique, note: 'Medical Record Number, e.g. MRN-1042. Generated from a Postgres sequence, never COUNT(*)+1.']
+  blood_type varchar(5)
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: 'Created automatically when a user with role = patient registers.'
+}
+Ref: identity.patients.user_id - identity.users.id [delete: cascade]
+
+Table identity.doctors {
+  id             uuid         [pk, not null, default: `gen_random_uuid()`]
+  user_id        uuid         [not null, unique]
+  license_number varchar(50)  [not null, unique]
+  specialty      varchar(255) [note: 'e.g. Radiology - Thoracic']
+  department     varchar(255)
+  created_at     timestamptz  [not null, default: `now()`]
+  updated_at     timestamptz  [not null, default: `now()`]
+
+  Note: 'Created by an admin in one form. The v3 credential-upload + verification workflow is deferred - the admin simply attests.'
+}
+Ref: identity.doctors.user_id - identity.users.id [delete: cascade]
+
+Table identity.doctor_schedules {
+  id           uuid        [pk, not null, default: `gen_random_uuid()`]
+  doctor_id    uuid        [not null]
+  day_of_week  smallint    [not null, note: '0 = Sunday .. 6 = Saturday']
+  start_time   time        [not null]
+  end_time     time        [not null]
+  slot_minutes int         [not null, default: 30]
+  created_at   timestamptz [not null, default: `now()`]
+  updated_at   timestamptz [not null, default: `now()`]
+
+  indexes { (doctor_id, day_of_week) [unique] }
+  Note: 'Flattened from v3 working_hours + doctor_working_hours (2 tables -> 1). Availability = expand these rows into slots for a date range, then subtract booked appointments.'
+}
+Ref: identity.doctor_schedules.doctor_id > identity.doctors.id [delete: cascade]
+
+// =====================================================================
+// SERVICE 2of4 - STUDIES
+// The workflow core: booking, the Study aggregate, its status machine,
+// its lock, and the audit trail. This is where the DDD lesson lives.
+// =====================================================================
+
+Table studies.appointments {
+  id              uuid               [pk, not null, default: `gen_random_uuid()`]
+  patient_id      uuid               [not null, note: 'logical -> identity.patients.id']
+  doctor_id       uuid               [not null, note: 'logical -> identity.doctors.id']
+  scheduled_start timestamptz        [not null]
+  scheduled_end   timestamptz        [not null]
+  status          appointment_status [not null, default: 'booked']
+  reason          text
+  created_at      timestamptz        [not null, default: `now()`]
+  updated_at      timestamptz        [not null, default: `now()`]
+
+  indexes {
+    (doctor_id, scheduled_start) [unique, note: 'the database is the last line of defence against a double-booked slot']
+    patient_id
+  }
+  Note: 'Booking moved out of its own microservice and into Studies: an appointment exists only to produce a Study, so they belong in one transaction boundary.'
+}
+
+Table studies.studies {
+  id                 uuid           [pk, not null, default: `gen_random_uuid()`]
+  appointment_id     uuid           [unique]
+  study_number       varchar(20)    [not null, unique, note: 'human-readable, e.g. STU-001']
+  study_instance_uid varchar(64)    [not null, unique, note: 'DICOM (0020,000D)']
+  patient_id         uuid           [not null, note: 'logical -> identity.patients.id']
+  patient_mrn        varchar(20)    [not null, note: 'SNAPSHOT at booking']
+  patient_name       varchar(255)   [not null, note: 'SNAPSHOT at booking']
+  doctor_id          uuid           [not null, note: 'logical -> identity.doctors.id']
+  doctor_name        varchar(255)   [not null, note: 'SNAPSHOT at booking']
+  modality           varchar(16)    [note: 'CR, DX, CT, MR']
+  body_part          varchar(64)    [note: 'e.g. Chest PA']
+  priority           study_priority [not null, default: 'routine', note: 'worklist sort key - stat first']
+  study_date         timestamptz    [not null]
+  status             study_status   [not null, default: 'todo']
+  images_imported_at timestamptz    [note: 'guard: a read cannot start before this is set']
+  description        text
+  created_at         timestamptz    [not null, default: `now()`]
+  updated_at         timestamptz    [not null, default: `now()`]
+
+  indexes {
+    (status, priority, study_date) [note: 'the worklist query']
+    patient_id
+  }
+  Note: '''
+One row = one Study = the aggregate root. Import does NOT change the status;
+a study stays To do until a doctor opens it under lock.
+
+The *_name / *_mrn snapshot columns are the compaction that removes every
+cross-service join on the hot path. This is not a shortcut - it is how DICOM
+itself works: PatientName is embedded in the study at acquisition time, and
+a later rename must not rewrite history. One denormalisation, taught once,
+replaces the v3 gRPC-plus-local-replica machinery.
+'''
+}
+Ref: studies.studies.appointment_id - studies.appointments.id
+
+Table studies.study_status_history {
+  id          uuid         [pk, not null, default: `gen_random_uuid()`]
+  study_id    uuid         [not null]
+  from_status study_status
+  to_status   study_status [not null]
+  changed_by  uuid         [note: 'logical -> identity.users.id']
+  changed_by_role user_role [not null]
+  reason      text         [note: 'MANDATORY when an admin overrides']
+  changed_at  timestamptz  [not null, default: `now()`]
+
+  indexes { (study_id, changed_at) }
+  Note: 'An owned child collection of the Study aggregate - written only through Study.ChangeStatus(), never inserted directly. This is the entity that proves the aggregate boundary is real.'
+}
+Ref: studies.study_status_history.study_id > studies.studies.id [delete: cascade]
+
+Table studies.study_locks {
+  id             uuid                [pk, not null, default: `gen_random_uuid()`]
+  study_id       uuid                [not null, unique, note: 'one writer at a time']
+  doctor_id      uuid                [not null, note: 'logical -> identity.doctors.id']
+  doctor_name    varchar(255)        [not null, note: 'SNAPSHOT - so the 409 body can say WHO holds it without a call']
+  acquired_at    timestamptz         [not null, default: `now()`]
+  last_heartbeat timestamptz         [not null, default: `now()`]
+  expires_at     timestamptz         [not null, note: 'idle TTL, e.g. 15 minutes']
+  released_at    timestamptz
+  release_reason lock_release_reason
+  created_at     timestamptz         [not null, default: `now()`]
+
+  indexes { doctor_id }
+  Note: 'Redis holds the AUTHORITATIVE lock (SET NX PX + owner token). This table is the durable mirror the UI reads (owner, elapsed, auto-release) and the audit trail for an admin force-release. If the two ever disagree, Redis wins.'
+}
+Ref: studies.study_locks.study_id - studies.studies.id [delete: cascade]
+
+Table studies.audit_log {
+  id            uuid         [pk, not null, default: `gen_random_uuid()`]
+  actor_user_id uuid         [not null, note: 'logical -> identity.users.id']
+  actor_role    user_role    [not null]
+  action        varchar(100) [not null, note: 'study.status.override | lock.force_release']
+  entity_type   varchar(50)  [not null]
+  entity_id     uuid
+  reason        text         [not null, note: 'no reason, no override - enforced in the handler']
+  before_data   jsonb
+  after_data    jsonb
+  created_at    timestamptz  [not null, default: `now()`]
+
+  indexes { (entity_type, entity_id, created_at) }
+  Note: 'Scoped down from v3: break-glass actions only. The separate PHI read-access log (audit.access_log) is deferred - it is a compliance requirement, not a teaching one.'
+}
+
+// =====================================================================
+// SERVICE 3of4 - IMAGING
+// DICOM Study > Series > Instance. Pixels in blob storage, metadata here.
+// =====================================================================
+
+Table imaging.series {
+  id                  uuid        [pk, not null, default: `gen_random_uuid()`]
+  study_id            uuid        [not null, note: 'logical -> studies.studies.id']
+  series_instance_uid varchar(64) [not null, unique, note: 'DICOM (0020,000E)']
+  series_number       int
+  modality            varchar(16)
+  body_part           varchar(64)
+  instance_count      int         [not null, default: 0]
+  description         text
+  created_at          timestamptz [not null, default: `now()`]
+
+  indexes { study_id }
+}
+
+Table imaging.instances {
+  id               uuid        [pk, not null, default: `gen_random_uuid()`]
+  series_id        uuid        [not null]
+  sop_instance_uid varchar(64) [not null, unique, note: 'DICOM (0008,0018)']
+  instance_number  int
+  rows             int
+  columns          int
+  window_center    int         [note: 'default VOI handed to Cornerstone']
+  window_width     int
+  storage_path     text        [not null, note: 'blob key; local disk in dev, Azure Blob later']
+  file_size_bytes  bigint
+  created_at       timestamptz [not null, default: `now()`]
+
+  indexes { series_id }
+  Note: 'Parsed from the uploaded file with fo-dicom, then served back byte-for-byte over a WADO-RS-shaped endpoint that Cornerstone can consume directly.'
+}
+Ref: imaging.instances.series_id > imaging.series.id [delete: cascade]
+
+// =====================================================================
+// SERVICE 4of4 - REPORTING
+// The read, its medications, and the event that closes the Study.
+// =====================================================================
+
+Table reporting.reports {
+  id            uuid            [pk, not null, default: `gen_random_uuid()`]
+  study_id      uuid            [not null, note: 'logical -> studies.studies.id']
+  doctor_id     uuid            [not null, note: 'logical -> identity.doctors.id']
+  doctor_name   varchar(255)    [not null, note: 'SNAPSHOT']
+  report_number varchar(20)     [not null, unique, note: 'human-readable, e.g. RP-0114']
+  status        report_status   [not null, default: 'draft']
+  findings      text
+  impression    text            [note: 'radiology convention: findings first, then impression']
+  decision      report_decision [note: 'set on finalize. done -> close the study; re_diagnosis -> another read']
+  finalized_at  timestamptz
+  created_at    timestamptz     [not null, default: `now()`]
+  updated_at    timestamptz     [not null, default: `now()`]
+
+  indexes { study_id }
+  Note: '''
+Aggregate root. A finalized report is immutable: study_id is deliberately NOT
+unique, so a re_diagnosis produces a SECOND report row for the same study
+rather than an edit. That replaces v3 report_addenda at zero cost and keeps
+the "never rewrite a clinical record" rule intact.
+
+Finalizing does three things in one transaction: stamp finalized_at, write
+the outbox row for ReportFinalized, and release the lock.
+'''
+}
+
+Table reporting.report_medications {
+  id         uuid         [pk, not null, default: `gen_random_uuid()`]
+  report_id  uuid         [not null]
+  drug_id    uuid         [note: 'logical -> reporting.drugs.id; null = free-text entry']
+  drug_name  varchar(255) [not null, note: 'SNAPSHOT at finalize time']
+  dosage     varchar(100) [note: 'e.g. 500 mg']
+  frequency  varchar(100) [note: 'e.g. twice daily']
+  duration   varchar(100) [note: 'e.g. 7 days']
+  quantity   int          [not null, default: 1]
+  created_at timestamptz  [not null, default: `now()`]
+
+  indexes { report_id }
+  Note: 'An owned child collection of the Report aggregate. This ONE table replaces the entire v3 Prescription microservice (drugs + prescriptions + prescription_items + its own API + its own events).'
+}
+Ref: reporting.report_medications.report_id > reporting.reports.id [delete: cascade]
+
+Table reporting.drugs {
+  id         uuid         [pk, not null, default: `gen_random_uuid()`]
+  code       varchar(50)  [not null, unique]
+  name       varchar(255) [not null]
+  form       varchar(50)  [note: 'tablet | capsule | syrup | injection']
+  strength   varchar(50)  [note: 'e.g. 500 mg']
+  is_active  boolean      [not null, default: true]
+  created_at timestamptz  [not null, default: `now()`]
+
+  Note: 'A seeded lookup list (~30 rows) that powers the type-ahead in the report composer. No pricing - there is no billing in the MVP.'
+}
+Ref: reporting.report_medications.drug_id > reporting.drugs.id
+
+// =====================================================================
+// Table groups - one group per microservice (4 services, 15 tables)
+// =====================================================================
+
+TableGroup Identity_Service {
+  identity.users
+  identity.refresh_tokens
+  identity.patients
+  identity.doctors
+  identity.doctor_schedules
+}
+
+TableGroup Studies_Service {
+  studies.appointments
+  studies.studies
+  studies.study_status_history
+  studies.study_locks
+  studies.audit_log
+}
+
+TableGroup Imaging_Service {
+  imaging.series
+  imaging.instances
+}
+
+TableGroup Reporting_Service {
+  reporting.reports
+  reporting.report_medications
+  reporting.drugs
+}
