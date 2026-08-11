@@ -146,11 +146,13 @@
   <!-- 1. TOPOLOGY -->
   <section class="panel">
     <div class="panel-h"><span class="bar"></span><span class="num">01</span><h2>Container topology</h2></div>
-    <p class="panel-note">One Blazor origin talks to one gateway. The gateway fans out to four independently
-      deployable services. Redis, RabbitMQ, Postgres and Seq are shared infrastructure — the services are not.</p>
+    <p class="panel-note">One Blazor origin talks to one gateway — the single public entry point, routing by
+      path (<code>/api/&lt;service&gt;/**</code>) so every service shares a domain and differs only by URL path.
+      The gateway fans out to four independently deployable services. Redis, Kafka, Postgres and Seq are shared
+      infrastructure — the services are not.</p>
     <div class="diagram-wrap">
       <svg class="diagram topo" viewBox="0 0 940 470" xmlns="http://www.w3.org/2000/svg" role="img"
-           aria-label="Blazor to YARP gateway to four services, each with its own Postgres schema, over Redis and RabbitMQ">
+           aria-label="Blazor to YARP gateway (single origin, path-routed) to four services, each with its own Postgres schema, over Redis and Kafka">
         <defs>
           <marker id="a" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#94a3b8"/></marker>
           <marker id="ae" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#c2410c"/></marker>
@@ -166,7 +168,7 @@
         <!-- gateway -->
         <rect x="300" y="90" width="340" height="46" rx="11" fill="#0f2942"/>
         <text x="470" y="112" text-anchor="middle" font-family="Space Grotesk" font-weight="600" font-size="14" fill="#fff">YARP Gateway</text>
-        <text x="470" y="127" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#9db8f0">JWT at the edge · CORS · rate limit · correlation-id</text>
+        <text x="470" y="127" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#9db8f0">single origin · path routing /api/&lt;svc&gt;/** · JWT · CORS · rate limit</text>
 
         <!-- fan-out lines -->
         <line x1="470" y1="136" x2="130" y2="176" stroke="#94a3b8" stroke-width="1.4" marker-end="url(#a)"/>
@@ -213,8 +215,8 @@
         <text x="185" y="391" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#4f46e5">single-writer lock authority</text>
 
         <rect x="345" y="356" width="330" height="44" rx="10" fill="#fdf1eb" stroke="#c2410c" stroke-width="1.5"/>
-        <text x="510" y="376" text-anchor="middle" font-family="Space Grotesk" font-weight="600" font-size="12.5" fill="#c2410c">RabbitMQ · MassTransit</text>
-        <text x="510" y="391" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#c2410c">integration events + transactional outbox</text>
+        <text x="510" y="376" text-anchor="middle" font-family="Space Grotesk" font-weight="600" font-size="12.5" fill="#c2410c">Apache Kafka · KRaft</text>
+        <text x="510" y="391" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#c2410c">topics · partitions · per-service outbox relay</text>
 
         <rect x="710" y="356" width="170" height="44" rx="10" fill="#f4f8fb" stroke="#94a3b8" stroke-width="1.4"/>
         <text x="795" y="376" text-anchor="middle" font-family="Space Grotesk" font-weight="600" font-size="12.5" fill="#475569">Seq</text>
@@ -226,7 +228,7 @@
         <path d="M360,230 C360,330 470,338 480,356" fill="none" stroke="#c2410c" stroke-width="1.3" stroke-dasharray="4 4" marker-end="url(#ae)"/>
         <text x="60" y="430" font-family="Inter" font-size="11" fill="#64748b">
           <tspan fill="#94a3b8">──</tspan> synchronous (HTTP via gateway) &#160;&#160;
-          <tspan fill="#c2410c">╌╌</tspan> asynchronous (events via the bus)</text>
+          <tspan fill="#c2410c">╌╌</tspan> asynchronous (events via Kafka, keyed by study_id)</text>
         <text x="60" y="450" font-family="Inter" font-size="11" fill="#94a3b8">Booking makes one typed-HttpClient call to Identity to snapshot patient/doctor names — the only sync cross-service hop on the write path.</text>
       </svg>
     </div>
@@ -247,7 +249,7 @@
         <div class="arrow-down">↓ depends on</div>
         <div class="layer infra">
           <h4>Infrastructure <span class="tag">adapters</span></h4>
-          <p>EF Core <code>DbContext</code> (snake_case, <code>xmin</code> concurrency), repository implementations, Redis lock adapter, <code>IBlobStore</code> disk adapter, MassTransit, typed HttpClients.</p>
+          <p>EF Core <code>DbContext</code> (snake_case, <code>xmin</code> concurrency), repository implementations, Redis lock adapter, <code>IBlobStore</code> disk adapter, Kafka producer/consumer + outbox relay, typed HttpClients.</p>
         </div>
         <div class="arrow-down">↓ depends on</div>
         <div class="layer app">
@@ -281,7 +283,7 @@
     <div class="ctx-grid">
 
       <div class="ctx identity">
-        <div class="ctx-head"><span class="name">Identity</span><span class="schema">schema identity · 5 tables</span></div>
+        <div class="ctx-head"><span class="name">Identity</span><span class="schema">schema identity · 5 domain + outbox</span></div>
         <div class="ctx-body">
           <p class="role">Auth + who people are. Admins seeded, doctors admin-created, patients self-register.</p>
           <div class="agg">
@@ -293,7 +295,7 @@
       </div>
 
       <div class="ctx studies">
-        <div class="ctx-head"><span class="name">Studies</span><span class="schema">schema studies · 5 tables</span></div>
+        <div class="ctx-head"><span class="name">Studies</span><span class="schema">schema studies · 5 domain + outbox/inbox</span></div>
         <div class="ctx-body">
           <p class="role">The workflow core and the single source of truth.</p>
           <div class="agg">
@@ -311,7 +313,7 @@
       </div>
 
       <div class="ctx imaging">
-        <div class="ctx-head"><span class="name">Imaging</span><span class="schema">schema imaging · 2 tables</span></div>
+        <div class="ctx-head"><span class="name">Imaging</span><span class="schema">schema imaging · 2 domain + outbox</span></div>
         <div class="ctx-body">
           <p class="role">DICOM Study › Series › Instance. Pixels in blob storage, metadata in Postgres.</p>
           <div class="agg">
@@ -323,7 +325,7 @@
       </div>
 
       <div class="ctx reporting">
-        <div class="ctx-head"><span class="name">Reporting</span><span class="schema">schema reporting · 3 tables</span></div>
+        <div class="ctx-head"><span class="name">Reporting</span><span class="schema">schema reporting · 3 domain + outbox</span></div>
         <div class="ctx-body">
           <p class="role">The read itself — replaces the whole v3 Prescription service.</p>
           <div class="agg">
@@ -361,9 +363,11 @@
   <!-- 5. INTEGRATION EVENTS -->
   <section class="panel">
     <div class="panel-h"><span class="bar"></span><span class="num">05</span><h2>Integration events — choreography, not orchestration</h2></div>
-    <p class="panel-note">Services react to facts. Each event is written to a transactional <b>outbox</b> in the same
-      Postgres transaction as the state change, then relayed by MassTransit — so a fact is never lost and never
-      double-committed. Consumers are idempotent, with a dead-letter queue for poison messages.</p>
+    <p class="panel-note">Services react to facts. Each event is written to a per-service transactional <b>outbox</b>
+      in the same Postgres transaction as the state change, then a background relay publishes it to <b>Kafka</b>,
+      keyed by <code>study_id</code> so every event for one Study lands on one partition and is consumed in order —
+      a fact is never lost and never double-committed. Consumers dedupe through an <b>inbox</b> table (Kafka is
+      at-least-once), with a dead-letter topic for poison messages.</p>
     <table>
       <thead><tr><th>Event</th><th>Published by</th><th>Consumed by</th><th>Effect</th></tr></thead>
       <tbody>
@@ -388,7 +392,7 @@
       </tbody>
     </table>
     <div class="evt-note"><b>Why async here:</b> during P04–P07 these hops are temporary direct HTTP calls so each
-      service can be built and tested alone. P08 replaces them with the bus — the boundaries never move, only the
+      service can be built and tested alone. P08 replaces them with Kafka — the boundaries never move, only the
       transport does. That is the microservice lesson: <b>a service publishes a fact and forgets; whoever cares reacts.</b></div>
   </section>
 
@@ -450,9 +454,9 @@
         <tr><td class="k">AuthN / AuthZ</td><td>JWT access + rotating refresh; one role claim; 3 policies (<code>PatientOnly</code> / <code>DoctorOnly</code> / <code>AdminOnly</code>)</td><td>A 3-role system needs no permission matrix. Ownership checks read the JWT <code>sub</code>, never a route param.</td></tr>
         <tr><td class="k">CQRS</td><td>Hand-rolled dispatcher + <code>Result&lt;T&gt;</code> + FluentValidation</td><td>Teaches the pattern without a MediatR dependency; validation &amp; logging as pipeline behaviours.</td></tr>
         <tr><td class="k">Persistence</td><td>EF Core (Npgsql), snake_case, <code>xmin</code> optimistic concurrency</td><td>A lost update surfaces as a <code>409</code>, not a silent overwrite. No Dapper — projection over one local table is one round trip.</td></tr>
-        <tr><td class="k">Messaging</td><td>MassTransit / RabbitMQ + EF transactional outbox</td><td>Exactly-once effect: the event and the state change commit together or not at all.</td></tr>
+        <tr><td class="k">Messaging</td><td>Apache Kafka (Confluent.Kafka) + EF transactional outbox &amp; relay; keyed by <code>study_id</code>; idempotent consumers via an inbox</td><td>Exactly-once <em>effect</em>: the event and the state change commit together or not at all; the partition key gives per-Study ordering.</td></tr>
         <tr><td class="k">Storage</td><td><code>IBlobStore</code> port · local-disk adapter</td><td>Azure Blob is a same-shape swap behind the port — no domain change.</td></tr>
-        <tr><td class="k">Gateway</td><td>YARP — routing, JWT, CORS, rate limit, aggregated health</td><td>Deliberately thin. No BFF aggregation or request transforms in the MVP.</td></tr>
+        <tr><td class="k">Gateway</td><td>YARP — single public origin, path-based routing (<code>/api/&lt;service&gt;/**</code>), JWT, CORS, rate limit, aggregated health</td><td>One domain, one address; the path selects the service (<code>PathRemovePrefix</code> keeps services gateway-unaware). Same map from <code>localhost</code> to a real hostname. No BFF aggregation in the MVP.</td></tr>
         <tr><td class="k">Observability</td><td>Serilog → Seq, correlation id propagated at the gateway</td><td>OpenTelemetry tracing is deferred; a correlation id is enough to follow a request across services.</td></tr>
         <tr><td class="k">Break-glass</td><td>Audited overrides &amp; force-releases; reason mandatory</td><td>The healthcare-specific lesson, scoped small: no reason, no override — enforced in the handler.</td></tr>
       </tbody>
@@ -475,7 +479,7 @@
 
   <footer>
     <span><b>MediView</b> · 45-day MVP · DDD + Clean Architecture · 4 services + YARP + Blazor</span>
-    <span>15 tables · 8 pages · 93 tasks · Postgres · Redis · RabbitMQ · Seq</span>
+    <span>15 domain + 5 messaging tables · 8 pages · 93 tasks · Postgres · Redis · Kafka · Seq</span>
   </footer>
 
 </div>

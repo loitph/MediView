@@ -14,8 +14,19 @@ inside a doctor's schedule; an admin simulates the x-ray import; a doctor
 reads the study in a single-writer locked viewport and finalizes a report
 with medications; the study closes or goes back for another read.
 
-4 services: Identity, Studies, Imaging, Reporting. Plus a YARP gateway and a
-Blazor Server web app.
+4 services: Identity, Studies, Imaging, Reporting. Plus a YARP gateway that is
+the single public origin (path-based routing: /api/<service>/**) and a Blazor
+Server web app.
+
+Services never call each other on the write path. They coordinate by choreography
+over Apache Kafka: each service writes facts to its OWN transactional outbox
+(outbox_messages) in the same Postgres transaction as the state change; a
+background relay publishes them to Kafka keyed by study_id (all events for one
+Study share a partition => ordered); consumers dedupe through an inbox table
+(inbox_messages) because Kafka is at-least-once.
+
+Table count: 15 DOMAIN tables (below) + 5 MESSAGING-INFRA tables (one
+outbox_messages per service x4, plus studies.inbox_messages) = 20 physical.
 '''
 }
 
@@ -351,7 +362,119 @@ Table reporting.drugs {
 Ref: reporting.report_medications.drug_id > reporting.drugs.id
 
 // =====================================================================
-// Table groups - one group per microservice (4 services, 15 tables)
+// MESSAGING INFRASTRUCTURE - Kafka outbox (per publisher) + inbox (Studies)
+// Not domain tables. Same SHAPE in every service schema, so it is taught once.
+// They exist because Kafka is at-least-once and the write must be atomic:
+//   publish  = INSERT outbox row in the SAME tx as the aggregate change,
+//              then a background relay drains it to Kafka.
+//   consume  = check/INSERT the inbox row, then apply the change - so a
+//              redelivered event is a no-op the second time.
+// =====================================================================
+
+// --- one outbox_messages per PUBLISHING service (identity, studies, imaging, reporting)
+//     shown once here; the identical table is created in each of the four schemas.
+
+Table identity.outbox_messages {
+  id             uuid          [pk, not null, default: `gen_random_uuid()`]
+  event_id       uuid          [not null, unique, note: 'stable id; rides in the Kafka `event-id` header and is the consumer dedup key']
+  aggregate_type varchar(50)   [not null, note: 'study | report | series | doctor']
+  aggregate_id   uuid          [not null, note: 'PARTITION-KEY SOURCE - all events for one Study share a partition => ordered']
+  event_type     varchar(100)  [not null, note: 'ImagesImported | ReportFinalized | DoctorRegistered | StudyStatusChanged']
+  topic          varchar(120)  [not null, note: 'e.g. reporting.report-finalized']
+  partition_key  varchar(64)   [not null, note: 'usually aggregate_id::text']
+  payload        jsonb         [not null, note: 'the integration-event contract, serialized']
+  headers        jsonb         [note: 'correlation-id, causation-id, content-type']
+  occurred_at    timestamptz   [not null, default: `now()`]
+  published_at   timestamptz   [note: 'NULL until the relay produces it to Kafka']
+  attempts       smallint      [not null, default: 0, note: 'relay retry counter']
+  created_at     timestamptz   [not null, default: `now()`]
+
+  indexes {
+    (published_at, occurred_at) [note: 'the relay drains: WHERE published_at IS NULL ORDER BY occurred_at']
+  }
+  Note: 'Written in the SAME Postgres transaction as the aggregate change. A background relay (OutboxRelay) polls unpublished rows in order (FOR UPDATE SKIP LOCKED) and produces them to Kafka keyed by partition_key, then stamps published_at. This explicit, teachable table replaces a broker-specific outbox library. The identical table lives in studies, imaging and reporting.'
+}
+
+Table studies.outbox_messages {
+  id             uuid          [pk, not null, default: `gen_random_uuid()`]
+  event_id       uuid          [not null, unique]
+  aggregate_type varchar(50)   [not null]
+  aggregate_id   uuid          [not null, note: 'study_id => per-Study partition ordering']
+  event_type     varchar(100)  [not null]
+  topic          varchar(120)  [not null]
+  partition_key  varchar(64)   [not null]
+  payload        jsonb         [not null]
+  headers        jsonb
+  occurred_at    timestamptz   [not null, default: `now()`]
+  published_at   timestamptz
+  attempts       smallint      [not null, default: 0]
+  created_at     timestamptz   [not null, default: `now()`]
+
+  indexes {
+    (published_at, occurred_at)
+  }
+  Note: 'Studies publishes StudyStatusChanged here (durable), then also nudges SignalR for the live UI. Same shape as identity.outbox_messages.'
+}
+
+Table imaging.outbox_messages {
+  id             uuid          [pk, not null, default: `gen_random_uuid()`]
+  event_id       uuid          [not null, unique]
+  aggregate_type varchar(50)   [not null]
+  aggregate_id   uuid          [not null, note: 'study_id']
+  event_type     varchar(100)  [not null]
+  topic          varchar(120)  [not null]
+  partition_key  varchar(64)   [not null]
+  payload        jsonb         [not null]
+  headers        jsonb
+  occurred_at    timestamptz   [not null, default: `now()`]
+  published_at   timestamptz
+  attempts       smallint      [not null, default: 0]
+  created_at     timestamptz   [not null, default: `now()`]
+
+  indexes {
+    (published_at, occurred_at)
+  }
+  Note: 'Imaging publishes ImagesImported here after a successful import. Same shape as identity.outbox_messages.'
+}
+
+Table reporting.outbox_messages {
+  id             uuid          [pk, not null, default: `gen_random_uuid()`]
+  event_id       uuid          [not null, unique]
+  aggregate_type varchar(50)   [not null]
+  aggregate_id   uuid          [not null, note: 'study_id']
+  event_type     varchar(100)  [not null]
+  topic          varchar(120)  [not null]
+  partition_key  varchar(64)   [not null]
+  payload        jsonb         [not null]
+  headers        jsonb
+  occurred_at    timestamptz   [not null, default: `now()`]
+  published_at   timestamptz
+  attempts       smallint      [not null, default: 0]
+  created_at     timestamptz   [not null, default: `now()`]
+
+  indexes {
+    (published_at, occurred_at)
+  }
+  Note: 'Reporting writes ReportFinalized here INSIDE the finalize transaction (stamp finalized_at + outbox row + release lock, all atomic). Same shape as identity.outbox_messages.'
+}
+
+// --- inbox lives only where events are CONSUMED. In the MVP that is Studies.
+
+Table studies.inbox_messages {
+  event_id     uuid          [not null, note: 'the producing outbox event_id / Kafka `event-id` header']
+  consumer     varchar(100)  [not null, note: 'e.g. ImagesImported | ReportFinalized (which handler)']
+  event_type   varchar(100)  [not null]
+  processed_at timestamptz   [not null, default: `now()`]
+
+  indexes {
+    (event_id, consumer) [pk]
+  }
+  Note: 'Idempotency ledger. Kafka is at-least-once, so a consumer may see the same event twice. A handler first INSERTs (event_id, consumer); a unique-violation means "already processed" -> commit the offset and do nothing. The insert and the state change commit in one transaction.'
+}
+
+// =====================================================================
+// Table groups - one group per microservice
+// 15 domain tables + 5 messaging-infra tables (4 outbox + 1 inbox) = 20
 // =====================================================================
 
 TableGroup Identity_Service {
@@ -360,6 +483,7 @@ TableGroup Identity_Service {
   identity.patients
   identity.doctors
   identity.doctor_schedules
+  identity.outbox_messages
 }
 
 TableGroup Studies_Service {
@@ -368,15 +492,19 @@ TableGroup Studies_Service {
   studies.study_status_history
   studies.study_locks
   studies.audit_log
+  studies.outbox_messages
+  studies.inbox_messages
 }
 
 TableGroup Imaging_Service {
   imaging.series
   imaging.instances
+  imaging.outbox_messages
 }
 
 TableGroup Reporting_Service {
   reporting.reports
   reporting.report_medications
   reporting.drugs
+  reporting.outbox_messages
 }

@@ -1,14 +1,14 @@
 {
   "project": {
-    "name": "MediView - 45-Day MVP",
-    "description": "The 45-day teaching cut of MediView. A patient self-registers and books inside a doctor's schedule; an admin simulates the x-ray import; a doctor opens the study in a Cornerstone.js viewport under a Redis single-writer lock, writes a report with medications and finalizes it; the Study status (To do -> In progress -> Re-diagnosis -> Done) is the single source of truth and closes over an integration event. Four .NET 10 microservices - Identity, Studies, Imaging, Reporting - plus a YARP gateway and a Blazor Server web app, 15 database tables, 8 pages. The full-product plan (11 deployables, 41 tables, 15 screens, Azure) is preserved in checklist.json and mediview.dbml; what was removed and why is in scope-cut.md.",
+    "name": "MediView",
+    "description": "The teaching cut of MediView. A patient self-registers and books inside a doctor's schedule; an admin simulates the x-ray import; a doctor opens the study in a Cornerstone.js viewport under a Redis single-writer lock, writes a report with medications and finalizes it; the Study status (To do -> In progress -> Re-diagnosis -> Done) is the single source of truth and closes over a Kafka integration event. Four .NET 10 microservices - Identity, Studies, Imaging, Reporting - plus a YARP gateway and a Blazor Server web app, 15 domain tables (plus a per-service Kafka outbox and a Studies inbox), 8 pages. The full-product plan (11 deployables, 41 tables, 15 screens, Azure) is preserved in checklist.json and mediview.dbml; what was removed and why is in scope-cut.md.",
     "techStack": {
       "backend": ".NET 10",
       "frontend": "Blazor Server (8 pages, desktop only)",
-      "architecture": "DDD + Clean Architecture (Domain / Application / Infrastructure / Api) x 4 services + YARP gateway",
-      "database": "PostgreSQL - 15 tables, one schema per service, FKs only inside a schema",
+      "architecture": "DDD + Clean Architecture (Domain / Application / Infrastructure / Api) x 4 services + YARP gateway (single public origin, path-based routing)",
+      "database": "PostgreSQL - 15 domain tables + a per-service outbox and a Studies inbox for Kafka, one schema per service, FKs only inside a schema",
       "cache": "Redis (single-writer study lock: SET NX PX + Lua compare-and-delete)",
-      "messaging": "MassTransit over RabbitMQ with the EF Core transactional outbox",
+      "messaging": "Apache Kafka (Confluent.Kafka) with an EF Core transactional outbox + a background relay; per-Study ordering via a study_id partition key; idempotent consumers backed by an inbox table",
       "cqrs": "Hand-rolled dispatcher + Result<T> + FluentValidation - no MediatR dependency",
       "auth": "JWT access tokens + rotating refresh tokens, one role claim, three policies",
       "orm": "Entity Framework Core (Npgsql), snake_case, xmin concurrency - no Dapper in the MVP",
@@ -65,7 +65,9 @@
         "studies.study_locks + Redis": "distributed single-writer concurrency - the differentiator of this project",
         "reporting.reports + report_medications": "a second aggregate, immutability after finalize, cross-service choreography",
         "imaging.series + instances": "the DICOM hierarchy and a blob-backed infrastructure adapter",
-        "studies.audit_log": "break-glass - the healthcare-specific lesson, kept small"
+        "studies.audit_log": "break-glass - the healthcare-specific lesson, kept small",
+        "outbox_messages + Kafka relay": "the transactional-outbox pattern and per-Study ordering via partition keys - the reliability lesson: the state change and the published fact commit together or not at all",
+        "studies.inbox_messages": "idempotent consumers - Kafka is at-least-once, so the same event can arrive twice; the inbox is the dedup ledger that makes replays safe"
       }
     },
     "schemaNote": "Enriched tasks carry three extra fields alongside the original ones: files[] ({path,lang,content}), commands[] and verify[]. steps[] remain strings so the checklist-tree-mvp.html renderer is unaffected."
@@ -481,35 +483,36 @@
         "P01"
       ],
       "days": "Day 4",
-      "goal": "Day 4 - One `docker compose up` gives you PostgreSQL, Redis, RabbitMQ and Seq. Services run from the IDE against them. No Aspire, no Kubernetes - that is deferred scope.",
+      "goal": "Day 4 - One `docker compose up` gives you PostgreSQL, Redis, Kafka (KRaft mode, no ZooKeeper) and Seq, plus a browser Kafka UI. Services run from the IDE against them. No Aspire, no Kubernetes - that is deferred scope.",
       "tasks": [
         {
           "id": "P02-T01",
           "title": "docker-compose.yml with the four dependencies",
-          "details": "Postgres 16, Redis 7, RabbitMQ with the management UI, Seq for log viewing. Named volumes so data survives a restart.",
+          "details": "Postgres 16, Redis 7, Kafka in single-broker KRaft mode (no ZooKeeper) with a browser Kafka UI, Seq for log viewing. Named volumes so data survives a restart.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [],
           "acceptanceCriteria": [
-            "`docker compose up -d --wait` returns healthy for all four",
-            "RabbitMQ management UI reachable on :15672, Seq on :5341"
+            "`docker compose up -d --wait` returns healthy for postgres, redis and kafka",
+            "Kafka UI reachable on :8085, Seq on :5341"
           ],
           "tags": [
             "docker",
             "infra"
           ],
           "steps": [
-            "Write .env at the repo root holding dev-only infra credentials and every host port (POSTGRES_PORT, REDIS_PORT, RABBITMQ_PORT, RABBITMQ_UI_PORT=15672, SEQ_PORT=5341). If a local Postgres already owns 5432, set POSTGRES_PORT=5433 here and mirror it in every connection string.",
+            "Write .env at the repo root holding dev-only infra credentials and every host port (POSTGRES_PORT, REDIS_PORT, KAFKA_PORT=9092, KAFKA_UI_PORT=8085, SEQ_PORT=5341). If a local Postgres already owns 5432, set POSTGRES_PORT=5433 here and mirror it in every connection string.",
             "Write infra/postgres/init.sql that CREATE DATABASEs the four service databases (mediview_identity/studies/imaging/reporting). NOTE: init scripts run only on the FIRST boot of an empty pgdata volume — to re-seed later, `docker compose down -v`.",
-            "Write docker-compose.yml with the four services, fixed host ports, named volumes and a dedicated network. Give postgres/redis/rabbitmq real healthchecks.",
-            "Map Seq as 5341:80 — modern Seq serves BOTH the UI and log ingestion on container port 80, so the human and the Serilog sink both use :5341. Give Seq NO healthcheck (its image has no reliable curl, so `--wait` would hang).",
-            "Bring it up: `docker compose up -d --wait` blocks until postgres/redis/rabbitmq report healthy."
+            "Write docker-compose.yml with postgres, redis, kafka (KRaft single-node), kafka-ui and seq, fixed host ports, named volumes and a dedicated network. Give postgres/redis/kafka real healthchecks.",
+            "Give Kafka two listeners: an internal `PLAINTEXT://kafka:9092` for in-network clients (kafka-ui) and a `PLAINTEXT_HOST` advertised as `localhost:${KAFKA_PORT}` for the services running from the IDE on the host. Turn OFF auto-topic-creation so every topic is explicit (created in P08-T01).",
+            "Map Seq as 5341:80 — modern Seq serves BOTH the UI and log ingestion on container port 80. Give Seq and kafka-ui NO healthcheck (their images ship no reliable curl, so `--wait` would hang).",
+            "Bring it up: `docker compose up -d --wait` blocks until postgres/redis/kafka report healthy."
           ],
           "files": [
             {
               "path": ".env",
               "lang": "dotenv",
-              "content": "# local development only — never reuse these values anywhere real\nPOSTGRES_USER=mediview\nPOSTGRES_PASSWORD=localdev_change_me\nRABBITMQ_DEFAULT_USER=mediview\nRABBITMQ_DEFAULT_PASS=localdev_change_me\n\n# host ports (change the LEFT side only if something already uses it)\nPOSTGRES_PORT=5432\nREDIS_PORT=6379\nRABBITMQ_PORT=5672\nRABBITMQ_UI_PORT=15672\nSEQ_PORT=5341"
+              "content": "# local development only — never reuse these values anywhere real\nPOSTGRES_USER=mediview\nPOSTGRES_PASSWORD=localdev_change_me\n\n# host ports (change the LEFT side only if something already uses it)\nPOSTGRES_PORT=5432\nREDIS_PORT=6379\nKAFKA_PORT=9092\nKAFKA_UI_PORT=8085\nSEQ_PORT=5341"
             },
             {
               "path": "infra/postgres/init.sql",
@@ -519,16 +522,16 @@
             {
               "path": "docker-compose.yml",
               "lang": "yaml",
-              "content": "name: mediview\n\nservices:\n  postgres:\n    image: postgres:16\n    container_name: mediview-postgres\n    restart: unless-stopped\n    environment:\n      POSTGRES_USER: ${POSTGRES_USER}\n      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}\n      POSTGRES_DB: postgres            # init.sql creates the 4 app databases\n    ports:\n      - \"${POSTGRES_PORT}:5432\"\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U $${POSTGRES_USER} -d postgres\"]\n      interval: 5s\n      timeout: 3s\n      retries: 10\n    networks: [mediview]\n\n  redis:\n    image: redis:7\n    container_name: mediview-redis\n    restart: unless-stopped\n    command: [\"redis-server\", \"--appendonly\", \"yes\"]\n    ports:\n      - \"${REDIS_PORT}:6379\"\n    volumes:\n      - redisdata:/data\n    healthcheck:\n      test: [\"CMD\", \"redis-cli\", \"ping\"]\n      interval: 5s\n      timeout: 3s\n      retries: 10\n    networks: [mediview]\n\n  rabbitmq:\n    image: rabbitmq:3.13-management\n    container_name: mediview-rabbitmq\n    restart: unless-stopped\n    environment:\n      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}\n      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}\n    ports:\n      - \"${RABBITMQ_PORT}:5672\"\n      - \"${RABBITMQ_UI_PORT}:15672\"\n    volumes:\n      - rabbitmqdata:/var/lib/rabbitmq\n    healthcheck:\n      test: [\"CMD\", \"rabbitmq-diagnostics\", \"-q\", \"ping\"]\n      interval: 10s\n      timeout: 5s\n      retries: 10\n    networks: [mediview]\n\n  seq:\n    image: datalust/seq:2024.3\n    container_name: mediview-seq\n    restart: unless-stopped\n    environment:\n      ACCEPT_EULA: \"Y\"\n    ports:\n      - \"${SEQ_PORT}:80\"               # UI + ingestion share port 80 in modern Seq\n    volumes:\n      - seqdata:/data\n    networks: [mediview]\n    # no healthcheck: the Seq image ships no reliable curl, so `--wait` would hang.\n\nvolumes:\n  pgdata:\n  redisdata:\n  rabbitmqdata:\n  seqdata:\n\nnetworks:\n  mediview:\n    driver: bridge"
+              "content": "name: mediview\n\nservices:\n  postgres:\n    image: postgres:16\n    container_name: mediview-postgres\n    restart: unless-stopped\n    environment:\n      POSTGRES_USER: ${POSTGRES_USER}\n      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}\n      POSTGRES_DB: postgres            # init.sql creates the 4 app databases\n    ports:\n      - \"${POSTGRES_PORT}:5432\"\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U $${POSTGRES_USER} -d postgres\"]\n      interval: 5s\n      timeout: 3s\n      retries: 10\n    networks: [mediview]\n\n  redis:\n    image: redis:7\n    container_name: mediview-redis\n    restart: unless-stopped\n    command: [\"redis-server\", \"--appendonly\", \"yes\"]\n    ports:\n      - \"${REDIS_PORT}:6379\"\n    volumes:\n      - redisdata:/data\n    healthcheck:\n      test: [\"CMD\", \"redis-cli\", \"ping\"]\n      interval: 5s\n      timeout: 3s\n      retries: 10\n    networks: [mediview]\n\n  kafka:\n    image: apache/kafka:3.8.0          # official image, KRaft mode - NO ZooKeeper\n    container_name: mediview-kafka\n    restart: unless-stopped\n    ports:\n      - \"${KAFKA_PORT}:29092\"          # host clients (services in the IDE) reach the broker here\n    environment:\n      KAFKA_NODE_ID: 1\n      KAFKA_PROCESS_ROLES: broker,controller\n      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093\n      # two listeners: kafka:9092 for in-network (kafka-ui), localhost:${KAFKA_PORT} for the host\n      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:29092\n      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:${KAFKA_PORT}\n      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT\n      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER\n      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT\n      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1\n      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1\n      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1\n      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0\n      KAFKA_AUTO_CREATE_TOPICS_ENABLE: \"false\"   # topics are created explicitly in P08-T01\n    healthcheck:\n      test: [\"CMD-SHELL\", \"/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1 || exit 1\"]\n      interval: 10s\n      timeout: 5s\n      retries: 15\n    networks: [mediview]\n    # no named volume on purpose: the dev broker is ephemeral. Topics are re-created on boot\n    # by the TopicInitializer, and the transactional outbox re-publishes anything unacked - which\n    # is exactly why the consumers must be idempotent (P08-T05).\n\n  kafka-ui:\n    image: provectuslabs/kafka-ui:latest\n    container_name: mediview-kafka-ui\n    restart: unless-stopped\n    depends_on:\n      kafka:\n        condition: service_healthy\n    ports:\n      - \"${KAFKA_UI_PORT}:8080\"\n    environment:\n      KAFKA_CLUSTERS_0_NAME: mediview\n      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092\n      DYNAMIC_CONFIG_ENABLED: \"true\"\n    networks: [mediview]\n    # no healthcheck: image ships no reliable curl, so `--wait` would hang.\n\n  seq:\n    image: datalust/seq:2024.3\n    container_name: mediview-seq\n    restart: unless-stopped\n    environment:\n      ACCEPT_EULA: \"Y\"\n    ports:\n      - \"${SEQ_PORT}:80\"               # UI + ingestion share port 80 in modern Seq\n    volumes:\n      - seqdata:/data\n    networks: [mediview]\n    # no healthcheck: the Seq image ships no reliable curl, so `--wait` would hang.\n\nvolumes:\n  pgdata:\n  redisdata:\n  seqdata:\n\nnetworks:\n  mediview:\n    driver: bridge"
             }
           ],
           "commands": [
             "docker compose up -d --wait",
-            "docker compose ps    # postgres/redis/rabbitmq must show 'healthy'"
+            "docker compose ps    # postgres/redis/kafka must show 'healthy'"
           ],
           "verify": [
-            "`docker compose up -d --wait` returns healthy for postgres, redis and rabbitmq.",
-            "RabbitMQ management UI reachable at http://localhost:15672 ; Seq UI at http://localhost:5341."
+            "`docker compose up -d --wait` returns healthy for postgres, redis and kafka.",
+            "Kafka UI reachable at http://localhost:8085 (browse topics, partitions and consumer groups); Seq UI at http://localhost:5341."
           ],
           "enriched": true
         },
@@ -551,13 +554,13 @@
           "steps": [
             "Add appsettings.Development.json to each Api project with NON-secret defaults only — hosts are localhost (services run from the IDE, not inside the compose network) and the Database name differs per service.",
             "Run `dotnet user-secrets init` in each Api project and store the password-bearing connection string there, so secrets never touch the repo.",
-            "Bind a typed options class per concern (DatabaseOptions, RedisOptions, RabbitMqOptions, SeqOptions) with [Required] and call .ValidateDataAnnotations().ValidateOnStart() so a missing secret fails at boot with a clear message, not a null ref at 2 a.m."
+            "Bind a typed options class per concern (DatabaseOptions, RedisOptions, KafkaOptions, SeqOptions) with [Required] and call .ValidateDataAnnotations().ValidateOnStart() so a missing secret fails at boot with a clear message, not a null ref at 2 a.m."
           ],
           "files": [
             {
               "path": "src/Services/Studies/MediView.Studies.Api/appsettings.Development.json",
               "lang": "json",
-              "content": "{\n  \"ConnectionStrings\": {\n    \"Postgres\": \"Host=localhost;Port=5432;Database=mediview_studies;Username=mediview\"\n  },\n  \"Redis\":    { \"Configuration\": \"localhost:6379\" },\n  \"RabbitMq\": { \"Host\": \"localhost\", \"Port\": 5672, \"VirtualHost\": \"/\", \"Username\": \"mediview\" },\n  \"Seq\":      { \"ServerUrl\": \"http://localhost:5341\" }\n}"
+              "content": "{\n  \"ConnectionStrings\": {\n    \"Postgres\": \"Host=localhost;Port=5432;Database=mediview_studies;Username=mediview\"\n  },\n  \"Redis\": { \"Configuration\": \"localhost:6379\" },\n  \"Kafka\": { \"BootstrapServers\": \"localhost:9092\" },\n  \"Seq\":   { \"ServerUrl\": \"http://localhost:5341\" }\n}"
             },
             {
               "path": "src/Services/Studies/MediView.Studies.Infrastructure/Configuration/DatabaseOptions.cs",
@@ -574,7 +577,7 @@
             "cd src/Services/Studies/MediView.Studies.Api",
             "dotnet user-secrets init",
             "dotnet user-secrets set \"ConnectionStrings:Postgres\" \"Host=localhost;Port=5432;Database=mediview_studies;Username=mediview;Password=localdev_change_me\"",
-            "dotnet user-secrets set \"RabbitMq:Password\" \"localdev_change_me\"",
+            "# Kafka in dev is PLAINTEXT (no auth), so Kafka:BootstrapServers lives in appsettings - no secret needed.",
             "# repeat for Identity/Imaging/Reporting, swapping the Database= name"
           ],
           "verify": [
@@ -643,7 +646,7 @@
             "docs"
           ],
           "steps": [
-            "Add the AspNetCore.HealthChecks.NpgSql, .Redis and .Rabbitmq packages, then register /health/live (process up) and /health/ready (Postgres + Redis + RabbitMQ reachable) in every Api.",
+            "Add the AspNetCore.HealthChecks.NpgSql, .Redis and .Kafka packages, then register /health/live (process up) and /health/ready (Postgres + Redis + Kafka reachable) in every Api.",
             "Add run.sh (macOS/Linux) and run.ps1 (Windows) that bring up compose with --wait, then `dotnet run` the gateway and four services.",
             "Write the 6-line 'getting started' block in the README and actually follow it on a fresh clone, timing it — it must be under 5 minutes."
           ],
@@ -651,7 +654,7 @@
             {
               "path": "src/BuildingBlocks/MediView.BuildingBlocks.Api/HealthChecks.cs (excerpt)",
               "lang": "csharp",
-              "content": "builder.Services.AddHealthChecks()\n    .AddNpgSql(builder.Configuration.GetConnectionString(\"Postgres\")!, name: \"postgres\", tags: [\"ready\"])\n    .AddRedis(builder.Configuration[\"Redis:Configuration\"]!,           name: \"redis\",    tags: [\"ready\"])\n    .AddRabbitMQ(name: \"rabbitmq\", tags: [\"ready\"]);\n\napp.MapHealthChecks(\"/health/live\",  new() { Predicate = _ => false });\napp.MapHealthChecks(\"/health/ready\", new() { Predicate = c => c.Tags.Contains(\"ready\") });"
+              "content": "builder.Services.AddHealthChecks()\n    .AddNpgSql(builder.Configuration.GetConnectionString(\"Postgres\")!, name: \"postgres\", tags: [\"ready\"])\n    .AddRedis(builder.Configuration[\"Redis:Configuration\"]!,           name: \"redis\",    tags: [\"ready\"])\n    .AddKafka(new ProducerConfig { BootstrapServers = builder.Configuration[\"Kafka:BootstrapServers\"] },\n              name: \"kafka\", tags: [\"ready\"]);\n\napp.MapHealthChecks(\"/health/live\",  new() { Predicate = _ => false });\napp.MapHealthChecks(\"/health/ready\", new() { Predicate = c => c.Tags.Contains(\"ready\") });"
             },
             {
               "path": "run.sh",
@@ -666,7 +669,7 @@
             {
               "path": "README.md (getting started)",
               "lang": "markdown",
-              "content": "## Getting started\n1. Install Docker Desktop and the .NET 10 SDK.\n2. In each *.Api project run the `dotnet user-secrets set` lines in docs/secrets.md.\n3. `./run.sh`  (Windows: `./run.ps1`)\n4. Gateway readiness: http://localhost:<gateway-port>/health/ready\n5. Logs: http://localhost:5341 (Seq)  ·  Queues: http://localhost:15672 (RabbitMQ)\n6. Stop: Ctrl-C, then `docker compose down` (add -v to wipe data)."
+              "content": "## Getting started\n1. Install Docker Desktop and the .NET 10 SDK.\n2. In each *.Api project run the `dotnet user-secrets set` lines in docs/secrets.md.\n3. `./run.sh`  (Windows: `./run.ps1`)\n4. Gateway readiness: http://localhost:<gateway-port>/health/ready\n5. Logs: http://localhost:5341 (Seq)  ·  Topics: http://localhost:8085 (Kafka UI)\n6. Stop: Ctrl-C, then `docker compose down` (add -v to wipe data)."
             }
           ],
           "commands": [
@@ -1821,87 +1824,158 @@
     },
     {
       "id": "P08",
-      "name": "Integration Events (MassTransit + Outbox)",
+      "name": "Integration Events (Kafka + Outbox)",
       "order": 8,
       "dependsOn": [
         "P05",
         "P07"
       ],
       "days": "Days 31-32",
-      "goal": "Days 31-32 - Replace the temporary direct HTTP calls with real async choreography. Three events, two consumers, one transactional outbox. This is the microservice lesson: services react to facts, they do not command each other.",
+      "goal": "Days 31-32 - Replace the temporary direct HTTP calls with real async choreography over Apache Kafka. Every service writes events to its own transactional outbox in the SAME Postgres transaction as the state change; a background relay publishes them to Kafka keyed by study_id (so all events for one Study land on one partition, in order); idempotent consumers in Studies react. This is the microservice lesson: services react to facts, they do not command each other.",
       "tasks": [
         {
           "id": "P08-T01",
-          "title": "Wire MassTransit over RabbitMQ in all four services",
-          "details": "One shared AddMessaging(config) extension so every service is configured identically.",
+          "title": "Kafka client, shared producer, topics and partitioning",
+          "details": "One shared AddKafkaMessaging(config) so every service produces identically. Topics and the partition key are decided here - study_id is the key, and that is what gives us per-Study ordering.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [],
           "acceptanceCriteria": [
-            "All four services connect and declare their endpoints on startup"
+            "All four services resolve a singleton Kafka producer and the topic catalogue on startup",
+            "The four topics exist with a fixed partition count before any service publishes"
           ],
           "tags": [
             "messaging",
-            "masstransit"
+            "kafka"
           ],
           "steps": [
-            "Add MassTransit.RabbitMQ; configure the host from options, kebab-case endpoint naming, and consumer registration by assembly scan.",
-            "Set a retry policy: exponential backoff with jitter, 5 attempts, then the error queue.",
-            "Verify the queues and exchanges appear in the RabbitMQ management UI on first start."
-          ]
+            "Add Confluent.Kafka to Infrastructure and a shared MediView.BuildingBlocks.Messaging with `AddKafkaMessaging(config)`: a singleton `IProducer<string,string>` (Acks.All, EnableIdempotence=true, LingerMs, Lz4) plus an `IEventPublisher` port.",
+            "Put the topic names in one static `KafkaTopics` catalogue in MediView.Contracts: `identity.doctor-registered`, `imaging.images-imported`, `reporting.report-finalized`, `studies.study-status-changed`. Names are stable contracts - never rename in place.",
+            "Key every message by the aggregate id (the study_id wherever there is one) so all events for one Study hash to the same partition and are consumed in order. Give each topic a small, fixed partition count (6).",
+            "Provision topics explicitly (auto-create is off): a tiny `TopicInitializer` hosted service calls `IAdminClient.CreateTopicsAsync` on startup, swallowing TopicAlreadyExists. Confirm them in the Kafka UI."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.Contracts/Messaging/KafkaTopics.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.Contracts.Messaging;\n\n/// The single catalogue of Kafka topics. Names are stable contracts - never rename in place.\npublic static class KafkaTopics\n{\n    public const string DoctorRegistered   = \"identity.doctor-registered\";\n    public const string ImagesImported     = \"imaging.images-imported\";\n    public const string ReportFinalized    = \"reporting.report-finalized\";\n    public const string StudyStatusChanged = \"studies.study-status-changed\";\n    public const string DeadLetter         = \"mediview.dead-letter\";\n\n    public const int DefaultPartitions = 6; // fixed; the study_id key does the ordering\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Messaging/MessagingExtensions.cs",
+              "lang": "csharp",
+              "content": "using Confluent.Kafka;\nusing Microsoft.Extensions.Configuration;\nusing Microsoft.Extensions.DependencyInjection;\nnamespace MediView.BuildingBlocks.Messaging;\n\npublic sealed class KafkaOptions\n{\n    public const string SectionName = \"Kafka\";\n    public string BootstrapServers { get; init; } = \"localhost:9092\";\n}\n\npublic static class MessagingExtensions\n{\n    public static IServiceCollection AddKafkaMessaging(this IServiceCollection services, IConfiguration config)\n    {\n        var options = config.GetSection(KafkaOptions.SectionName).Get<KafkaOptions>()!;\n        services.AddSingleton(options);\n\n        var producerConfig = new ProducerConfig\n        {\n            BootstrapServers  = options.BootstrapServers,\n            Acks              = Acks.All,        // wait for the in-sync replicas\n            EnableIdempotence = true,            // no duplicates from producer retries\n            LingerMs          = 5,\n            CompressionType   = CompressionType.Lz4\n        };\n        // one producer per process; thread-safe, reused everywhere\n        services.AddSingleton<IProducer<string, string>>(_ =>\n            new ProducerBuilder<string, string>(producerConfig).Build());\n        services.AddSingleton<IEventPublisher, KafkaEventPublisher>();\n        return services;\n    }\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Messaging/TopicInitializer.cs",
+              "lang": "csharp",
+              "content": "using Confluent.Kafka;\nusing Confluent.Kafka.Admin;\nusing MediView.Contracts.Messaging;\nusing Microsoft.Extensions.Hosting;\nnamespace MediView.BuildingBlocks.Messaging;\n\n/// Creates the topics this deployment needs, idempotently, before consumers start.\npublic sealed class TopicInitializer(KafkaOptions options, string[] topics) : IHostedService\n{\n    public async Task StartAsync(CancellationToken ct)\n    {\n        using var admin = new AdminClientBuilder(\n            new AdminClientConfig { BootstrapServers = options.BootstrapServers }).Build();\n        var specs = topics.Select(t => new TopicSpecification {\n            Name = t, NumPartitions = KafkaTopics.DefaultPartitions, ReplicationFactor = 1 });\n        try { await admin.CreateTopicsAsync(specs); }\n        catch (CreateTopicsException e)\n            when (e.Results.All(r => r.Error.Code == ErrorCode.TopicAlreadyExists)) { }\n    }\n    public Task StopAsync(CancellationToken ct) => Task.CompletedTask;\n}"
+            }
+          ],
+          "commands": [
+            "dotnet add src/BuildingBlocks/MediView.BuildingBlocks.Messaging package Confluent.Kafka"
+          ],
+          "verify": [
+            "On first boot the four topics appear in the Kafka UI, each with 6 partitions.",
+            "A test message keyed by a study_id always lands on the same partition (visible in the Kafka UI)."
+          ],
+          "enriched": true
         },
         {
           "id": "P08-T02",
-          "title": "Transactional outbox",
-          "details": "Without it, a crash between SaveChanges and Publish silently loses the event and the study never closes. This is the single most important reliability lesson in the project.",
+          "title": "Transactional outbox + a Kafka relay",
+          "details": "Without it, a crash between SaveChanges and Produce silently loses the event and the study never closes. The outbox row and the state change commit together; a separate relay is the only component that talks to Kafka. This is the single most important reliability lesson in the project.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
             "P08-T01"
           ],
           "acceptanceCriteria": [
-            "The outbox tables exist and drain",
-            "A process kill after commit still delivers the event"
+            "The outbox table drains: rows get a published_at after the relay runs",
+            "A process kill after commit but before publish still delivers the event on restart"
           ],
           "tags": [
             "messaging",
             "reliability"
           ],
           "steps": [
-            "Enable the MassTransit EF Core outbox on Imaging and Reporting (AddEntityFrameworkOutbox with UsePostgres + UseBusOutbox).",
-            "Add the outbox migration to both services.",
-            "Replace every direct IPublishEndpoint call inside a handler with a publish that enlists in the ambient transaction.",
-            "Prove it: pause the process between commit and delivery (a debugger breakpoint is enough), kill it, and confirm the event is still delivered on restart."
-          ]
+            "Add an `outbox_messages` table to each publishing schema (identity, studies, imaging, reporting) - see mediview-mvp.dbml. Write the EF configuration and a migration per service.",
+            "In every command handler that emits a fact, INSERT the outbox row (topic, key=aggregate_id, JSON payload, headers) in the SAME DbContext transaction as the aggregate change. There is never an `IProducer` call inside a handler.",
+            "Write an `OutboxRelay` BackgroundService: poll `WHERE published_at IS NULL ORDER BY occurred_at LIMIT n FOR UPDATE SKIP LOCKED`, ProduceAsync each through `IEventPublisher`, stamp published_at, bump attempts on failure. SKIP LOCKED means two relay instances never double-send.",
+            "Prove it: set a breakpoint between the commit and the next relay tick, kill the process, restart - the row is still unpublished and gets delivered. That crash is exactly what the outbox exists to survive."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Messaging/OutboxMessage.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.BuildingBlocks.Messaging;\n\n/// One row per fact, written in the SAME transaction as the aggregate change.\npublic sealed class OutboxMessage\n{\n    public Guid   Id            { get; init; } = Guid.NewGuid();\n    public Guid   EventId       { get; init; } = Guid.NewGuid();  // dedup key for consumers\n    public string AggregateType { get; init; } = default!;        // \"study\" | \"report\" | ...\n    public Guid   AggregateId   { get; init; }                    // partition-key source\n    public string EventType     { get; init; } = default!;        // \"ReportFinalized\"\n    public string Topic         { get; init; } = default!;\n    public string PartitionKey  { get; init; } = default!;        // usually AggregateId.ToString()\n    public string Payload       { get; init; } = default!;        // JSON contract\n    public string? Headers      { get; init; }                    // JSON: correlation-id, ...\n    public DateTimeOffset  OccurredAt   { get; init; } = DateTimeOffset.UtcNow;\n    public DateTimeOffset? PublishedAt  { get; set; }             // null until the relay produces it\n    public short  Attempts      { get; set; }\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Messaging/OutboxRelay.cs",
+              "lang": "csharp",
+              "content": "using System.Text.Json;\nusing Microsoft.EntityFrameworkCore;\nusing Microsoft.Extensions.DependencyInjection;\nusing Microsoft.Extensions.Hosting;\nnamespace MediView.BuildingBlocks.Messaging;\n\n/// Drains the outbox to Kafka. The ONLY component that produces integration events.\npublic sealed class OutboxRelay<TDb>(IServiceScopeFactory scopes, IEventPublisher publisher)\n    : BackgroundService where TDb : DbContext\n{\n    protected override async Task ExecuteAsync(CancellationToken ct)\n    {\n        while (!ct.IsCancellationRequested)\n        {\n            using var scope = scopes.CreateScope();\n            var db = scope.ServiceProvider.GetRequiredService<TDb>();\n\n            var batch = await db.Set<OutboxMessage>()\n                .FromSqlRaw(@\"SELECT * FROM outbox_messages\n                              WHERE published_at IS NULL\n                              ORDER BY occurred_at\n                              LIMIT 100 FOR UPDATE SKIP LOCKED\")\n                .ToListAsync(ct);\n\n            foreach (var m in batch)\n            {\n                var headers = string.IsNullOrEmpty(m.Headers)\n                    ? new Dictionary<string, string>()\n                    : JsonSerializer.Deserialize<Dictionary<string, string>>(m.Headers)!;\n                headers[\"event-id\"]   = m.EventId.ToString();\n                headers[\"event-type\"] = m.EventType;\n                try\n                {\n                    await publisher.PublishAsync(m.Topic, m.PartitionKey, m.Payload, headers, ct);\n                    m.PublishedAt = DateTimeOffset.UtcNow;   // idempotent consumers cover any dup\n                }\n                catch { m.Attempts++; }                      // leave unpublished; retried next tick\n            }\n            await db.SaveChangesAsync(ct);\n            await Task.Delay(TimeSpan.FromSeconds(1), ct);\n        }\n    }\n}"
+            },
+            {
+              "path": "src/Services/Reporting/.../FinalizeReportHandler.cs (excerpt)",
+              "lang": "csharp",
+              "content": "// one transaction, three effects - the finalize invariant\nreport.Finalize(decision);                              // stamp finalized_at + decision\ndb.Outbox.Add(OutboxFactory.ReportFinalized(report));   // the fact, SAME tx\nawait db.SaveChangesAsync(ct);                          // atomic commit of state + outbox\nawait lockService.ReleaseAsync(report.StudyId, ct);     // release the Redis lock"
+            }
+          ],
+          "commands": [
+            "dotnet ef migrations add AddOutbox --project src/Services/Reporting/MediView.Reporting.Infrastructure",
+            "# repeat for Identity / Studies / Imaging"
+          ],
+          "verify": [
+            "Kill the process between commit and the next relay tick; on restart the row still has published_at = NULL and is then delivered.",
+            "Under normal running, every outbox_messages row reaches published_at within a second or two."
+          ],
+          "enriched": true
         },
         {
           "id": "P08-T03",
-          "title": "Publish the three integration events",
-          "details": "Translate domain events into contract records at the edge of the service - domain events never leave their service.",
+          "title": "Publish the integration events through the outbox",
+          "details": "Translate domain events into contract records at the edge of the service - domain events never leave their service. Each contract maps to exactly one topic and is keyed by study_id.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
             "P08-T02"
           ],
           "acceptanceCriteria": [
-            "No integration event carries a domain entity",
-            "Each event is published exactly once per business action"
+            "No integration event carries a domain entity - only ids and snapshots",
+            "Each event is written to the outbox exactly once per business action"
           ],
           "tags": [
             "messaging",
             "contracts"
           ],
           "steps": [
-            "Imaging publishes ImagesImported after a successful import (replacing the P05-T05 HTTP call).",
-            "Reporting publishes ReportFinalized inside the finalize transaction.",
-            "Identity publishes DoctorRegistered when an admin creates a doctor.",
-            "Keep the contract records in MediView.Contracts and never reference a domain type from them."
-          ]
+            "Define the contract records in MediView.Contracts (never referencing a domain type), each with a Version field so the shape can evolve: ImagesImported, ReportFinalized, DoctorRegistered.",
+            "Imaging writes ImagesImported to imaging.outbox_messages after a successful import (replacing the P05-T05 HTTP call), keyed by StudyId -> topic `imaging.images-imported`.",
+            "Reporting writes ReportFinalized inside the finalize transaction, keyed by StudyId -> topic `reporting.report-finalized`.",
+            "Identity writes DoctorRegistered when an admin creates a doctor, keyed by DoctorId -> topic `identity.doctor-registered` (published now, with no consumer yet - proving a service can emit a fact nobody has asked for)."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.Contracts/Events/IntegrationEvents.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.Contracts.Events;\n\n// Contracts are plain records: ids + snapshots only, never a domain type. Version lets the shape evolve.\npublic sealed record ImagesImported(\n    Guid StudyId, int SeriesCount, int InstanceCount, DateTimeOffset ImportedAt, int Version = 1);\n\npublic sealed record ReportFinalized(\n    Guid StudyId, Guid ReportId, string Decision /* done | re_diagnosis */,\n    DateTimeOffset FinalizedAt, int Version = 1);\n\npublic sealed record DoctorRegistered(\n    Guid DoctorId, Guid UserId, string FullName, string Specialty, int Version = 1);"
+            },
+            {
+              "path": "src/Services/Reporting/.../Messaging/OutboxFactory.cs",
+              "lang": "csharp",
+              "content": "using System.Text.Json;\nusing MediView.BuildingBlocks.Messaging;\nusing MediView.Contracts.Events;\nusing MediView.Contracts.Messaging;\nnamespace MediView.Reporting.Infrastructure.Messaging;\n\npublic static class OutboxFactory\n{\n    public static OutboxMessage ReportFinalized(Report r) => new()\n    {\n        AggregateType = \"report\",\n        AggregateId   = r.StudyId,                 // partition key => per-Study ordering\n        EventType     = nameof(Contracts.Events.ReportFinalized),\n        Topic         = KafkaTopics.ReportFinalized,\n        PartitionKey  = r.StudyId.ToString(),\n        Payload       = JsonSerializer.Serialize(new Contracts.Events.ReportFinalized(\n            r.StudyId, r.Id, r.Decision.ToString(), r.FinalizedAt!.Value))\n    };\n}"
+            }
+          ],
+          "commands": [],
+          "verify": [
+            "A finalize writes exactly one reporting.outbox_messages row; the Kafka UI shows it on that study's partition.",
+            "No contract record references a Domain type (a project reference from Contracts to Domain would not even compile)."
+          ],
+          "enriched": true
         },
         {
           "id": "P08-T04",
-          "title": "Consumers in the Studies service",
-          "details": "Studies reacts to both facts. This is where the workflow actually becomes distributed.",
+          "title": "Kafka consumers in the Studies service",
+          "details": "Studies reacts to both facts. One consumer BackgroundService, one consumer group (studies-service), manual offset commit AFTER the handler succeeds. This is where the workflow actually becomes distributed.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
@@ -1916,37 +1990,71 @@
             "choreography"
           ],
           "steps": [
-            "ImagesImportedConsumer -> Study.MarkImagesImported; the status must stay todo.",
-            "ReportFinalizedConsumer -> Study.Complete() or Study.RequestReDiagnosis() based on the decision, then release the lock.",
-            "Push StatusChanged over SignalR from the consumer so the patient's page updates live.",
-            "Delete the temporary internal HTTP endpoints the consumers replace, or mark them internal-only for tests."
-          ]
+            "Write a `KafkaConsumerService` BackgroundService: subscribe to `imaging.images-imported` and `reporting.report-finalized` with GroupId=`studies-service`, EnableAutoCommit=false, AutoOffsetReset=Earliest.",
+            "Dispatch by the `event-type` header to a handler: ImagesImported -> Study.MarkImagesImported (status stays todo); ReportFinalized -> Study.Complete() or Study.RequestReDiagnosis() by decision, then release the lock.",
+            "Commit the offset only AFTER the handler + inbox insert commit. A crash before commit just replays the message (at-least-once) - which is why the consumer is idempotent (P08-T05).",
+            "Emit StudyStatusChanged: write it to studies.outbox_messages (durable) AND push it over SignalR from the handler so the patient's page updates live."
+          ],
+          "files": [
+            {
+              "path": "src/Services/Studies/.../Messaging/KafkaConsumerService.cs",
+              "lang": "csharp",
+              "content": "using System.Text;\nusing Confluent.Kafka;\nusing MediView.BuildingBlocks.Messaging;\nusing MediView.Contracts.Messaging;\nusing Microsoft.Extensions.DependencyInjection;\nusing Microsoft.Extensions.Hosting;\nnamespace MediView.Studies.Infrastructure.Messaging;\n\npublic sealed class KafkaConsumerService(IServiceScopeFactory scopes, KafkaOptions options)\n    : BackgroundService\n{\n    static readonly string[] Topics = [KafkaTopics.ImagesImported, KafkaTopics.ReportFinalized];\n\n    protected override async Task ExecuteAsync(CancellationToken ct)\n    {\n        var config = new ConsumerConfig\n        {\n            BootstrapServers = options.BootstrapServers,\n            GroupId          = \"studies-service\",   // the consumer group\n            EnableAutoCommit = false,               // we commit after we succeed\n            AutoOffsetReset  = AutoOffsetReset.Earliest\n        };\n        using var consumer = new ConsumerBuilder<string, string>(config).Build();\n        consumer.Subscribe(Topics);\n\n        while (!ct.IsCancellationRequested)\n        {\n            var cr = consumer.Consume(ct);\n            using var scope = scopes.CreateScope();\n            var dispatcher = scope.ServiceProvider.GetRequiredService<IIntegrationEventDispatcher>();\n\n            await dispatcher.HandleAsync(\n                eventType: Header(cr, \"event-type\"),\n                eventId:   Header(cr, \"event-id\"),\n                json:      cr.Message.Value, ct);     // idempotent via the inbox\n            consumer.Commit(cr);                       // only now is the message \"done\"\n        }\n    }\n\n    static string Header(ConsumeResult<string, string> cr, string k) =>\n        cr.Message.Headers.TryGetLastBytes(k, out var b) ? Encoding.UTF8.GetString(b) : \"\";\n}"
+            }
+          ],
+          "commands": [],
+          "verify": [
+            "Finalize a report; the study closes with NO HTTP call between Reporting and Studies (watch the logs).",
+            "The patient page flips to Done live over SignalR."
+          ],
+          "enriched": true
         },
         {
           "id": "P08-T05",
-          "title": "Idempotent consumers, DLQ and an end-to-end message test",
-          "details": "At-least-once delivery is guaranteed; exactly-once is not. Your consumers must be able to see the same message twice.",
+          "title": "Idempotent consumers, a dead-letter topic and an end-to-end test",
+          "details": "At-least-once delivery is guaranteed; exactly-once is not. Consumers must survive seeing the same event twice, and a poison message must not block its partition.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
             "P08-T04"
           ],
           "acceptanceCriteria": [
-            "Delivering the same event twice changes nothing the second time",
-            "A poison message lands in the error queue instead of looping"
+            "Delivering the same event twice changes state once",
+            "A message that always throws ends up on the dead-letter topic, and the partition keeps moving"
           ],
           "tags": [
             "messaging",
             "testing"
           ],
           "steps": [
-            "Make both consumers idempotent - MarkImagesImported already is; make the status transitions a no-op if the study is already in the target state.",
-            "Configure the error/dead-letter queue and look at it deliberately once so you know where it is.",
-            "Write an integration test with the MassTransit in-memory harness: publish ReportFinalized twice, assert one status change.",
-            "Log every consumed message with its MessageId and correlation id."
-          ]
+            "Add `studies.inbox_messages` (event_id, consumer) - see the dbml. In each handler INSERT the inbox row first; a duplicate-key violation means 'already processed' -> commit the offset and return.",
+            "Make the transitions no-ops when the study is already in the target state, so even a first-time replay is safe.",
+            "On repeated handler failure (e.g. 5 attempts) produce the message to the `mediview.dead-letter` topic with the original topic + error in headers, then commit the offset so the partition is not blocked. Look at the DLQ topic in the Kafka UI once so you know where it is.",
+            "Write a Testcontainers-Kafka integration test: produce ReportFinalized twice with the same event-id, assert exactly one status change and one inbox row."
+          ],
+          "files": [
+            {
+              "path": "src/Services/Studies/.../Messaging/IntegrationEventDispatcher.cs (excerpt)",
+              "lang": "csharp",
+              "content": "// idempotency first: the inbox is the dedup ledger\npublic async Task HandleAsync(string eventType, string eventId, string json, CancellationToken ct)\n{\n    db.Inbox.Add(new InboxMessage { EventId = Guid.Parse(eventId), Consumer = eventType });\n    try { await db.SaveChangesAsync(ct); }        // UNIQUE (event_id, consumer)\n    catch (DbUpdateException) { return; }          // seen before -> do nothing\n\n    switch (eventType)\n    {\n        case nameof(ReportFinalized):\n            var e = JsonSerializer.Deserialize<ReportFinalized>(json)!;\n            var study = await studies.GetByIdAsync(e.StudyId, ct);\n            study.ApplyReportDecision(e.Decision); // no-op if already in the target state\n            await db.SaveChangesAsync(ct);\n            break;\n        // case nameof(ImagesImported): study.MarkImagesImported(); ...\n    }\n}"
+            },
+            {
+              "path": "tests/Studies.IntegrationTests/DuplicateDeliveryTests.cs (excerpt)",
+              "lang": "csharp",
+              "content": "[Fact] // Testcontainers spins up a real Kafka broker\npublic async Task Duplicate_ReportFinalized_changes_status_once()\n{\n    var e = new ReportFinalized(study.Id, report.Id, \"done\", DateTimeOffset.UtcNow);\n    await Produce(KafkaTopics.ReportFinalized, key: study.Id.ToString(), eventId: \"same-id\", e);\n    await Produce(KafkaTopics.ReportFinalized, key: study.Id.ToString(), eventId: \"same-id\", e);\n\n    await WaitUntil(() => Status(study.Id) == StudyStatus.Done);\n    Assert.Equal(1, StatusChangeCount(study.Id));\n    Assert.Equal(1, InboxCount(\"same-id\"));\n}"
+            }
+          ],
+          "commands": [
+            "dotnet test --filter Category=Messaging"
+          ],
+          "verify": [
+            "Publishing the same event twice yields exactly one status change and one inbox row.",
+            "An always-throwing message lands on mediview.dead-letter and the next message on the partition is still consumed."
+          ],
+          "enriched": true
         }
-      ]
+      ],
+      "enrichmentStatus": "detailed"
     },
     {
       "id": "P09",
@@ -1956,17 +2064,17 @@
         "P08"
       ],
       "days": "Day 33",
-      "goal": "Day 33 - One ingress in front of four services so the Blazor app talks to a single origin. Deliberately thin: routing, JWT, CORS, rate limiting, aggregated health. No BFF aggregation, no request transformation.",
+      "goal": "Day 33 - One ingress in front of four services so the whole system is a SINGLE origin: same host, path-based routing (/api/<service>/**). The Blazor app and every external caller only ever know the gateway's address; services are never published directly. Deliberately thin: routing, JWT, CORS, rate limiting, aggregated health. No BFF aggregation, no request transformation.",
       "tasks": [
         {
           "id": "P09-T01",
-          "title": "YARP project with route and cluster configuration",
-          "details": "Config-driven, not code-driven, so adding a service is an appsettings edit.",
+          "title": "YARP project: one origin, path-based routing to four services",
+          "details": "Config-driven, not code-driven, so adding a service is an appsettings edit. The same map works whether the origin is http://localhost:8080 today or https://api.mediview.example.com later - only the gateway is ever public.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [],
           "acceptanceCriteria": [
-            "Every service is reachable through the gateway",
+            "Every service is reachable through the gateway, each under its own /api/<service> path",
             "The SignalR connection upgrades to WebSockets through the gateway"
           ],
           "tags": [
@@ -1974,16 +2082,42 @@
             "yarp"
           ],
           "steps": [
-            "Create MediView.Gateway, add Yarp.ReverseProxy and LoadFromConfig.",
-            "Define four clusters and path-prefix routes: /api/identity/**, /api/studies/**, /api/imaging/**, /api/reporting/**.",
-            "Strip the prefix with a PathRemovePrefix transform so the services stay unaware of the gateway.",
-            "Proxy the SignalR hub path with WebSockets enabled - this is the one that always gets forgotten."
-          ]
+            "Create MediView.Gateway, add Yarp.ReverseProxy and `.LoadFromConfig(builder.Configuration.GetSection(\"ReverseProxy\"))`.",
+            "Define one cluster per service and one route per path prefix - the canonical map: /api/identity/** -> identity, /api/studies/** -> studies, /api/imaging/** -> imaging, /api/reporting/** -> reporting, /hubs/** -> studies (SignalR).",
+            "Strip the /api/<service> prefix with a `PathRemovePrefix` transform so each service stays unaware it sits behind a gateway and is still directly callable in tests.",
+            "Enable WebSockets and route the SignalR hub path (/hubs/**) to the Studies cluster - the upgrade that always gets forgotten.",
+            "Point the Blazor app's single HttpClient BaseAddress at the gateway origin only. No service host or port appears anywhere in the web app."
+          ],
+          "files": [
+            {
+              "path": "src/Gateway/MediView.Gateway/appsettings.json",
+              "lang": "json",
+              "content": "{\n  \"ReverseProxy\": {\n    \"Routes\": {\n      \"identity\":  { \"ClusterId\": \"identity\",  \"Match\": { \"Path\": \"/api/identity/{**catch-all}\" },\n                     \"Transforms\": [ { \"PathRemovePrefix\": \"/api/identity\" } ] },\n      \"studies\":   { \"ClusterId\": \"studies\",   \"Match\": { \"Path\": \"/api/studies/{**catch-all}\" },\n                     \"Transforms\": [ { \"PathRemovePrefix\": \"/api/studies\" } ] },\n      \"imaging\":   { \"ClusterId\": \"imaging\",   \"Match\": { \"Path\": \"/api/imaging/{**catch-all}\" },\n                     \"Transforms\": [ { \"PathRemovePrefix\": \"/api/imaging\" } ] },\n      \"reporting\": { \"ClusterId\": \"reporting\", \"Match\": { \"Path\": \"/api/reporting/{**catch-all}\" },\n                     \"Transforms\": [ { \"PathRemovePrefix\": \"/api/reporting\" } ] },\n      \"signalr\":   { \"ClusterId\": \"studies\",   \"Match\": { \"Path\": \"/hubs/{**catch-all}\" } }\n    },\n    \"Clusters\": {\n      \"identity\":  { \"Destinations\": { \"d1\": { \"Address\": \"http://localhost:5001/\" } } },\n      \"studies\":   { \"Destinations\": { \"d1\": { \"Address\": \"http://localhost:5002/\" } } },\n      \"imaging\":   { \"Destinations\": { \"d1\": { \"Address\": \"http://localhost:5003/\" } } },\n      \"reporting\": { \"Destinations\": { \"d1\": { \"Address\": \"http://localhost:5004/\" } } }\n    }\n  }\n}"
+            },
+            {
+              "path": "src/Gateway/MediView.Gateway/Program.cs",
+              "lang": "csharp",
+              "content": "var builder = WebApplication.CreateBuilder(args);\n\nbuilder.Services.AddReverseProxy()\n    .LoadFromConfig(builder.Configuration.GetSection(\"ReverseProxy\"));\nbuilder.Services.AddJwtAuth(builder.Configuration);   // shared extension - validate at the edge too\n\nvar app = builder.Build();\napp.UseWebSockets();       // REQUIRED so /hubs/** can upgrade to a WebSocket\napp.UseAuthentication();\napp.UseAuthorization();\napp.MapReverseProxy();\napp.Run();"
+            },
+            {
+              "path": "docs/gateway-route-map.md",
+              "lang": "markdown",
+              "content": "## One origin, path-routed (the gateway contract)\nEverything the browser touches is `<gateway>`; the path selects the service.\n\n| Public path (via gateway)     | Service   | Downstream path (prefix stripped) |\n|-------------------------------|-----------|-----------------------------------|\n| /api/identity/**              | Identity  | /**                               |\n| /api/studies/**               | Studies   | /**                               |\n| /api/imaging/**               | Imaging   | /**                               |\n| /api/reporting/**             | Reporting | /**                               |\n| /hubs/**  (WebSocket upgrade) | Studies   | /hubs/**                          |\n\nDev origin: `http://localhost:8080`.  Later: `https://api.mediview.example.com` - same map, only the\norigin changes. Services are never published directly; the gateway is the only public address."
+            }
+          ],
+          "commands": [
+            "dotnet add src/Gateway/MediView.Gateway package Yarp.ReverseProxy"
+          ],
+          "verify": [
+            "`curl http://localhost:8080/api/studies/health/ready` returns the Studies readiness JSON through the gateway.",
+            "The Blazor SignalR client connects through `<gateway>/hubs/...` and receives live status updates."
+          ],
+          "enriched": true
         },
         {
           "id": "P09-T02",
           "title": "JWT validation at the edge",
-          "details": "Validate once at the gateway and again in each service - defence in depth, and the services stay independently callable in tests.",
+          "details": "Validate once at the gateway and again in each service - defence in depth, and the services stay independently callable in tests. Because there is one origin, the browser sends its token to a single host and CORS stays simple.",
           "priority": "high",
           "status": "todo",
           "dependsOn": [
@@ -2023,7 +2157,7 @@
           "steps": [
             "Add a named CORS policy allowing the Blazor origin with credentials.",
             "Add the built-in rate limiter: a fixed window per authenticated user, and a tighter one on the auth endpoints.",
-            "Ensure X-Correlation-Id is created at the gateway if absent and forwarded, so one trace spans gateway -> service -> bus."
+            "Ensure X-Correlation-Id is created at the gateway if absent and forwarded, so one trace spans gateway -> service -> Kafka (the id rides in the outbox headers into the event)."
           ]
         },
         {
@@ -2048,7 +2182,8 @@
             "Add the gateway to the run script and README."
           ]
         }
-      ]
+      ],
+      "enrichmentStatus": "detailed"
     },
     {
       "id": "P10",

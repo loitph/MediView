@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MediView — How the 45-day MVP works</title>
+<title>MediView — How the MVP works</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -331,8 +331,8 @@
   <!-- FOOTER -->
   <footer>
     <div class="stack">
-      <b>.NET 10</b> · DDD + Clean Architecture · <b>Redis</b> single-writer lock · <b>MassTransit</b>/RabbitMQ + outbox<br>
-      <b>YARP</b> gateway · <b>Blazor</b> Server · <b>PostgreSQL</b> (one schema per service) · Seq · docker compose
+      <b>.NET 10</b> · DDD + Clean Architecture · <b>Redis</b> single-writer lock · <b>Kafka</b> + transactional outbox &amp; relay<br>
+      <b>YARP</b> gateway (single origin, path-routed) · <b>Blazor</b> Server · <b>PostgreSQL</b> (one schema per service) · Seq · docker compose
     </div>
     <div class="tagline">Single-writer diagnosis: <b>one doctor edits a Study at a time</b>; everyone else sees it LOCKED.</div>
   </footer>
