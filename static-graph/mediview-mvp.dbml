@@ -204,7 +204,6 @@ replaces the v3 gRPC-plus-local-replica machinery.
 '''
 }
 Ref: studies.studies.appointment_id - studies.appointments.id
-Ref: studies.studies.id < imaging.series.study_id
 
 Table studies.study_status_history {
   id          uuid         [pk, not null, default: `gen_random_uuid()`]

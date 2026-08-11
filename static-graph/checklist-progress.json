@@ -1,0 +1,3227 @@
+{
+  "project": {
+    "name": "MediView - 45-Day MVP",
+    "description": "The 45-day teaching cut of MediView. A patient self-registers and books inside a doctor's schedule; an admin simulates the x-ray import; a doctor opens the study in a Cornerstone.js viewport under a Redis single-writer lock, writes a report with medications and finalizes it; the Study status (To do -> In progress -> Re-diagnosis -> Done) is the single source of truth and closes over an integration event. Four .NET 10 microservices - Identity, Studies, Imaging, Reporting - plus a YARP gateway and a Blazor Server web app, 15 database tables, 8 pages. The full-product plan (11 deployables, 41 tables, 15 screens, Azure) is preserved in checklist.json and mediview.dbml; what was removed and why is in scope-cut.md.",
+    "techStack": {
+      "backend": ".NET 10",
+      "frontend": "Blazor Server (8 pages, desktop only)",
+      "architecture": "DDD + Clean Architecture (Domain / Application / Infrastructure / Api) x 4 services + YARP gateway",
+      "database": "PostgreSQL - 15 tables, one schema per service, FKs only inside a schema",
+      "cache": "Redis (single-writer study lock: SET NX PX + Lua compare-and-delete)",
+      "messaging": "MassTransit over RabbitMQ with the EF Core transactional outbox",
+      "cqrs": "Hand-rolled dispatcher + Result<T> + FluentValidation - no MediatR dependency",
+      "auth": "JWT access tokens + rotating refresh tokens, one role claim, three policies",
+      "orm": "Entity Framework Core (Npgsql), snake_case, xmin concurrency - no Dapper in the MVP",
+      "imaging": "fo-dicom parsing, blob-backed storage, WADO/QIDO-shaped endpoints, Cornerstone.js viewport",
+      "realtime": "SignalR (announcements only; Redis is the lock authority)",
+      "storage": "IBlobStore port with a local-disk adapter (Azure Blob is a same-shape swap)",
+      "testing": "xUnit aggregate unit tests + Testcontainers integration tests + one e2e happy path",
+      "cloud": "None in scope - runs entirely on docker compose. Azure deployment is deferred."
+    },
+    "revision": "mvp-v1",
+    "budget": {
+      "days": 45,
+      "sections": 12,
+      "tasks": 93
+    },
+    "scope": {
+      "servicesKept": [
+        "Identity",
+        "Studies",
+        "Imaging",
+        "Reporting",
+        "Gateway (YARP)",
+        "Web (Blazor)"
+      ],
+      "servicesCut": [
+        "Auth (merged into Identity)",
+        "Role & Permission (replaced by one role column + 3 policies)",
+        "Booking (merged into Studies - an appointment exists only to produce a Study)",
+        "Prescription (collapsed into one child table on the Report aggregate)",
+        "Cart & Billing / Payment (an e-commerce sub-domain; teaches checkout, not imaging or DDD)",
+        "Notification (SignalR toasts cover the demo; email/SMS adds infrastructure, not lessons)"
+      ],
+      "tablesCut": [
+        "billing.* (7): carts, cart_items, wallets, bills, bill_items, payments, wallet_transactions",
+        "prescription.* (3): folded into reporting.report_medications + reporting.drugs",
+        "identity role matrix (3): roles, permissions, role_permissions, user_roles",
+        "identity.doctor_credentials, patient.patient_allergies, patient.diseases, patient.study_diseases",
+        "patient.lock_watchers, patient.doctor_studies, reporting.report_addenda",
+        "imaging.import_jobs, imaging.annotations, notification.notifications, config.feature_flags, audit.access_log"
+      ],
+      "alsoCut": [
+        "Azure infrastructure as code (Bicep) and production deployment",
+        "CI/CD beyond a build-and-test GitHub Actions workflow",
+        "The security & compliance programme (Key Vault, encryption at rest, GDPR tooling)",
+        "OpenTelemetry distributed tracing (Serilog + correlation id is kept)",
+        "gRPC between services (typed HttpClient instead)",
+        "Dapper read models (EF projection is enough at this data size)",
+        "The Redis SignalR backplane (single instance in the MVP)",
+        ".NET Aspire (docker compose only)",
+        "UI screens: wallet, cart & checkout, follow-up booking, roles matrix, mobile layout"
+      ],
+      "keptBecauseItTeaches": {
+        "studies.studies + study_status_history": "a rich aggregate root with a real state machine and an owned child collection",
+        "studies.study_locks + Redis": "distributed single-writer concurrency - the differentiator of this project",
+        "reporting.reports + report_medications": "a second aggregate, immutability after finalize, cross-service choreography",
+        "imaging.series + instances": "the DICOM hierarchy and a blob-backed infrastructure adapter",
+        "studies.audit_log": "break-glass - the healthcare-specific lesson, kept small"
+      }
+    },
+    "schemaNote": "Enriched tasks carry three extra fields alongside the original ones: files[] ({path,lang,content}), commands[] and verify[]. steps[] remain strings so the checklist-tree-mvp.html renderer is unaffected."
+  },
+  "sections": [
+    {
+      "id": "P01",
+      "name": "Foundation & Shared Kernel",
+      "order": 1,
+      "dependsOn": [],
+      "days": "Days 1-3",
+      "goal": "Days 1-3 - A compiling solution with the four-layer convention agreed and a tiny shared kernel (Entity, Result, domain events, error middleware) that all four services reuse. No MediatR: a 40-line dispatcher you write yourself teaches more and removes a licensed dependency.",
+      "tasks": [
+        {
+          "id": "P01-T01",
+          "title": "Pin the .NET 10 SDK with global.json",
+          "details": "Lock every machine and CI runner to the same SDK so `dotnet build` cannot behave differently on two boxes.",
+          "priority": "high",
+          "status": "done",
+          "dependsOn": [],
+          "acceptanceCriteria": [
+            "`dotnet --version` prints 10.x from the repo root"
+          ],
+          "tags": [
+            "setup",
+            "dotnet"
+          ],
+          "steps": [
+            "Confirm a 10.x SDK is installed: `dotnet --list-sdks` must show a line beginning `10.0.` (e.g. `10.0.100 [C:\\Program Files\\dotnet\\sdk]`).",
+            "At the repo root generate the pin file: `dotnet new globaljson --sdk-version 10.0.100 --roll-forward latestFeature`. This writes global.json.",
+            "Commit global.json so every dev machine and the CI runner resolve the identical SDK; `roll-forward latestFeature` allows 10.0.1xx patch bumps but never a major/minor jump."
+          ],
+          "files": [
+            {
+              "path": "global.json",
+              "lang": "json",
+              "content": "{\n  \"sdk\": {\n    \"version\": \"10.0.100\",\n    \"rollForward\": \"latestFeature\"\n  }\n}"
+            }
+          ],
+          "commands": [
+            "dotnet --list-sdks",
+            "dotnet new globaljson --sdk-version 10.0.100 --roll-forward latestFeature",
+            "dotnet --version   # must print 10.x when run from the repo root",
+            "git add global.json && git commit -m \"chore: pin .NET 10 SDK\""
+          ],
+          "verify": [
+            "`dotnet --version` prints a 10.x version from the repo root, and a different folder without global.json may print something else."
+          ],
+          "enriched": true,
+          "stepsCompleted": [
+            true,
+            true,
+            true
+          ]
+        },
+        {
+          "id": "P01-T02",
+          "title": "Create the solution skeleton and folder layout",
+          "details": "src/BuildingBlocks, src/Services/{Identity,Studies,Imaging,Reporting}, src/Gateway, src/Web. Four projects per service: Domain / Application / Infrastructure / Api. Folders are named after domain concepts, never after patterns.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P01-T01"
+          ],
+          "acceptanceCriteria": [
+            "`dotnet build` succeeds on an empty 18-project solution",
+            "MediView.*.Domain.csproj has zero PackageReference entries"
+          ],
+          "tags": [
+            "setup",
+            "architecture"
+          ],
+          "steps": [
+            "Create the folder tree: src/BuildingBlocks, src/Services/{Identity,Studies,Imaging,Reporting}, src/Gateway, src/Web. Folders are named after domain concepts, never after patterns.",
+            "For each of the 4 services create 4 projects — MediView.<Svc>.Domain (classlib), .Application (classlib), .Infrastructure (classlib), .Api (web) — 16 projects total.",
+            "Add the gateway (MediView.Gateway, web/empty) and the web app (MediView.Web, Blazor Server). That is the 18-project skeleton the acceptance criterion expects.",
+            "Wire inward-only project references per service: Application→Domain, Infrastructure→Application, Api→Infrastructure. The Domain project must have zero references.",
+            "Add every project to MedicalView.sln and run `dotnet build` — it must be green before any logic is written."
+          ],
+          "files": [
+            {
+              "path": "scaffold.sh",
+              "lang": "bash",
+              "content": "#!/usr/bin/env bash\nset -euo pipefail\nSOLN=MedicalView.sln\nSERVICES=(Identity Studies Imaging Reporting)\n\nfor S in \"${SERVICES[@]}\"; do\n  base=\"src/Services/$S\"\n  dotnet new classlib -n \"MediView.$S.Domain\"         -o \"$base/MediView.$S.Domain\"\n  dotnet new classlib -n \"MediView.$S.Application\"    -o \"$base/MediView.$S.Application\"\n  dotnet new classlib -n \"MediView.$S.Infrastructure\" -o \"$base/MediView.$S.Infrastructure\"\n  dotnet new web      -n \"MediView.$S.Api\"            -o \"$base/MediView.$S.Api\"\n\n  # inward-only references\n  dotnet add \"$base/MediView.$S.Application/MediView.$S.Application.csproj\"       reference \"$base/MediView.$S.Domain/MediView.$S.Domain.csproj\"\n  dotnet add \"$base/MediView.$S.Infrastructure/MediView.$S.Infrastructure.csproj\" reference \"$base/MediView.$S.Application/MediView.$S.Application.csproj\"\n  dotnet add \"$base/MediView.$S.Api/MediView.$S.Api.csproj\"                       reference \"$base/MediView.$S.Infrastructure/MediView.$S.Infrastructure.csproj\"\ndone\n\n# gateway + web\ndotnet new web        -n MediView.Gateway -o src/Gateway/MediView.Gateway\ndotnet new blazorserver -n MediView.Web   -o src/Web/MediView.Web\n\n# add everything to the solution\nfind src -name '*.csproj' -exec dotnet sln \"$SOLN\" add {} +\ndotnet build"
+            }
+          ],
+          "commands": [
+            "chmod +x scaffold.sh && ./scaffold.sh",
+            "dotnet build   # 18 projects, must be green"
+          ],
+          "verify": [
+            "`dotnet build` succeeds on the empty 18-project solution.",
+            "Every MediView.*.Domain.csproj has zero <PackageReference> and zero project references."
+          ],
+          "enriched": true,
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P01-T03",
+          "title": "Central package management and shared build properties",
+          "details": "Directory.Packages.props holds every version; Directory.Build.props turns on nullable, implicit usings and warnings-as-errors for all projects at once.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [],
+          "acceptanceCriteria": [
+            "A version bump happens in exactly one file"
+          ],
+          "tags": [
+            "setup",
+            "build"
+          ],
+          "steps": [
+            "Add Directory.Build.props at the repo root so nullable, implicit usings, latest C# and warnings-as-errors apply to all projects at once.",
+            "Add Directory.Packages.props with ManagePackageVersionsCentrally=true — every NuGet version is declared here, once.",
+            "From now on, PackageReference entries carry NO Version= attribute; you add a <PackageVersion> line here instead. A version bump then happens in exactly one file."
+          ],
+          "files": [
+            {
+              "path": "Directory.Build.props",
+              "lang": "xml",
+              "content": "<Project>\n  <PropertyGroup>\n    <TargetFramework>net10.0</TargetFramework>\n    <Nullable>enable</Nullable>\n    <ImplicitUsings>enable</ImplicitUsings>\n    <LangVersion>latest</LangVersion>\n    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>\n    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>\n    <AnalysisLevel>latest-recommended</AnalysisLevel>\n  </PropertyGroup>\n</Project>"
+            },
+            {
+              "path": "Directory.Packages.props",
+              "lang": "xml",
+              "content": "<Project>\n  <PropertyGroup>\n    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>\n  </PropertyGroup>\n  <ItemGroup>\n    <!-- add PackageVersion lines here as you need them, e.g. -->\n    <!-- <PackageVersion Include=\"FluentValidation\" Version=\"11.9.2\" /> -->\n  </ItemGroup>\n</Project>"
+            }
+          ],
+          "commands": [
+            "dotnet build   # still green after centralising versions"
+          ],
+          "verify": [
+            "A NuGet version bump requires editing exactly one file (Directory.Packages.props)."
+          ],
+          "enriched": true,
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P01-T04",
+          "title": "Add .editorconfig and analyzers",
+          "details": "One formatting rule set so diffs are about logic. Enable the built-in .NET analyzers at a level you will actually keep green.",
+          "priority": "low",
+          "status": "todo",
+          "dependsOn": [
+            "P01-T03"
+          ],
+          "acceptanceCriteria": [
+            "`dotnet format --verify-no-changes` passes"
+          ],
+          "tags": [
+            "setup",
+            "quality"
+          ],
+          "steps": [
+            "Add a .editorconfig at the repo root: 4-space C#, file-scoped namespaces, `var` when the type is apparent.",
+            "Analyzers and code-style enforcement were already switched on in Directory.Build.props (EnforceCodeStyleInBuild, AnalysisLevel=latest-recommended).",
+            "Run `dotnet format` once and commit the result as a single formatting-only commit so future diffs are about logic, not whitespace."
+          ],
+          "files": [
+            {
+              "path": ".editorconfig",
+              "lang": "ini",
+              "content": "root = true\n\n[*.cs]\nindent_style = space\nindent_size = 4\ncsharp_style_namespace_declarations = file_scoped:warning\ncsharp_style_var_when_type_is_apparent = true:suggestion\ncsharp_style_var_for_built_in_types = true:suggestion\ndotnet_sort_system_directives_first = true\ndotnet_style_require_accessibility_modifiers = always:warning\n\n[*.{json,yml,yaml,csproj,props}]\nindent_style = space\nindent_size = 2"
+            }
+          ],
+          "commands": [
+            "dotnet format",
+            "git commit -am \"style: apply dotnet format (formatting only)\"",
+            "dotnet format --verify-no-changes   # must pass in CI"
+          ],
+          "verify": [
+            "`dotnet format --verify-no-changes` passes with exit code 0."
+          ],
+          "enriched": true,
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P01-T05",
+          "title": "BuildingBlocks.Domain: Entity, AggregateRoot, domain events",
+          "details": "The base types every aggregate inherits. AggregateRoot collects domain events in a private list and exposes them read-only - the pattern that keeps side effects out of the middle of a method.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P01-T02"
+          ],
+          "acceptanceCriteria": [
+            "A test aggregate can raise an event and expose it read-only",
+            "The project still has zero package references"
+          ],
+          "tags": [
+            "ddd",
+            "shared-kernel"
+          ],
+          "steps": [
+            "Create MediView.BuildingBlocks.Domain (classlib, zero packages) — the base types every aggregate inherits.",
+            "Entity<TId>: an Id plus identity-based Equals/GetHashCode so two entities are equal iff their ids match.",
+            "IDomainEvent (marker record with OccurredOn) and AggregateRoot<TId> that collects events in a private list and exposes them read-only via Raise / DomainEvents / ClearDomainEvents.",
+            "DomainException — the base for every invariant violation. Decide record-vs-ValueObject once and note it in an ADR."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Domain/Entity.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.BuildingBlocks.Domain;\n\npublic abstract class Entity<TId> where TId : notnull\n{\n    public TId Id { get; protected set; } = default!;\n\n    public override bool Equals(object? obj) =>\n        obj is Entity<TId> other && other.GetType() == GetType() && other.Id.Equals(Id);\n\n    public override int GetHashCode() => Id.GetHashCode();\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Domain/IDomainEvent.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.BuildingBlocks.Domain;\n\npublic interface IDomainEvent\n{\n    DateTimeOffset OccurredOn { get; }\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Domain/AggregateRoot.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.BuildingBlocks.Domain;\n\npublic abstract class AggregateRoot<TId> : Entity<TId> where TId : notnull\n{\n    private readonly List<IDomainEvent> _domainEvents = new();\n    public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();\n\n    protected void Raise(IDomainEvent domainEvent) => _domainEvents.Add(domainEvent);\n    public void ClearDomainEvents() => _domainEvents.Clear();\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Domain/DomainException.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.BuildingBlocks.Domain;\n\npublic class DomainException(string message) : Exception(message);"
+            }
+          ],
+          "commands": [
+            "dotnet build src/BuildingBlocks/MediView.BuildingBlocks.Domain"
+          ],
+          "verify": [
+            "A test aggregate can Raise an event and read it back via DomainEvents, then ClearDomainEvents empties it.",
+            "The project still has zero package references."
+          ],
+          "enriched": true,
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P01-T06",
+          "title": "BuildingBlocks.Application: Result<T> and a hand-rolled dispatcher",
+          "details": "Result<T> for expected failures (exceptions only for the genuinely exceptional). Then ~40 lines of ICommand/IQuery + handler interfaces + a DI-resolved dispatcher, instead of taking a MediatR dependency. Writing it yourself is the lesson.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P01-T05"
+          ],
+          "acceptanceCriteria": [
+            "A sample command round-trips through the dispatcher in a unit test",
+            "No MediatR package reference anywhere in the solution"
+          ],
+          "tags": [
+            "cqrs",
+            "shared-kernel"
+          ],
+          "steps": [
+            "Create MediView.BuildingBlocks.Application. Add Error(code, message) and Result / Result<T> with Success/Failure factories and an implicit conversion from T to Result<T>.",
+            "Define the CQRS marker interfaces: ICommand<TResponse>, IQuery<TResponse>, ICommandHandler<TCommand,TResponse>, IQueryHandler<TQuery,TResponse> (both commands and queries derive from IRequest<TResponse>).",
+            "Write ISender.Send<TResponse>(IRequest<TResponse>) that builds the closed handler type and resolves it from IServiceProvider — ~40 lines, no MediatR.",
+            "Add AddApplication(this IServiceCollection) that scans the assembly and registers every handler as scoped."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Application/Result.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.BuildingBlocks.Application;\n\npublic sealed record Error(string Code, string Message)\n{\n    public static readonly Error None = new(string.Empty, string.Empty);\n}\n\npublic class Result\n{\n    protected Result(bool isSuccess, Error error)\n    {\n        if (isSuccess && error != Error.None) throw new InvalidOperationException();\n        IsSuccess = isSuccess; Error = error;\n    }\n    public bool IsSuccess { get; }\n    public bool IsFailure => !IsSuccess;\n    public Error Error { get; }\n\n    public static Result Success() => new(true, Error.None);\n    public static Result Failure(Error error) => new(false, error);\n    public static Result<T> Success<T>(T value) => new(value, true, Error.None);\n    public static Result<T> Failure<T>(Error error) => new(default, false, error);\n}\n\npublic class Result<T> : Result\n{\n    private readonly T? _value;\n    protected internal Result(T? value, bool isSuccess, Error error) : base(isSuccess, error) => _value = value;\n    public T Value => IsSuccess ? _value! : throw new InvalidOperationException(\"No value on a failure.\");\n    public static implicit operator Result<T>(T value) => Success(value);\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Application/Messaging.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.BuildingBlocks.Application;\n\npublic interface IRequest<TResponse>;\npublic interface ICommand<TResponse> : IRequest<TResponse>;\npublic interface IQuery<TResponse> : IRequest<TResponse>;\n\npublic interface IRequestHandler<in TRequest, TResponse> where TRequest : IRequest<TResponse>\n{\n    Task<TResponse> Handle(TRequest request, CancellationToken ct);\n}\npublic interface ICommandHandler<in TCommand, TResponse> : IRequestHandler<TCommand, TResponse>\n    where TCommand : ICommand<TResponse>;\npublic interface IQueryHandler<in TQuery, TResponse> : IRequestHandler<TQuery, TResponse>\n    where TQuery : IQuery<TResponse>;\n\npublic interface ISender\n{\n    Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct = default);\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Application/Sender.cs",
+              "lang": "csharp",
+              "content": "using Microsoft.Extensions.DependencyInjection;\nnamespace MediView.BuildingBlocks.Application;\n\ninternal sealed class Sender(IServiceProvider provider) : ISender\n{\n    public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct = default)\n    {\n        var handlerType = typeof(IRequestHandler<,>).MakeGenericType(request.GetType(), typeof(TResponse));\n        dynamic handler = provider.GetRequiredService(handlerType);\n        return handler.Handle((dynamic)request, ct);\n    }\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Application/DependencyInjection.cs",
+              "lang": "csharp",
+              "content": "using System.Reflection;\nusing Microsoft.Extensions.DependencyInjection;\nnamespace MediView.BuildingBlocks.Application;\n\npublic static class DependencyInjection\n{\n    public static IServiceCollection AddApplication(this IServiceCollection services, Assembly assembly)\n    {\n        services.AddScoped<ISender, Sender>();\n        var handlerInterface = typeof(IRequestHandler<,>);\n        foreach (var type in assembly.GetTypes().Where(t => t is { IsAbstract: false, IsInterface: false }))\n            foreach (var i in type.GetInterfaces().Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == handlerInterface))\n                services.AddScoped(i, type);\n        return services;\n    }\n}"
+            }
+          ],
+          "commands": [
+            "dotnet build src/BuildingBlocks/MediView.BuildingBlocks.Application"
+          ],
+          "verify": [
+            "A sample command round-trips through ISender in a unit test.",
+            "`grep -ri MediatR src` returns nothing — no MediatR reference anywhere."
+          ],
+          "enriched": true,
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P01-T07",
+          "title": "Validation and logging pipeline behaviours",
+          "details": "Cross-cutting concerns wrap the handler so handlers stay pure domain logic.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "P01-T06"
+          ],
+          "acceptanceCriteria": [
+            "An invalid command never reaches its handler",
+            "Every handled request produces one structured log line"
+          ],
+          "tags": [
+            "cqrs",
+            "validation"
+          ],
+          "steps": [
+            "Add the FluentValidation package (one <PackageVersion> line) and a ValidationBehaviour that runs every validator registered for the request and returns Result.Failure on the first error set — the handler is never reached.",
+            "Add a LoggingBehaviour that logs request name, elapsed ms and outcome as structured properties (never string-interpolated).",
+            "Chain the behaviours around the handler resolution in the Sender (a simple decorator list is enough; you do not need a pipeline framework)."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Application/Behaviours/ValidationBehaviour.cs",
+              "lang": "csharp",
+              "content": "using FluentValidation;\nnamespace MediView.BuildingBlocks.Application.Behaviours;\n\npublic interface IPipelineBehaviour<TRequest, TResponse>\n{\n    Task<TResponse> Handle(TRequest request, Func<Task<TResponse>> next, CancellationToken ct);\n}\n\npublic sealed class ValidationBehaviour<TRequest, TResponse>(IEnumerable<IValidator<TRequest>> validators)\n    : IPipelineBehaviour<TRequest, TResponse>\n{\n    public async Task<TResponse> Handle(TRequest request, Func<Task<TResponse>> next, CancellationToken ct)\n    {\n        var context = new ValidationContext<TRequest>(request);\n        var failures = validators\n            .Select(v => v.Validate(context))\n            .SelectMany(r => r.Errors)\n            .Where(f => f is not null)\n            .ToList();\n        if (failures.Count != 0)\n            throw new ValidationException(failures);   // mapped to 400 by ExceptionHandlingMiddleware\n        return await next();\n    }\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Application/Behaviours/LoggingBehaviour.cs",
+              "lang": "csharp",
+              "content": "using System.Diagnostics;\nusing Microsoft.Extensions.Logging;\nnamespace MediView.BuildingBlocks.Application.Behaviours;\n\npublic sealed class LoggingBehaviour<TRequest, TResponse>(ILogger<LoggingBehaviour<TRequest, TResponse>> logger)\n    : IPipelineBehaviour<TRequest, TResponse>\n{\n    public async Task<TResponse> Handle(TRequest request, Func<Task<TResponse>> next, CancellationToken ct)\n    {\n        var name = typeof(TRequest).Name;\n        var sw = Stopwatch.StartNew();\n        try\n        {\n            var response = await next();\n            logger.LogInformation(\"Handled {RequestName} in {ElapsedMs}ms ({Outcome})\", name, sw.ElapsedMilliseconds, \"ok\");\n            return response;\n        }\n        catch\n        {\n            logger.LogWarning(\"Failed {RequestName} in {ElapsedMs}ms ({Outcome})\", name, sw.ElapsedMilliseconds, \"error\");\n            throw;\n        }\n    }\n}"
+            }
+          ],
+          "commands": [
+            "dotnet build src/BuildingBlocks/MediView.BuildingBlocks.Application"
+          ],
+          "verify": [
+            "An invalid command never reaches its handler (a validator failure short-circuits).",
+            "Every handled request produces exactly one structured log line with RequestName + ElapsedMs."
+          ],
+          "enriched": true,
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P01-T08",
+          "title": "Error handling middleware + correlation id",
+          "details": "One place that turns domain failures into RFC-7807 ProblemDetails, so every service returns errors in the same shape.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P01-T06"
+          ],
+          "acceptanceCriteria": [
+            "A thrown DomainException returns 400 ProblemDetails with a correlation id",
+            "An unhandled exception never leaks a stack trace to the client"
+          ],
+          "tags": [
+            "api",
+            "cross-cutting"
+          ],
+          "steps": [
+            "Write CorrelationIdMiddleware: read X-Correlation-Id from the request or create a new Guid, push it into the Serilog LogContext, and echo it back on the response header.",
+            "Write ExceptionHandlingMiddleware mapping DomainException→400, NotFoundException→404, StudyLockedException→409, DbUpdateConcurrencyException→409, and everything else→500 — never leaking a stack trace.",
+            "Return an RFC-7807 ProblemDetails (type/title/status/detail) with the correlation id attached as an extension member.",
+            "Package both plus the ProblemDetails wiring as one AddApiDefaults()/UseApiDefaults() pair the four Api projects call in a single line."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Api/CorrelationIdMiddleware.cs",
+              "lang": "csharp",
+              "content": "using Microsoft.AspNetCore.Http;\nusing Serilog.Context;\nnamespace MediView.BuildingBlocks.Api;\n\npublic sealed class CorrelationIdMiddleware(RequestDelegate next)\n{\n    private const string Header = \"X-Correlation-Id\";\n    public async Task Invoke(HttpContext ctx)\n    {\n        var id = ctx.Request.Headers.TryGetValue(Header, out var v) && !string.IsNullOrWhiteSpace(v)\n            ? v.ToString() : Guid.NewGuid().ToString(\"N\");\n        ctx.Response.Headers[Header] = id;\n        using (LogContext.PushProperty(\"CorrelationId\", id))\n            await next(ctx);\n    }\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Api/ExceptionHandlingMiddleware.cs",
+              "lang": "csharp",
+              "content": "using FluentValidation;\nusing Microsoft.AspNetCore.Http;\nusing Microsoft.AspNetCore.Mvc;\nusing MediView.BuildingBlocks.Domain;\nnamespace MediView.BuildingBlocks.Api;\n\npublic sealed class ExceptionHandlingMiddleware(RequestDelegate next)\n{\n    public async Task Invoke(HttpContext ctx)\n    {\n        try { await next(ctx); }\n        catch (Exception ex)\n        {\n            var (status, title) = ex switch\n            {\n                ValidationException            => (400, \"Validation failed\"),\n                DomainException                => (400, \"Domain rule violated\"),\n                // NotFoundException            => (404, \"Not found\"),\n                // StudyLockedException         => (409, \"Study is locked\"),\n                // DbUpdateConcurrencyException => (409, \"Concurrency conflict\"),\n                _                              => (500, \"Unexpected error\")\n            };\n            var problem = new ProblemDetails { Status = status, Title = title,\n                Detail = status == 500 ? \"An unexpected error occurred.\" : ex.Message };\n            problem.Extensions[\"correlationId\"] = ctx.Response.Headers[\"X-Correlation-Id\"].ToString();\n            ctx.Response.StatusCode = status;\n            await ctx.Response.WriteAsJsonAsync(problem);\n        }\n    }\n}"
+            },
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Api/ApiDefaults.cs",
+              "lang": "csharp",
+              "content": "using Microsoft.AspNetCore.Builder;\nnamespace MediView.BuildingBlocks.Api;\n\npublic static class ApiDefaults\n{\n    public static WebApplication UseApiDefaults(this WebApplication app)\n    {\n        app.UseMiddleware<CorrelationIdMiddleware>();     // first: id is available to everything after\n        app.UseMiddleware<ExceptionHandlingMiddleware>();\n        return app;\n    }\n}"
+            }
+          ],
+          "commands": [
+            "dotnet build"
+          ],
+          "verify": [
+            "A thrown DomainException returns 400 ProblemDetails carrying the correlationId extension.",
+            "An unhandled exception returns 500 and never leaks a stack trace to the client."
+          ],
+          "enriched": true,
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P01-T09",
+          "title": "Contracts project for integration events",
+          "details": "One shared assembly of immutable event records. Versioned by adding fields, never by repurposing one.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "P01-T05"
+          ],
+          "acceptanceCriteria": [
+            "Both the publisher and the consumer compile against the same record type"
+          ],
+          "tags": [
+            "messaging",
+            "contracts"
+          ],
+          "steps": [
+            "Create MediView.Contracts (classlib) referenced by every Api and Infrastructure project. It holds only immutable event records.",
+            "Declare the three MVP integration events as records: ImagesImported, ReportFinalized, DoctorRegistered — carrying ids and primitives, never entities.",
+            "Write the rule at the top of the file: additive changes only. You version an event by adding a field, never by repurposing an existing one."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.Contracts/IntegrationEvents.cs",
+              "lang": "csharp",
+              "content": "namespace MediView.Contracts;\n\n// RULE: additive changes only. Version an event by ADDING a field,\n// never by changing the meaning of an existing one.\n\npublic sealed record ImagesImported(\n    Guid StudyId,\n    int SeriesCount,\n    int InstanceCount,\n    DateTimeOffset OccurredOn);\n\npublic sealed record ReportFinalized(\n    Guid StudyId,\n    Guid ReportId,\n    string Decision,          // \"done\" | \"re_diagnosis\"\n    DateTimeOffset OccurredOn);\n\npublic sealed record DoctorRegistered(\n    Guid DoctorId,\n    Guid UserId,\n    string LicenseNumber,\n    DateTimeOffset OccurredOn);"
+            }
+          ],
+          "commands": [
+            "dotnet build src/BuildingBlocks/MediView.Contracts"
+          ],
+          "verify": [
+            "The publisher (Imaging/Reporting) and the consumer (Studies) compile against the same record type in MediView.Contracts."
+          ],
+          "enriched": true,
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        }
+      ],
+      "enrichmentStatus": "detailed"
+    },
+    {
+      "id": "P02",
+      "name": "Local Infrastructure (Docker Compose)",
+      "order": 2,
+      "dependsOn": [
+        "P01"
+      ],
+      "days": "Day 4",
+      "goal": "Day 4 - One `docker compose up` gives you PostgreSQL, Redis, RabbitMQ and Seq. Services run from the IDE against them. No Aspire, no Kubernetes - that is deferred scope.",
+      "tasks": [
+        {
+          "id": "P02-T01",
+          "title": "docker-compose.yml with the four dependencies",
+          "details": "Postgres 16, Redis 7, RabbitMQ with the management UI, Seq for log viewing. Named volumes so data survives a restart.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [],
+          "acceptanceCriteria": [
+            "`docker compose up -d --wait` returns healthy for all four",
+            "RabbitMQ management UI reachable on :15672, Seq on :5341"
+          ],
+          "tags": [
+            "docker",
+            "infra"
+          ],
+          "steps": [
+            "Write .env at the repo root holding dev-only infra credentials and every host port (POSTGRES_PORT, REDIS_PORT, RABBITMQ_PORT, RABBITMQ_UI_PORT=15672, SEQ_PORT=5341). If a local Postgres already owns 5432, set POSTGRES_PORT=5433 here and mirror it in every connection string.",
+            "Write infra/postgres/init.sql that CREATE DATABASEs the four service databases (mediview_identity/studies/imaging/reporting). NOTE: init scripts run only on the FIRST boot of an empty pgdata volume — to re-seed later, `docker compose down -v`.",
+            "Write docker-compose.yml with the four services, fixed host ports, named volumes and a dedicated network. Give postgres/redis/rabbitmq real healthchecks.",
+            "Map Seq as 5341:80 — modern Seq serves BOTH the UI and log ingestion on container port 80, so the human and the Serilog sink both use :5341. Give Seq NO healthcheck (its image has no reliable curl, so `--wait` would hang).",
+            "Bring it up: `docker compose up -d --wait` blocks until postgres/redis/rabbitmq report healthy."
+          ],
+          "files": [
+            {
+              "path": ".env",
+              "lang": "dotenv",
+              "content": "# local development only — never reuse these values anywhere real\nPOSTGRES_USER=mediview\nPOSTGRES_PASSWORD=localdev_change_me\nRABBITMQ_DEFAULT_USER=mediview\nRABBITMQ_DEFAULT_PASS=localdev_change_me\n\n# host ports (change the LEFT side only if something already uses it)\nPOSTGRES_PORT=5432\nREDIS_PORT=6379\nRABBITMQ_PORT=5672\nRABBITMQ_UI_PORT=15672\nSEQ_PORT=5341"
+            },
+            {
+              "path": "infra/postgres/init.sql",
+              "lang": "sql",
+              "content": "-- runs ONCE, only when the pgdata volume is first created (empty).\n-- add a DB later? `docker compose down -v` to re-seed, or CREATE it by hand.\nCREATE DATABASE mediview_identity;\nCREATE DATABASE mediview_studies;\nCREATE DATABASE mediview_imaging;\nCREATE DATABASE mediview_reporting;"
+            },
+            {
+              "path": "docker-compose.yml",
+              "lang": "yaml",
+              "content": "name: mediview\n\nservices:\n  postgres:\n    image: postgres:16\n    container_name: mediview-postgres\n    restart: unless-stopped\n    environment:\n      POSTGRES_USER: ${POSTGRES_USER}\n      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}\n      POSTGRES_DB: postgres            # init.sql creates the 4 app databases\n    ports:\n      - \"${POSTGRES_PORT}:5432\"\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U $${POSTGRES_USER} -d postgres\"]\n      interval: 5s\n      timeout: 3s\n      retries: 10\n    networks: [mediview]\n\n  redis:\n    image: redis:7\n    container_name: mediview-redis\n    restart: unless-stopped\n    command: [\"redis-server\", \"--appendonly\", \"yes\"]\n    ports:\n      - \"${REDIS_PORT}:6379\"\n    volumes:\n      - redisdata:/data\n    healthcheck:\n      test: [\"CMD\", \"redis-cli\", \"ping\"]\n      interval: 5s\n      timeout: 3s\n      retries: 10\n    networks: [mediview]\n\n  rabbitmq:\n    image: rabbitmq:3.13-management\n    container_name: mediview-rabbitmq\n    restart: unless-stopped\n    environment:\n      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}\n      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}\n    ports:\n      - \"${RABBITMQ_PORT}:5672\"\n      - \"${RABBITMQ_UI_PORT}:15672\"\n    volumes:\n      - rabbitmqdata:/var/lib/rabbitmq\n    healthcheck:\n      test: [\"CMD\", \"rabbitmq-diagnostics\", \"-q\", \"ping\"]\n      interval: 10s\n      timeout: 5s\n      retries: 10\n    networks: [mediview]\n\n  seq:\n    image: datalust/seq:2024.3\n    container_name: mediview-seq\n    restart: unless-stopped\n    environment:\n      ACCEPT_EULA: \"Y\"\n    ports:\n      - \"${SEQ_PORT}:80\"               # UI + ingestion share port 80 in modern Seq\n    volumes:\n      - seqdata:/data\n    networks: [mediview]\n    # no healthcheck: the Seq image ships no reliable curl, so `--wait` would hang.\n\nvolumes:\n  pgdata:\n  redisdata:\n  rabbitmqdata:\n  seqdata:\n\nnetworks:\n  mediview:\n    driver: bridge"
+            }
+          ],
+          "commands": [
+            "docker compose up -d --wait",
+            "docker compose ps    # postgres/redis/rabbitmq must show 'healthy'"
+          ],
+          "verify": [
+            "`docker compose up -d --wait` returns healthy for postgres, redis and rabbitmq.",
+            "RabbitMQ management UI reachable at http://localhost:15672 ; Seq UI at http://localhost:5341."
+          ],
+          "enriched": true,
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P02-T02",
+          "title": "Connection strings and user-secrets",
+          "details": "Local secrets never touch the repo. Typed options validated at boot so a bad value fails at startup, not at 2 a.m.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P02-T01"
+          ],
+          "acceptanceCriteria": [
+            "Cloning the repo and running the app fails with a clear message about the missing secret, not a null reference"
+          ],
+          "tags": [
+            "config",
+            "security"
+          ],
+          "steps": [
+            "Add appsettings.Development.json to each Api project with NON-secret defaults only — hosts are localhost (services run from the IDE, not inside the compose network) and the Database name differs per service.",
+            "Run `dotnet user-secrets init` in each Api project and store the password-bearing connection string there, so secrets never touch the repo.",
+            "Bind a typed options class per concern (DatabaseOptions, RedisOptions, RabbitMqOptions, SeqOptions) with [Required] and call .ValidateDataAnnotations().ValidateOnStart() so a missing secret fails at boot with a clear message, not a null ref at 2 a.m."
+          ],
+          "files": [
+            {
+              "path": "src/Services/Studies/MediView.Studies.Api/appsettings.Development.json",
+              "lang": "json",
+              "content": "{\n  \"ConnectionStrings\": {\n    \"Postgres\": \"Host=localhost;Port=5432;Database=mediview_studies;Username=mediview\"\n  },\n  \"Redis\":    { \"Configuration\": \"localhost:6379\" },\n  \"RabbitMq\": { \"Host\": \"localhost\", \"Port\": 5672, \"VirtualHost\": \"/\", \"Username\": \"mediview\" },\n  \"Seq\":      { \"ServerUrl\": \"http://localhost:5341\" }\n}"
+            },
+            {
+              "path": "src/Services/Studies/MediView.Studies.Infrastructure/Configuration/DatabaseOptions.cs",
+              "lang": "csharp",
+              "content": "using System.ComponentModel.DataAnnotations;\nnamespace MediView.Studies.Infrastructure.Configuration;\n\npublic sealed class DatabaseOptions\n{\n    public const string SectionName = \"ConnectionStrings\";\n\n    [Required(AllowEmptyStrings = false,\n        ErrorMessage = \"ConnectionStrings:Postgres is missing. Did you run `dotnet user-secrets set`?\")]\n    public string Postgres { get; init; } = string.Empty;\n}"
+            },
+            {
+              "path": "src/Services/Studies/MediView.Studies.Api/Program.cs (excerpt)",
+              "lang": "csharp",
+              "content": "builder.Services\n    .AddOptions<DatabaseOptions>()\n    .Bind(builder.Configuration.GetSection(DatabaseOptions.SectionName))\n    .ValidateDataAnnotations()\n    .ValidateOnStart();   // missing secret => fails at startup, not at runtime"
+            }
+          ],
+          "commands": [
+            "cd src/Services/Studies/MediView.Studies.Api",
+            "dotnet user-secrets init",
+            "dotnet user-secrets set \"ConnectionStrings:Postgres\" \"Host=localhost;Port=5432;Database=mediview_studies;Username=mediview;Password=localdev_change_me\"",
+            "dotnet user-secrets set \"RabbitMq:Password\" \"localdev_change_me\"",
+            "# repeat for Identity/Imaging/Reporting, swapping the Database= name"
+          ],
+          "verify": [
+            "Cloning the repo and running a service without setting the secret fails with the clear 'ConnectionStrings:Postgres is missing' message, not a NullReferenceException."
+          ],
+          "enriched": true,
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P02-T03",
+          "title": "Serilog to console and Seq",
+          "details": "Structured JSON logs enriched with CorrelationId, UserId and ServiceName. Never log PHI - log ids.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "P02-T01"
+          ],
+          "acceptanceCriteria": [
+            "A request produces one enriched log line visible in Seq",
+            "Searching Seq by correlation id shows the whole request"
+          ],
+          "tags": [
+            "observability",
+            "logging"
+          ],
+          "steps": [
+            "Add the Serilog.AspNetCore, Serilog.Sinks.Seq and Serilog.Enrichers.Environment packages (one <PackageVersion> line each), then a shared UseMediViewLogging() extension in BuildingBlocks with the Console and Seq sinks.",
+            "Enrich every log line with ServiceName (from the entry assembly name) and CorrelationId (from the log scope pushed by CorrelationIdMiddleware).",
+            "Add app.UseSerilogRequestLogging() to each Api pipeline for one summary line per HTTP request.",
+            "Write the rule in the README: never log a patient name, DOB, MRN or report text — log ids only."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Api/LoggingExtensions.cs",
+              "lang": "csharp",
+              "content": "using System.Reflection;\nusing Microsoft.Extensions.Configuration;\nusing Microsoft.Extensions.Hosting;\nusing Serilog;\nnamespace MediView.BuildingBlocks.Api;\n\npublic static class LoggingExtensions\n{\n    public static IHostBuilder UseMediViewLogging(this IHostBuilder host) =>\n        host.UseSerilog((ctx, cfg) =>\n        {\n            var serviceName = Assembly.GetEntryAssembly()!.GetName().Name!;\n            cfg.ReadFrom.Configuration(ctx.Configuration)\n               .Enrich.FromLogContext()\n               .Enrich.WithProperty(\"ServiceName\", serviceName)\n               .WriteTo.Console(outputTemplate:\n                   \"[{Timestamp:HH:mm:ss} {Level:u3}] {ServiceName} {CorrelationId} {Message:lj}{NewLine}{Exception}\")\n               .WriteTo.Seq(ctx.Configuration[\"Seq:ServerUrl\"] ?? \"http://localhost:5341\");\n        });\n}"
+            },
+            {
+              "path": "README.md (logging rule)",
+              "lang": "markdown",
+              "content": "## Logging rule (non-negotiable)\nLog identifiers, never protected health information.\n- OK:  StudyId, PatientId, DoctorId, CorrelationId\n- NO:  patient name, DOB, MRN, blood type, report text, medication notes"
+            }
+          ],
+          "commands": [
+            "dotnet build"
+          ],
+          "verify": [
+            "A request produces one enriched log line visible in Seq, tagged with ServiceName and CorrelationId.",
+            "Filtering Seq by CorrelationId shows the whole request."
+          ],
+          "enriched": true,
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P02-T04",
+          "title": "Run scripts and health checks",
+          "details": "Make the whole thing startable by someone who has never seen it - including you in three weeks.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "P02-T02"
+          ],
+          "acceptanceCriteria": [
+            "A clean clone is running end to end in under 5 minutes"
+          ],
+          "tags": [
+            "infra",
+            "docs"
+          ],
+          "steps": [
+            "Add the AspNetCore.HealthChecks.NpgSql, .Redis and .Rabbitmq packages, then register /health/live (process up) and /health/ready (Postgres + Redis + RabbitMQ reachable) in every Api.",
+            "Add run.sh (macOS/Linux) and run.ps1 (Windows) that bring up compose with --wait, then `dotnet run` the gateway and four services.",
+            "Write the 6-line 'getting started' block in the README and actually follow it on a fresh clone, timing it — it must be under 5 minutes."
+          ],
+          "files": [
+            {
+              "path": "src/BuildingBlocks/MediView.BuildingBlocks.Api/HealthChecks.cs (excerpt)",
+              "lang": "csharp",
+              "content": "builder.Services.AddHealthChecks()\n    .AddNpgSql(builder.Configuration.GetConnectionString(\"Postgres\")!, name: \"postgres\", tags: [\"ready\"])\n    .AddRedis(builder.Configuration[\"Redis:Configuration\"]!,           name: \"redis\",    tags: [\"ready\"])\n    .AddRabbitMQ(name: \"rabbitmq\", tags: [\"ready\"]);\n\napp.MapHealthChecks(\"/health/live\",  new() { Predicate = _ => false });\napp.MapHealthChecks(\"/health/ready\", new() { Predicate = c => c.Tags.Contains(\"ready\") });"
+            },
+            {
+              "path": "run.sh",
+              "lang": "bash",
+              "content": "#!/usr/bin/env bash\nset -euo pipefail\necho \"bringing up infrastructure...\"\ndocker compose up -d --wait          # Compose >= 2.1 required for --wait\necho \"starting services (Ctrl-C stops all)...\"\ndotnet run --project src/Services/Identity/MediView.Identity.Api &\ndotnet run --project src/Services/Studies/MediView.Studies.Api &\ndotnet run --project src/Services/Imaging/MediView.Imaging.Api &\ndotnet run --project src/Services/Reporting/MediView.Reporting.Api &\ndotnet run --project src/Gateway/MediView.Gateway &\ndotnet run --project src/Web/MediView.Web &\nwait"
+            },
+            {
+              "path": "run.ps1",
+              "lang": "powershell",
+              "content": "$ErrorActionPreference = \"Stop\"\nWrite-Host \"Bringing up infrastructure...\"\ndocker compose up -d --wait\n$projects = @(\n  \"src/Services/Identity/MediView.Identity.Api\",\n  \"src/Services/Studies/MediView.Studies.Api\",\n  \"src/Services/Imaging/MediView.Imaging.Api\",\n  \"src/Services/Reporting/MediView.Reporting.Api\",\n  \"src/Gateway/MediView.Gateway\",\n  \"src/Web/MediView.Web\"\n)\nforeach ($p in $projects) { Start-Process dotnet -ArgumentList \"run --project $p\" }"
+            },
+            {
+              "path": "README.md (getting started)",
+              "lang": "markdown",
+              "content": "## Getting started\n1. Install Docker Desktop and the .NET 10 SDK.\n2. In each *.Api project run the `dotnet user-secrets set` lines in docs/secrets.md.\n3. `./run.sh`  (Windows: `./run.ps1`)\n4. Gateway readiness: http://localhost:<gateway-port>/health/ready\n5. Logs: http://localhost:5341 (Seq)  ·  Queues: http://localhost:15672 (RabbitMQ)\n6. Stop: Ctrl-C, then `docker compose down` (add -v to wipe data)."
+            }
+          ],
+          "commands": [
+            "chmod +x run.sh",
+            "./run.sh"
+          ],
+          "verify": [
+            "A clean clone is running end to end in under 5 minutes."
+          ],
+          "enriched": true,
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        }
+      ],
+      "enrichmentStatus": "detailed"
+    },
+    {
+      "id": "P03",
+      "name": "Identity Service (auth + people)",
+      "order": 3,
+      "dependsOn": [
+        "P01",
+        "P02"
+      ],
+      "days": "Days 5-9",
+      "goal": "Days 5-9 - One service that owns users, patients, doctors and doctor schedules. JWT with a single role claim and three policies. The v3 role/permission matrix (3 tables + an admin UI) is cut: a 3-role system does not need one to teach authorization.",
+      "tasks": [
+        {
+          "id": "P03-T01",
+          "title": "Scaffold the four Identity projects and the DbContext",
+          "details": "First service, so this is where you set the template every later service copies.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [],
+          "acceptanceCriteria": [
+            "The service starts, connects to Postgres and answers /health/ready"
+          ],
+          "tags": [
+            "scaffold",
+            "efcore"
+          ],
+          "steps": [
+            "Create IdentityDbContext with HasDefaultSchema(\"identity\") and UseSnakeCaseNamingConvention().",
+            "Add Npgsql with EnableRetryOnFailure(); turn lazy loading off.",
+            "Add AddInfrastructure(config) and AddApplication() extensions so Program.cs reads like a table of contents."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P03-T02",
+          "title": "Model User, Patient, Doctor and DoctorSchedule",
+          "details": "Four small aggregates. Users hold one role - the compaction that deletes roles, permissions, role_permissions and user_roles. Mrn is a value object with its own format rule.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P03-T01"
+          ],
+          "acceptanceCriteria": [
+            "Constructing a Doctor without a licence number throws DomainException",
+            "Mrn rejects a string that is not MRN-#### "
+          ],
+          "tags": [
+            "ddd",
+            "domain"
+          ],
+          "steps": [
+            "Create User : AggregateRoot<Guid> with Email, PasswordHash, FullName, Role (enum), Dob, Gender, IsActive.",
+            "Create Patient with a Mrn value object, and Doctor with LicenseNumber, Specialty, Department.",
+            "Create DoctorSchedule (DayOfWeek, StartTime, EndTime, SlotMinutes) with the invariant EndTime > StartTime.",
+            "Put IUserRepository / IPatientRepository / IDoctorRepository in Domain, next to their aggregates."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P03-T03",
+          "title": "EF configurations, schema and first migration",
+          "details": "Map the five identity tables exactly as mediview-mvp.dbml specifies.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P03-T02"
+          ],
+          "acceptanceCriteria": [
+            "The identity schema has exactly 5 tables",
+            "Two patients registered concurrently get different MRNs"
+          ],
+          "tags": [
+            "efcore",
+            "migrations"
+          ],
+          "steps": [
+            "Write one IEntityTypeConfiguration per aggregate; enums as strings via HasConversion<string>().",
+            "Own the Mrn value object with OwnsOne; add the unique indexes on email, mrn and license_number.",
+            "Create a Postgres sequence for MRN numbering and a helper that formats MRN-{seq:0000}.",
+            "Run `dotnet ef migrations add InitialIdentity -p ...Infrastructure -s ...Api` and apply it."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P03-T04",
+          "title": "Patient self-registration",
+          "details": "The only self-service signup. Creating the user and its Patient row with an MRN is one transaction.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P03-T03"
+          ],
+          "acceptanceCriteria": [
+            "POST /auth/register creates exactly one user and one patient row",
+            "A duplicate email returns 409 ProblemDetails, not a 500"
+          ],
+          "tags": [
+            "auth",
+            "usecase"
+          ],
+          "steps": [
+            "Add a password hasher (ASP.NET Core PasswordHasher or BCrypt) behind an IPasswordHasher port.",
+            "Write RegisterPatientCommand + handler: uniqueness check, hash, create User(role=patient) and Patient(mrn) together, save once.",
+            "Return a Failure result (not an exception) when the email is taken; map it to 409.",
+            "Add a validator for email format and password strength."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P03-T05",
+          "title": "Login, JWT issuance and refresh-token rotation",
+          "details": "Access token ~15 min carrying sub, email, role and (for doctors) doctor_id. Refresh tokens are hashed at rest, single-use and rotate on every exchange.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P03-T04"
+          ],
+          "acceptanceCriteria": [
+            "A refresh token used twice is rejected the second time",
+            "A doctor's JWT contains a doctor_id claim"
+          ],
+          "tags": [
+            "auth",
+            "jwt"
+          ],
+          "steps": [
+            "Write LoginCommand: verify the hash, issue a JWT with the role claim, issue a refresh token and store only its hash.",
+            "Write RefreshCommand: look up by hash, reject if revoked or expired, revoke the old row and issue a new pair.",
+            "Configure JwtBearer validation (issuer, audience, lifetime, signing key, ClockSkew 30s) in a shared AddJwtAuth extension the other services also call.",
+            "Add a Logout that revokes the refresh token."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P03-T06",
+          "title": "Three authorization policies",
+          "details": "PatientOnly / DoctorOnly / AdminOnly. The rule that matters: an admin is NOT a doctor - the admin policy must never satisfy a report-writing endpoint.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P03-T05"
+          ],
+          "acceptanceCriteria": [
+            "A patient token gets 403 on an admin endpoint",
+            "An admin token gets 403 on the report-write endpoint (verified later in P11)"
+          ],
+          "tags": [
+            "auth",
+            "authz"
+          ],
+          "steps": [
+            "Add AddAuthorizationBuilder() policies over the role claim in a shared extension.",
+            "Apply .RequireAuthorization(\"AdminOnly\") to the doctor-creation endpoint.",
+            "Write the note in the ADR: UI checks are convenience, the API is the authority."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P03-T07",
+          "title": "Admin creates a doctor and their weekly schedule",
+          "details": "One form, one command. The v3 credential upload plus verification workflow is deferred - the admin attests and that is recorded.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P03-T06"
+          ],
+          "acceptanceCriteria": [
+            "POST /admin/doctors creates a user and a doctor in one transaction",
+            "Setting a schedule twice does not duplicate rows"
+          ],
+          "tags": [
+            "usecase",
+            "admin"
+          ],
+          "steps": [
+            "Write CreateDoctorCommand: create User(role=doctor) with a temporary password + Doctor row in one transaction.",
+            "Write SetDoctorScheduleCommand taking a list of (dayOfWeek, start, end, slotMinutes); replace the set atomically.",
+            "Raise the DoctorRegistered domain event (published in P08)."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P03-T08",
+          "title": "Availability query - expand schedules into bookable slots",
+          "details": "The one piece of real algorithm in this service: turn weekly rules into concrete slots for a date range.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P03-T07"
+          ],
+          "acceptanceCriteria": [
+            "A Mon-Fri 08:00-16:00 / 30-min doctor yields 16 slots per weekday and none on Sunday",
+            "Slots before now are excluded"
+          ],
+          "tags": [
+            "query",
+            "algorithm"
+          ],
+          "steps": [
+            "Write GetDoctorAvailabilityQuery(doctorId, fromDate, toDate).",
+            "Expand each DoctorSchedule row across the dates in range, stepping by SlotMinutes, skipping slots in the past.",
+            "Return slots as (start, end) UTC instants - the Studies service subtracts the booked ones.",
+            "Unit-test the expansion including a range that crosses a week boundary."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P03-T09",
+          "title": "Endpoints, seed data and a .http smoke file",
+          "details": "A seeded database you can demo from on day one, and a request file that proves every endpoint.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P03-T08"
+          ],
+          "acceptanceCriteria": [
+            "Running the .http file top to bottom passes every request",
+            "A fresh database is demo-ready after one startup"
+          ],
+          "tags": [
+            "api",
+            "seed"
+          ],
+          "steps": [
+            "Write AuthEndpoints and AdminEndpoints as Minimal API groups, one file per aggregate.",
+            "Seed on startup (dev only): 1 admin, 2 doctors with schedules, 3 patients with MRNs.",
+            "Add identity.http covering register -> login -> refresh -> create doctor -> availability.",
+            "Add a lookup endpoint GET /internal/people/{id} returning name + mrn - the Studies service calls this to take its snapshot."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P04",
+      "name": "Studies Service - the DDD core",
+      "order": 4,
+      "dependsOn": [
+        "P03"
+      ],
+      "days": "Days 10-16",
+      "goal": "Days 10-16 - The richest aggregate in the system and the single source of truth for the workflow. Booking was folded in from its own microservice: an appointment exists only to produce a Study, so they share a transaction boundary. Spend your best week here - this is the section that teaches DDD.",
+      "tasks": [
+        {
+          "id": "P04-T01",
+          "title": "Scaffold the Studies service from the Identity template",
+          "details": "Same four projects, same DbContext conventions, schema \"studies\".",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [],
+          "acceptanceCriteria": [
+            "The service starts and a doctor JWT issued by Identity is accepted here"
+          ],
+          "tags": [
+            "scaffold"
+          ],
+          "steps": [
+            "Copy the project structure and the AddInfrastructure/AddApplication shape from Identity.",
+            "Create StudiesDbContext with HasDefaultSchema(\"studies\").",
+            "Register AddApiDefaults() and AddJwtAuth() so auth works from the first endpoint."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P04-T02",
+          "title": "Study aggregate root and its status state machine",
+          "details": "Four statuses, and the transitions are the business rules. Every illegal move throws before it reaches the database - that is what makes this a domain model rather than a data model.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P04-T01"
+          ],
+          "acceptanceCriteria": [
+            "Calling Complete() on a todo study throws, and no row changes",
+            "StartRead on a study with no images throws with a message the UI can show"
+          ],
+          "tags": [
+            "ddd",
+            "aggregate",
+            "state-machine"
+          ],
+          "steps": [
+            "Create Study : AggregateRoot<Guid> with a private constructor and a static Study.Schedule(...) factory.",
+            "Implement StartRead(doctorId), RequestReDiagnosis(reason), Complete(), and AdminOverride(to, actor, reason).",
+            "Encode the legal transitions in one place: todo->in_progress, in_progress->done, in_progress->re_diagnosis, re_diagnosis->in_progress. Everything else throws InvalidStatusTransitionException.",
+            "Enforce the acquisition guard: StartRead throws if ImagesImportedAt is null.",
+            "Raise a domain event on every successful transition."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P04-T03",
+          "title": "StudyStatusHistory as an owned child collection",
+          "details": "The entity that proves the aggregate boundary is real: nothing outside Study may insert a history row.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P04-T02"
+          ],
+          "acceptanceCriteria": [
+            "Every status change writes exactly one history row in the same SaveChanges",
+            "AdminOverride without a reason throws"
+          ],
+          "tags": [
+            "ddd",
+            "aggregate"
+          ],
+          "steps": [
+            "Add a private List<StudyStatusHistory> exposed as IReadOnlyCollection<StudyStatusHistory>.",
+            "Append a history row inside the transition method itself - never from a handler.",
+            "Record from, to, changedBy, changedByRole and reason; make reason mandatory for AdminOverride.",
+            "Confirm there is no IStudyStatusHistoryRepository anywhere - if you wanted one, the boundary is wrong."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P04-T04",
+          "title": "Appointment entity and the no-double-booking invariant",
+          "details": "Defence in depth: check in the handler for a friendly error, and a unique index in the database because two requests can pass the check at the same time.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P04-T01"
+          ],
+          "acceptanceCriteria": [
+            "Two concurrent bookings of one slot produce one appointment and one 409"
+          ],
+          "tags": [
+            "ddd",
+            "concurrency"
+          ],
+          "steps": [
+            "Create Appointment with PatientId, DoctorId, ScheduledStart/End, Status and Reason.",
+            "In the booking handler, query for an existing booked appointment at that slot and return a Failure result if found.",
+            "Add the unique index (doctor_id, scheduled_start) and catch the Postgres 23505 to map it to the same 409.",
+            "Write the test that fires two identical bookings in parallel and asserts exactly one succeeds."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P04-T05",
+          "title": "EF configurations, snake_case mapping and optimistic concurrency",
+          "details": "Map the five studies tables. Concurrency via Postgres xmin so a lost update surfaces as a 409 instead of silently overwriting a colleague.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P04-T03",
+            "P04-T04"
+          ],
+          "acceptanceCriteria": [
+            "The studies schema has exactly 5 tables and matches the DBML",
+            "A stale update throws DbUpdateConcurrencyException and the middleware returns 409"
+          ],
+          "tags": [
+            "efcore",
+            "migrations"
+          ],
+          "steps": [
+            "Write StudyConfiguration, AppointmentConfiguration, StudyStatusHistoryConfiguration, StudyLockConfiguration, AuditLogConfiguration.",
+            "Enums as strings; jsonb for audit before/after; the composite worklist index (status, priority, study_date).",
+            "Add `b.Property<uint>(\"xmin\").IsRowVersion().HasColumnName(\"xmin\")` on Study.",
+            "Configure History with WithOne().OnDelete(Cascade) and access through the backing field.",
+            "Run the InitialStudies migration and verify against mediview-mvp.dbml."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P04-T06",
+          "title": "Repositories and the unit-of-work rule",
+          "details": "Repository interfaces live in Domain with their aggregate; implementations in Infrastructure. SaveChangesAsync IS the unit of work - do not wrap DbContext in an IUnitOfWork that only forwards.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P04-T05"
+          ],
+          "acceptanceCriteria": [
+            "A handler loads an aggregate, mutates it and calls SaveChangesAsync once",
+            "No repository returns IQueryable"
+          ],
+          "tags": [
+            "ddd",
+            "persistence"
+          ],
+          "steps": [
+            "Define IStudyRepository (GetByIdAsync with Include(History), Add) and IAppointmentRepository in Domain.",
+            "Implement them over StudiesDbContext; never expose IQueryable from a repository.",
+            "Add a DomainEventDispatcher hooked to SaveChangesAsync that collects and clears events after a successful save.",
+            "Write the rule in the ADR so you do not re-litigate it in week 4."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P04-T07",
+          "title": "BookAppointment: the snapshot pattern in action",
+          "details": "The command that replaces the whole v3 cross-service query stack. One typed HttpClient call to Identity at booking time copies mrn, patient name and doctor name onto the Study - after that the worklist never leaves this database.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P04-T06"
+          ],
+          "acceptanceCriteria": [
+            "Booking creates one appointment and one Study in one transaction",
+            "The Study row carries patient_mrn, patient_name and doctor_name",
+            "Identity being down returns a clean 503, not a 500"
+          ],
+          "tags": [
+            "usecase",
+            "integration",
+            "snapshot"
+          ],
+          "steps": [
+            "Add a typed IIdentityApi HttpClient with a Polly retry + circuit breaker, pointed at Identity's /internal/people endpoint.",
+            "Write BookAppointmentCommand: fetch patient + doctor details, verify the slot against the availability the client returns, create Appointment, then create Study in status todo with the snapshot columns filled.",
+            "Generate StudyNumber (STU-###) from a Postgres sequence and a StudyInstanceUid (a DICOM-shaped UID with your own root).",
+            "Return the study id so the UI can navigate straight to it.",
+            "Write the comment explaining WHY the snapshot is correct: DICOM embeds PatientName at acquisition; a later rename must not rewrite history."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P04-T08",
+          "title": "The doctor worklist query",
+          "details": "The hot path. AsNoTracking + Select into a flat DTO, sorted stat-first, cursor- or offset-paged. No Dapper in the MVP - projection over a single local table is already one round trip.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P04-T06"
+          ],
+          "acceptanceCriteria": [
+            "The worklist returns in one SQL round trip",
+            "EXPLAIN shows an index scan, not a sequential scan, on 10k seeded rows"
+          ],
+          "tags": [
+            "query",
+            "performance"
+          ],
+          "steps": [
+            "Write GetWorklistQuery(doctorId?, statuses[], search, skip, take).",
+            "Project directly into WorklistItemDto - never return an entity from a query handler.",
+            "Left-join the active lock row so each item carries lockedBy (null when free).",
+            "Order by priority desc then study_date; verify the composite index is used with EXPLAIN.",
+            "Add the rule to your notes: never .ToList().Skip() and never a query inside a foreach."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P04-T09",
+          "title": "Study detail and patient timeline queries",
+          "details": "What screen 3 and screen 5 read.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P04-T08"
+          ],
+          "acceptanceCriteria": [
+            "A patient can only fetch their own studies - enforced in the handler from the JWT sub, not from a route parameter"
+          ],
+          "tags": [
+            "query",
+            "api"
+          ],
+          "steps": [
+            "Write GetStudyByIdQuery returning the study plus its ordered status history.",
+            "Write GetMyStudiesQuery(patientId) for the patient portal.",
+            "Both AsNoTracking with explicit projection."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P04-T10",
+          "title": "MarkImagesImported",
+          "details": "The guard that stops a doctor reading an empty study. Called by an endpoint now; rewired to the ImagesImported event in P08.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P04-T09"
+          ],
+          "acceptanceCriteria": [
+            "Importing images sets images_imported_at and leaves the status at todo",
+            "Calling it twice is harmless"
+          ],
+          "tags": [
+            "usecase",
+            "integration"
+          ],
+          "steps": [
+            "Add Study.MarkImagesImported(at) - idempotent, and it must NOT change the status.",
+            "Expose POST /internal/studies/{id}/images-imported for now.",
+            "Assert in a test that a todo study stays todo after import."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P04-T11",
+          "title": "Admin status override with a mandatory reason",
+          "details": "Break-glass. An admin can move a study anywhere, but never without a reason and never silently.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P04-T10"
+          ],
+          "acceptanceCriteria": [
+            "An override without a reason returns 400",
+            "One override produces one history row and one audit row"
+          ],
+          "tags": [
+            "admin",
+            "audit"
+          ],
+          "steps": [
+            "Write OverrideStudyStatusCommand guarded by AdminOnly, requiring a non-empty reason.",
+            "Call Study.AdminOverride(...) so the history row is written by the aggregate.",
+            "Write an audit_log row with action study.status.override, before/after as jsonb, in the same transaction.",
+            "Reject an override that an ordinary transition would allow anyway - it should go through the normal path."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P04-T12",
+          "title": "Unit tests for the state machine",
+          "details": "The highest value-per-line tests in the whole project, and they need no database.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P04-T11"
+          ],
+          "acceptanceCriteria": [
+            "The Study aggregate has >90% line coverage from tests that run in under a second"
+          ],
+          "tags": [
+            "testing",
+            "ddd"
+          ],
+          "steps": [
+            "Write a table-driven test over all 16 (from,to) pairs asserting legal moves succeed and illegal ones throw.",
+            "Test the images-imported guard, the mandatory override reason, and that every transition appends exactly one history row.",
+            "Keep them pure - constructing a Study must not need EF, Postgres or a mock."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P05",
+      "name": "Imaging Service (DICOM)",
+      "order": 5,
+      "dependsOn": [
+        "P04"
+      ],
+      "days": "Days 17-21",
+      "goal": "Days 17-21 - Accept .dcm uploads, parse them with fo-dicom, keep pixels in blob storage and metadata in Postgres, and serve the bytes back over a WADO-shaped endpoint that Cornerstone can consume. Two tables. The v3 import_jobs queue and saved annotations are deferred.",
+      "tasks": [
+        {
+          "id": "P05-T01",
+          "title": "Scaffold the Imaging service and model Series/Instance",
+          "details": "Series is the aggregate root; Instance is its child. The Study lives in another service, so study_id here is just a uuid.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [],
+          "acceptanceCriteria": [
+            "The imaging schema has exactly 2 tables",
+            "Adding an instance through the aggregate keeps instance_count correct"
+          ],
+          "tags": [
+            "scaffold",
+            "ddd"
+          ],
+          "steps": [
+            "Create the four projects and ImagingDbContext with schema \"imaging\".",
+            "Model Series : AggregateRoot with a private List<Instance> and AddInstance(...) maintaining InstanceCount.",
+            "Write the two EF configurations with unique indexes on series_instance_uid and sop_instance_uid.",
+            "Run the InitialImaging migration."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P05-T02",
+          "title": "IBlobStore port with a local-disk adapter",
+          "details": "The interface lives in Application, the adapter in Infrastructure. Local disk in dev; Azure Blob is a same-shape adapter you can add in an hour if you ever want it.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P05-T01"
+          ],
+          "acceptanceCriteria": [
+            "The upload path never mentions the file system outside the adapter"
+          ],
+          "tags": [
+            "architecture",
+            "storage"
+          ],
+          "steps": [
+            "Define IBlobStore { PutAsync(key, stream), OpenReadAsync(key), DeleteAsync(key) } in Application/Ports.",
+            "Implement LocalDiskBlobStore writing under a configured root, keyed studies/{studyUid}/{seriesUid}/{sopUid}.dcm.",
+            "Register it by configuration so swapping the adapter is a one-line change.",
+            "Add the folder to .gitignore."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P05-T03",
+          "title": "Parse uploaded DICOM with fo-dicom",
+          "details": "Read the tags the viewport actually needs and reject anything that is not a DICOM file.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P05-T02"
+          ],
+          "acceptanceCriteria": [
+            "A non-DICOM file returns 400 with a clear message",
+            "A real chest x-ray uploads and its rows/columns match the file"
+          ],
+          "tags": [
+            "dicom",
+            "parsing"
+          ],
+          "steps": [
+            "Add the fo-dicom package and open the uploaded stream with DicomFile.OpenAsync.",
+            "Extract StudyInstanceUID (0020,000D), SeriesInstanceUID (0020,000E), SOPInstanceUID (0008,0018), InstanceNumber, Rows, Columns, WindowCenter, WindowWidth, Modality, BodyPartExamined.",
+            "Validate the file has the DICM preamble and reject with 400 otherwise; cap the upload size.",
+            "Handle a missing window center/width by leaving them null - the viewer falls back to a computed default."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P05-T04",
+          "title": "Upload endpoint - the admin x-ray simulation",
+          "details": "Multi-file upload for one study. Pixels to the blob store, metadata to Postgres, in that order, and cleaned up if the save fails.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P05-T03"
+          ],
+          "acceptanceCriteria": [
+            "Uploading 12 files of one series creates 1 series row and 12 instance rows",
+            "A mid-way failure leaves no orphaned blobs"
+          ],
+          "tags": [
+            "usecase",
+            "upload"
+          ],
+          "steps": [
+            "Write ImportInstancesCommand(studyId, IFormFileCollection) behind AdminOnly.",
+            "For each file: parse, write the blob, then add the Instance to its Series (create the Series on first sight of its UID).",
+            "SaveChanges once at the end; if it throws, delete the blobs you just wrote.",
+            "Return a summary (series created, instances added, total bytes) for the admin screen."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P05-T05",
+          "title": "Publish ImagesImported",
+          "details": "The fact that unblocks the read. Raised here, consumed by Studies in P08; until then call the internal endpoint directly.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P05-T04"
+          ],
+          "acceptanceCriteria": [
+            "After an import the Study shows images_imported_at set"
+          ],
+          "tags": [
+            "messaging",
+            "integration"
+          ],
+          "steps": [
+            "Raise an ImagesImported(studyId, seriesCount, instanceCount, importedAtUtc) domain event on a successful import.",
+            "For now, translate it in a handler that calls the Studies internal endpoint over a typed client.",
+            "Leave a TODO pointing at P08 where this becomes an outbox publish."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P05-T06",
+          "title": "QIDO-shaped metadata endpoints",
+          "details": "Just enough DICOMweb shape for the viewer to discover what to load.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P05-T04"
+          ],
+          "acceptanceCriteria": [
+            "The viewer can build a full image stack from these two calls"
+          ],
+          "tags": [
+            "api",
+            "dicom"
+          ],
+          "steps": [
+            "GET /studies/{studyId}/series -> series list with instance counts.",
+            "GET /series/{seriesId}/instances -> ordered instance metadata including window center/width.",
+            "Project into DTOs; order by instance_number so the stack scrolls in the right order."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P05-T07",
+          "title": "WADO-shaped retrieve endpoint",
+          "details": "Stream the original bytes back. No re-encoding, no buffering the whole file in memory.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P05-T06"
+          ],
+          "acceptanceCriteria": [
+            "Cornerstone loads an image straight from this URL",
+            "A 40 MB CT slice streams without the process memory spiking"
+          ],
+          "tags": [
+            "api",
+            "dicom",
+            "performance"
+          ],
+          "steps": [
+            "GET /instances/{sopInstanceUid} returning application/dicom from IBlobStore.OpenReadAsync.",
+            "Use Results.Stream / a FileStreamResult so a large file never lands fully in memory.",
+            "Set ETag/Cache-Control - instances are immutable, so they cache forever.",
+            "Require an authenticated caller; note in the ADR that a real deployment would also check the study is assigned to this doctor."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P05-T08",
+          "title": "Sample data set and an imaging smoke test",
+          "details": "You need real pixels to demo. Get them once and script the import.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "P05-T07"
+          ],
+          "acceptanceCriteria": [
+            "`./seed-images.sh` imports a demo study end to end"
+          ],
+          "tags": [
+            "testing",
+            "seed"
+          ],
+          "steps": [
+            "Download a small public de-identified DICOM set (e.g. a chest x-ray series) into test-data/, git-ignored.",
+            "Write imaging.http covering upload -> series -> instances -> retrieve.",
+            "Add an integration test with Testcontainers that imports two files and asserts the row counts."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P06",
+      "name": "Single-Writer Lock (Redis) + SignalR",
+      "order": 6,
+      "dependsOn": [
+        "P04"
+      ],
+      "days": "Days 22-25",
+      "goal": "Days 22-25 - The feature that makes this project worth showing. One doctor edits a study at a time, enforced by a Redis lock with an owner token and a TTL, mirrored into Postgres for the UI and the audit trail, announced over SignalR. Cut from v3: lock_watchers and the notify-me-when-free flow.",
+      "tasks": [
+        {
+          "id": "P06-T01",
+          "title": "Define the IStudyLockService port",
+          "details": "The Application layer must never know Redis exists. Get the interface right and the rest is an adapter.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [],
+          "acceptanceCriteria": [
+            "Handlers compile and test against the interface with no Redis reference"
+          ],
+          "tags": [
+            "architecture",
+            "ports"
+          ],
+          "steps": [
+            "Define IStudyLockService in Application/Ports: TryAcquire(studyId, doctorId, ttl) -> LockResult, Renew(studyId, ownerToken), Release(studyId, ownerToken, reason), GetOwner(studyId).",
+            "Make LockResult carry Acquired plus the current owner's id and name when it fails - the 409 body needs both.",
+            "Write an in-memory implementation first so you can unit-test the handlers with no Redis."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P06-T02",
+          "title": "Redis lock adapter: SET NX PX with an owner token",
+          "details": "The classic mistake is releasing someone else's lock after your TTL expired. The owner token plus a Lua compare-and-delete is what prevents it.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P06-T01"
+          ],
+          "acceptanceCriteria": [
+            "A release with the wrong token is a no-op",
+            "An expired lock is acquirable by another doctor with no manual cleanup"
+          ],
+          "tags": [
+            "redis",
+            "concurrency"
+          ],
+          "steps": [
+            "Add StackExchange.Redis and register IConnectionMultiplexer as a singleton.",
+            "Acquire with `SET study-lock:{id} {ownerToken} NX PX {ttlMs}` where ownerToken is a fresh Guid.",
+            "Release with a Lua script that deletes only if the stored value equals the token; same idea for renew with PEXPIRE.",
+            "Return the existing owner on failure by reading a companion hash holding doctorId + doctorName.",
+            "Write down why RedLock across multiple masters is NOT needed here: one Redis instance, and the Postgres unique index is the backstop."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P06-T03",
+          "title": "Acquire on open: the todo -> in_progress transition",
+          "details": "Opening the viewport is the business event. Lock first, then transition, then mirror - and undo the lock if the transition throws.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P06-T02"
+          ],
+          "acceptanceCriteria": [
+            "Opening a study moves it to in_progress and writes a study_locks row",
+            "Opening a study with no images leaves no lock behind"
+          ],
+          "tags": [
+            "usecase",
+            "concurrency"
+          ],
+          "steps": [
+            "Write StartReadCommand(studyId): TryAcquire, then Study.StartRead(doctorId), then upsert the study_locks row, then SaveChanges.",
+            "If StartRead throws (no images, wrong status), release the Redis lock before letting the exception propagate.",
+            "Store the owner token in the response so the client sends it on heartbeat and release.",
+            "Make it idempotent: the same doctor re-opening their own locked study succeeds and returns the same token."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P06-T04",
+          "title": "Heartbeat and TTL renewal",
+          "details": "The client pings while the doctor is actually working. Only the owner may renew.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P06-T03"
+          ],
+          "acceptanceCriteria": [
+            "Closing the browser frees the study within the TTL with no server action",
+            "A heartbeat from another doctor is rejected"
+          ],
+          "tags": [
+            "concurrency",
+            "api"
+          ],
+          "steps": [
+            "Add POST /studies/{id}/lock/heartbeat taking the owner token; renew the Redis TTL and update last_heartbeat.",
+            "Ping every 30 s from the client with a 15-minute TTL - a browser crash frees the study automatically.",
+            "Reject a heartbeat from a non-owner with 409, and have the client treat that as 'you lost the lock' and go read-only."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P06-T05",
+          "title": "Release paths and the expiry sweeper",
+          "details": "Three ways a lock ends normally, plus a background job that reconciles the Postgres mirror with reality.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P06-T04"
+          ],
+          "acceptanceCriteria": [
+            "An expired lock is reconciled in Postgres within a minute",
+            "The background service does not throw on an empty result set"
+          ],
+          "tags": [
+            "concurrency",
+            "background"
+          ],
+          "steps": [
+            "Release on explicit close (reason manual), on report finalize (P07), and on TTL expiry.",
+            "Write a BackgroundService that every minute finds study_locks rows with released_at null and expires_at in the past, marks them ttl_expired, and pushes LockReleased.",
+            "Use IServiceScopeFactory inside the background service - never inject a scoped DbContext into a singleton.",
+            "Decide and document what happens to the study status when a lock expires mid-read: it STAYS in_progress (the read is unfinished, not abandoned)."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P06-T06",
+          "title": "StudyLockedException -> 409 with the owner in the body",
+          "details": "Every write to a locked study fails the same way, and the message tells the second doctor who to go talk to.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P06-T05"
+          ],
+          "acceptanceCriteria": [
+            "A second doctor's write returns 409 naming the owner and the elapsed time",
+            "The check is server-side - bypassing the UI still gets 409"
+          ],
+          "tags": [
+            "api",
+            "concurrency"
+          ],
+          "steps": [
+            "Create StudyLockedException carrying ownerName and acquiredAt.",
+            "Map it in the shared exception middleware to 409 ProblemDetails with ownerName, ownerId and elapsedMinutes as extensions.",
+            "Guard every mutating study and report endpoint with an ownership check, not just the UI."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P06-T07",
+          "title": "SignalR StudyHub",
+          "details": "Announcements only. The hub is never the source of truth - Redis is. A dropped socket must never grant or extend a lock.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P06-T06"
+          ],
+          "acceptanceCriteria": [
+            "Two browsers on the same study see the lock change within a second",
+            "The hub never mutates state"
+          ],
+          "tags": [
+            "signalr",
+            "realtime"
+          ],
+          "steps": [
+            "Add StudyHub with [Authorize]; join `study:{studyId}` and `worklist` groups, never address connection ids.",
+            "Publish LockAcquired, LockReleased and StatusChanged after the transaction commits, not inside it.",
+            "Wire JWT over the access_token query string for the WebSocket handshake (OnMessageReceived).",
+            "Skip the Redis backplane for the MVP and write the one-line note: it is required the moment you run two instances."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P06-T08",
+          "title": "The concurrency test that proves it",
+          "details": "The demo moment. Automate it so you trust it, then perform it live with two browser windows.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P06-T07"
+          ],
+          "acceptanceCriteria": [
+            "10 parallel acquires yield exactly one winner, repeatably",
+            "The two-window demo works without a page refresh"
+          ],
+          "tags": [
+            "testing",
+            "concurrency"
+          ],
+          "steps": [
+            "Write an integration test firing 10 parallel StartRead calls for one study and asserting exactly 1 succeeds and 9 return 409.",
+            "Assert the 9 failures all name the same owner.",
+            "Write the manual demo script: two windows, two doctors, open, watch the second go read-only, finalize, watch it unlock."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P07",
+      "name": "Reporting Service (report + medications)",
+      "order": 7,
+      "dependsOn": [
+        "P06"
+      ],
+      "days": "Days 26-30",
+      "goal": "Days 26-30 - The read itself. A Report aggregate with an owned medication collection - one child table that replaces the entire v3 Prescription microservice. Finalizing is the transaction that closes the study, and a re-diagnosis creates a second report rather than editing the first.",
+      "tasks": [
+        {
+          "id": "P07-T01",
+          "title": "Scaffold Reporting and model the Report aggregate",
+          "details": "Second aggregate-heavy service, so it should feel routine by now. That familiarity is the point of a consistent template.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [],
+          "acceptanceCriteria": [
+            "The reporting schema has exactly 3 tables"
+          ],
+          "tags": [
+            "scaffold",
+            "ddd"
+          ],
+          "steps": [
+            "Create the four projects and ReportingDbContext with schema \"reporting\".",
+            "Model Report : AggregateRoot with StudyId, DoctorId, DoctorName, ReportNumber, Status, Findings, Impression, Decision, FinalizedAt.",
+            "Add a private List<ReportMedication> exposed read-only, with AddMedication / RemoveMedication.",
+            "Model the Drug lookup entity."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P07-T02",
+          "title": "Finalize invariants - the rules that make a report clinical",
+          "details": "A draft is freely editable; a finalized report is frozen forever. Getting this right is the difference between a CRUD app and a medical record.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P07-T01"
+          ],
+          "acceptanceCriteria": [
+            "Finalizing without an impression throws",
+            "Editing a finalized report throws at the domain level, not in the endpoint"
+          ],
+          "tags": [
+            "ddd",
+            "invariants"
+          ],
+          "steps": [
+            "Implement Finalize(decision): throw unless Findings and Impression are non-empty and Status is draft.",
+            "Throw on ANY mutation once Status is finalized - including AddMedication.",
+            "Stamp FinalizedAt from an injected IClock, never DateTime.Now.",
+            "Raise ReportFinalized(studyId, reportId, decision) as a domain event.",
+            "Write the ADR note: a correction is a NEW report row, which is why study_id is not unique."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P07-T03",
+          "title": "EF configuration, drug seed and migration",
+          "details": "Map three tables and seed the formulary the composer types against.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P07-T02"
+          ],
+          "acceptanceCriteria": [
+            "The drug type-ahead returns results on a fresh database",
+            "Two reports created concurrently get different numbers"
+          ],
+          "tags": [
+            "efcore",
+            "seed"
+          ],
+          "steps": [
+            "Write the three IEntityTypeConfigurations; medications cascade-delete with their report.",
+            "Seed ~30 common drugs (code, name, form, strength) from a JSON file at startup in dev.",
+            "Create a sequence for ReportNumber formatted RP-####.",
+            "Run the InitialReporting migration."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P07-T04",
+          "title": "Create draft and save draft - lock ownership enforced",
+          "details": "Only the doctor holding the study lock may write. Reporting does not own the lock, so it asks Studies.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P07-T03"
+          ],
+          "acceptanceCriteria": [
+            "A doctor who does not hold the lock cannot create or edit a report",
+            "An admin token is refused here too - admins do not diagnose"
+          ],
+          "tags": [
+            "usecase",
+            "authz"
+          ],
+          "steps": [
+            "Add a typed IStudiesApi client with an endpoint GET /internal/studies/{id}/lock returning the current owner.",
+            "Write CreateDraftCommand: verify the caller owns the lock, verify the study is in_progress, create the report.",
+            "Write SaveDraftCommand for findings/impression with the same ownership check.",
+            "Return 409 StudyLocked when the caller is not the owner - the same shape as P06-T06.",
+            "Autosave the draft from the UI every 20 s so a lost lock never costs the doctor their typing."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P07-T05",
+          "title": "Medication composer commands",
+          "details": "What used to be a whole service is now two commands on an aggregate.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P07-T04"
+          ],
+          "acceptanceCriteria": [
+            "Medications can be added and removed on a draft and not on a finalized report",
+            "Deactivating a drug in the catalog does not alter an existing report - the name is snapshotted"
+          ],
+          "tags": [
+            "usecase",
+            "ddd"
+          ],
+          "steps": [
+            "Write AddMedicationCommand(reportId, drugId?, drugName, dosage, frequency, duration, quantity) - snapshot drugName at add time.",
+            "Write RemoveMedicationCommand; both go through the aggregate, both refuse once finalized.",
+            "Write GetDrugsQuery(search) for the type-ahead, AsNoTracking, top 20.",
+            "Allow a free-text medication (drugId null) so the formulary never blocks a doctor."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P07-T06",
+          "title": "Finalize: one transaction, three effects",
+          "details": "Stamp the report, write the outbox row, release the lock. All or nothing.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P07-T05"
+          ],
+          "acceptanceCriteria": [
+            "Finalizing writes exactly one outbox row in the same transaction as the report update",
+            "The study unlocks and the second doctor's viewport goes live within a second"
+          ],
+          "tags": [
+            "usecase",
+            "transaction"
+          ],
+          "steps": [
+            "Write FinalizeReportCommand: ownership check, Report.Finalize(decision), save.",
+            "In the same SaveChanges write the ReportFinalized outbox row (wired properly in P08).",
+            "After the commit, call Studies to release the lock with reason manual.",
+            "Handle the awkward case explicitly: if the lock was already lost, the finalize still succeeds - the doctor's work is not thrown away."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P07-T07",
+          "title": "PDF export with QuestPDF",
+          "details": "The patient-facing artefact: header, patient and study identifiers, findings, impression, medications, doctor and finalize timestamp.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "P07-T06"
+          ],
+          "acceptanceCriteria": [
+            "A finalized report downloads as a readable one-page PDF",
+            "A draft PDF is clearly watermarked"
+          ],
+          "tags": [
+            "export",
+            "pdf"
+          ],
+          "steps": [
+            "Add QuestPDF (community licence) and write one ReportDocument class.",
+            "Generate on demand from GET /reports/{id}/pdf rather than storing a file - regeneration is cheap and there is no blob to keep in sync.",
+            "Include the report number, study number and MRN in the header; mark drafts with a DRAFT watermark.",
+            "Return 403 unless the caller is the reporting doctor, an admin, or the patient the study belongs to."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P07-T08",
+          "title": "Report queries for both portals",
+          "details": "The doctor needs their drafts; the patient needs their finalized results.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P07-T07"
+          ],
+          "acceptanceCriteria": [
+            "A patient cannot fetch a draft report by guessing its id",
+            "A re-diagnosed study shows two reports in order"
+          ],
+          "tags": [
+            "query",
+            "api"
+          ],
+          "steps": [
+            "Write GetReportByStudyQuery returning the latest report plus medications.",
+            "Write GetMyReportsQuery(patientId) filtered to finalized only - a patient never sees a draft.",
+            "Write GetReportHistoryQuery(studyId) returning all reports oldest-first, which is how a re-diagnosis chain reads."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P07-T09",
+          "title": "Unit tests for the Report aggregate",
+          "details": "Same discipline as P04-T12: no database, sub-second, and they encode the clinical rules.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P07-T08"
+          ],
+          "acceptanceCriteria": [
+            "The Report aggregate has >90% line coverage"
+          ],
+          "tags": [
+            "testing",
+            "ddd"
+          ],
+          "steps": [
+            "Test finalize with missing findings, missing impression, wrong status, and the happy path.",
+            "Test that every mutation after finalize throws.",
+            "Test that the medication collection cannot be mutated through the exposed IReadOnlyCollection."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P08",
+      "name": "Integration Events (MassTransit + Outbox)",
+      "order": 8,
+      "dependsOn": [
+        "P05",
+        "P07"
+      ],
+      "days": "Days 31-32",
+      "goal": "Days 31-32 - Replace the temporary direct HTTP calls with real async choreography. Three events, two consumers, one transactional outbox. This is the microservice lesson: services react to facts, they do not command each other.",
+      "tasks": [
+        {
+          "id": "P08-T01",
+          "title": "Wire MassTransit over RabbitMQ in all four services",
+          "details": "One shared AddMessaging(config) extension so every service is configured identically.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [],
+          "acceptanceCriteria": [
+            "All four services connect and declare their endpoints on startup"
+          ],
+          "tags": [
+            "messaging",
+            "masstransit"
+          ],
+          "steps": [
+            "Add MassTransit.RabbitMQ; configure the host from options, kebab-case endpoint naming, and consumer registration by assembly scan.",
+            "Set a retry policy: exponential backoff with jitter, 5 attempts, then the error queue.",
+            "Verify the queues and exchanges appear in the RabbitMQ management UI on first start."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P08-T02",
+          "title": "Transactional outbox",
+          "details": "Without it, a crash between SaveChanges and Publish silently loses the event and the study never closes. This is the single most important reliability lesson in the project.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P08-T01"
+          ],
+          "acceptanceCriteria": [
+            "The outbox tables exist and drain",
+            "A process kill after commit still delivers the event"
+          ],
+          "tags": [
+            "messaging",
+            "reliability"
+          ],
+          "steps": [
+            "Enable the MassTransit EF Core outbox on Imaging and Reporting (AddEntityFrameworkOutbox with UsePostgres + UseBusOutbox).",
+            "Add the outbox migration to both services.",
+            "Replace every direct IPublishEndpoint call inside a handler with a publish that enlists in the ambient transaction.",
+            "Prove it: pause the process between commit and delivery (a debugger breakpoint is enough), kill it, and confirm the event is still delivered on restart."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P08-T03",
+          "title": "Publish the three integration events",
+          "details": "Translate domain events into contract records at the edge of the service - domain events never leave their service.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P08-T02"
+          ],
+          "acceptanceCriteria": [
+            "No integration event carries a domain entity",
+            "Each event is published exactly once per business action"
+          ],
+          "tags": [
+            "messaging",
+            "contracts"
+          ],
+          "steps": [
+            "Imaging publishes ImagesImported after a successful import (replacing the P05-T05 HTTP call).",
+            "Reporting publishes ReportFinalized inside the finalize transaction.",
+            "Identity publishes DoctorRegistered when an admin creates a doctor.",
+            "Keep the contract records in MediView.Contracts and never reference a domain type from them."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P08-T04",
+          "title": "Consumers in the Studies service",
+          "details": "Studies reacts to both facts. This is where the workflow actually becomes distributed.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P08-T03"
+          ],
+          "acceptanceCriteria": [
+            "Finalizing a report closes the study with no synchronous call between the two services",
+            "The patient's status page updates without a refresh"
+          ],
+          "tags": [
+            "messaging",
+            "choreography"
+          ],
+          "steps": [
+            "ImagesImportedConsumer -> Study.MarkImagesImported; the status must stay todo.",
+            "ReportFinalizedConsumer -> Study.Complete() or Study.RequestReDiagnosis() based on the decision, then release the lock.",
+            "Push StatusChanged over SignalR from the consumer so the patient's page updates live.",
+            "Delete the temporary internal HTTP endpoints the consumers replace, or mark them internal-only for tests."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P08-T05",
+          "title": "Idempotent consumers, DLQ and an end-to-end message test",
+          "details": "At-least-once delivery is guaranteed; exactly-once is not. Your consumers must be able to see the same message twice.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P08-T04"
+          ],
+          "acceptanceCriteria": [
+            "Delivering the same event twice changes nothing the second time",
+            "A poison message lands in the error queue instead of looping"
+          ],
+          "tags": [
+            "messaging",
+            "testing"
+          ],
+          "steps": [
+            "Make both consumers idempotent - MarkImagesImported already is; make the status transitions a no-op if the study is already in the target state.",
+            "Configure the error/dead-letter queue and look at it deliberately once so you know where it is.",
+            "Write an integration test with the MassTransit in-memory harness: publish ReportFinalized twice, assert one status change.",
+            "Log every consumed message with its MessageId and correlation id."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P09",
+      "name": "API Gateway (YARP)",
+      "order": 9,
+      "dependsOn": [
+        "P08"
+      ],
+      "days": "Day 33",
+      "goal": "Day 33 - One ingress in front of four services so the Blazor app talks to a single origin. Deliberately thin: routing, JWT, CORS, rate limiting, aggregated health. No BFF aggregation, no request transformation.",
+      "tasks": [
+        {
+          "id": "P09-T01",
+          "title": "YARP project with route and cluster configuration",
+          "details": "Config-driven, not code-driven, so adding a service is an appsettings edit.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [],
+          "acceptanceCriteria": [
+            "Every service is reachable through the gateway",
+            "The SignalR connection upgrades to WebSockets through the gateway"
+          ],
+          "tags": [
+            "gateway",
+            "yarp"
+          ],
+          "steps": [
+            "Create MediView.Gateway, add Yarp.ReverseProxy and LoadFromConfig.",
+            "Define four clusters and path-prefix routes: /api/identity/**, /api/studies/**, /api/imaging/**, /api/reporting/**.",
+            "Strip the prefix with a PathRemovePrefix transform so the services stay unaware of the gateway.",
+            "Proxy the SignalR hub path with WebSockets enabled - this is the one that always gets forgotten."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P09-T02",
+          "title": "JWT validation at the edge",
+          "details": "Validate once at the gateway and again in each service - defence in depth, and the services stay independently callable in tests.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P09-T01"
+          ],
+          "acceptanceCriteria": [
+            "An anonymous call to a protected route is rejected at the gateway with 401",
+            "A service called directly still enforces its own auth"
+          ],
+          "tags": [
+            "gateway",
+            "auth"
+          ],
+          "steps": [
+            "Call the shared AddJwtAuth extension in the gateway.",
+            "Require authorization on all routes except /api/identity/auth/**.",
+            "Forward the original Authorization header untouched to the downstream service."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P09-T03",
+          "title": "CORS, rate limiting and correlation-id propagation",
+          "details": "The cross-cutting policies that belong at the edge and nowhere else.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "P09-T02"
+          ],
+          "acceptanceCriteria": [
+            "A brute-force login attempt is throttled at the gateway",
+            "One correlation id appears in the logs of every service involved in a request"
+          ],
+          "tags": [
+            "gateway",
+            "security"
+          ],
+          "steps": [
+            "Add a named CORS policy allowing the Blazor origin with credentials.",
+            "Add the built-in rate limiter: a fixed window per authenticated user, and a tighter one on the auth endpoints.",
+            "Ensure X-Correlation-Id is created at the gateway if absent and forwarded, so one trace spans gateway -> service -> bus."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P09-T04",
+          "title": "Aggregated health and API docs",
+          "details": "One URL that tells you whether the system is up.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "P09-T03"
+          ],
+          "acceptanceCriteria": [
+            "/health shows all four services green after `docker compose up` + run"
+          ],
+          "tags": [
+            "gateway",
+            "observability"
+          ],
+          "steps": [
+            "Add a /health endpoint that fans out to the four /health/ready endpoints and reports each.",
+            "Expose OpenAPI/Scalar per service behind the gateway for manual testing.",
+            "Add the gateway to the run script and README."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P10",
+      "name": "Blazor Web - 8 pages + DICOM viewport",
+      "order": 10,
+      "dependsOn": [
+        "P09"
+      ],
+      "days": "Days 34-41",
+      "goal": "Days 34-41 - Blazor Server, 8 pages instead of the 15 mocked screens. Cut: wallet, cart & checkout, follow-up booking, the roles/permissions matrix and the mobile layout. Build a throwaway page as you finish each service earlier in the plan; this block is where they become real.",
+      "tasks": [
+        {
+          "id": "P10-T01",
+          "title": "App shell, auth state and typed API clients",
+          "details": "Get the plumbing right once so eight pages are eight pages of markup, not eight pages of plumbing.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [],
+          "acceptanceCriteria": [
+            "Signing in switches the nav to the right role",
+            "A 401 from the API refreshes the token once and retries, then redirects to login"
+          ],
+          "tags": [
+            "blazor",
+            "shell"
+          ],
+          "steps": [
+            "Create MediView.Web as a Blazor Web App with the InteractiveServer render mode.",
+            "Store the JWT in a protected browser-storage session and implement a custom AuthenticationStateProvider over it.",
+            "Register one typed HttpClient per service pointed at the gateway, with a delegating handler that attaches the bearer token and a Polly retry + circuit breaker.",
+            "Add CascadingAuthenticationState and a role-aware nav shell (patient / doctor / admin).",
+            "Structure by feature: Features/Auth, Features/Booking, Features/Studies, Features/Viewport, Features/Admin."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P10-T02",
+          "title": "Page 1 - sign in and register",
+          "details": "Screen 01 of the mockups. Register creates a patient only; doctor and admin accounts are provisioned internally.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P10-T01"
+          ],
+          "acceptanceCriteria": [
+            "A new patient can register and land on their empty studies page",
+            "A wrong password shows a message, not a stack trace"
+          ],
+          "tags": [
+            "blazor",
+            "auth"
+          ],
+          "steps": [
+            "Build the split panel from the mockup: product pitch left, form right.",
+            "Two tabs: sign in, and register with email, full name, password, DOB and gender.",
+            "Show server validation errors from the ProblemDetails body, field by field.",
+            "Redirect by role after login: patient -> /my-studies, doctor -> /worklist, admin -> /admin/import."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P10-T03",
+          "title": "Page 2 - patient books a checkup",
+          "details": "Screen 02. Three steps: pick a doctor, pick a slot inside their working hours, confirm.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P10-T02"
+          ],
+          "acceptanceCriteria": [
+            "A patient can book only inside the doctor's schedule",
+            "Booking creates a study visible immediately on the studies page"
+          ],
+          "tags": [
+            "blazor",
+            "booking"
+          ],
+          "steps": [
+            "Step 1: list doctors with specialty and department from Identity.",
+            "Step 2: call availability for the next 14 days and render a day/slot grid with taken slots disabled.",
+            "Step 3: confirmation panel with the doctor, slot and reason-for-visit textarea; POST the booking.",
+            "On success navigate to the created study and show the To do badge.",
+            "Handle the 409 double-booking race by refreshing the slot grid and telling the user plainly."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P10-T04",
+          "title": "Page 3 - patient studies, status timeline and result",
+          "details": "Screens 03 merged into one page: the list, the status timeline, the finalized report, its medications and the PDF link. The cart, wallet and bill panels from the mockup are cut.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P10-T03"
+          ],
+          "acceptanceCriteria": [
+            "The status badge changes live when the doctor finalizes",
+            "A draft report is never visible to the patient"
+          ],
+          "tags": [
+            "blazor",
+            "patient"
+          ],
+          "steps": [
+            "List the patient's studies with the four status badges using the exact labels: To do, In progress, Re-diagnosis, Done.",
+            "Render the status timeline from study_status_history.",
+            "When a finalized report exists, show findings, impression, decision, the medication table and a Download PDF button.",
+            "Subscribe to SignalR StatusChanged for the open study so the badge moves without a refresh.",
+            "Show the images as a count and an Imported-at timestamp, not a viewer - patients do not read their own x-rays."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P10-T05",
+          "title": "Page 4 - doctor worklist",
+          "details": "Screen 05. The doctor's home. Sorting is clinical: stat, then urgent, then routine, then by date.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P10-T04"
+          ],
+          "acceptanceCriteria": [
+            "The worklist updates live as another doctor opens and closes studies",
+            "Sorting puts stat studies first"
+          ],
+          "tags": [
+            "blazor",
+            "doctor"
+          ],
+          "steps": [
+            "Table with study number, patient MRN and name, modality, body part, priority, status and lock owner.",
+            "Filter chips by status and a text search; Virtualize the rows.",
+            "Show a lock chip with the owner's name on studies someone else is reading.",
+            "Subscribe to the worklist SignalR group for StudyImported / LockAcquired / LockReleased / StatusChanged.",
+            "Disable Open with a tooltip when images_imported_at is null - fail in the UI before the API has to."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P10-T06",
+          "title": "Cornerstone.js interop module",
+          "details": "The fiddliest part of the project. Do it as its own task, with a hello-world image, before wiring it to real data.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P10-T05"
+          ],
+          "acceptanceCriteria": [
+            "A DICOM image renders in the browser from the imaging service",
+            "Navigating away and back does not leak a second viewport instance"
+          ],
+          "tags": [
+            "blazor",
+            "cornerstone",
+            "interop"
+          ],
+          "steps": [
+            "Add cornerstone-core / cornerstone-wado-image-loader (or Cornerstone3D) via a static wwwroot bundle - no CDN.",
+            "Write viewport.js exporting init(element, config), loadStack(imageIds), setWindowLevel(c, w), reset(), dispose().",
+            "Load it from C# as an IJSObjectReference and dispose it in IAsyncDisposable - never leak listeners between studies.",
+            "Configure the WADO image loader to send the Authorization header to the imaging endpoint.",
+            "Render one hard-coded local .dcm before touching the API."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P10-T07",
+          "title": "Page 5 - the DICOM viewport",
+          "details": "Screen 06, the dark reading view. Everything a first-pass read actually needs and nothing more.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P10-T06"
+          ],
+          "acceptanceCriteria": [
+            "A doctor can window, zoom, pan and scroll a series smoothly",
+            "Switching series does not reload the page"
+          ],
+          "tags": [
+            "blazor",
+            "cornerstone",
+            "dicom"
+          ],
+          "steps": [
+            "Two-column layout: series thumbnails left, viewport centre, study metadata right.",
+            "Build the image stack from the QIDO endpoints and hand the ids to loadStack.",
+            "Tools: window/level drag, zoom, pan, stack scroll, invert, reset - keyboard shortcuts for each.",
+            "Show the default window centre/width from the instance metadata, and the current values live.",
+            "Set ShouldRender to false while the canvas is being manipulated, and @key the series list."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P10-T08",
+          "title": "Lock banner, heartbeat and the read-only state",
+          "details": "Screens 06 and 07 are the same page in two states. This is the interaction the whole project is built around.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P10-T07"
+          ],
+          "acceptanceCriteria": [
+            "The second doctor sees a read-only viewport naming the owner",
+            "Closing the tab releases the study within the TTL"
+          ],
+          "tags": [
+            "blazor",
+            "concurrency"
+          ],
+          "steps": [
+            "On open, call StartRead; on success show a green YOU HOLD THE LOCK banner with an elapsed timer.",
+            "Start a 30-second heartbeat timer; stop it on dispose and on navigation.",
+            "On 409, render the amber LOCKED BY <name> banner, keep the viewport fully interactive for viewing and disable every write.",
+            "Warn at 2 minutes before the TTL expires and offer Keep reading, which forces a renew.",
+            "Release the lock on navigate-away, on logout and on component dispose."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P10-T09",
+          "title": "Report editor and medication composer panel",
+          "details": "Screens 11 and part of 06, merged into a side panel of the viewport instead of a separate screen.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P10-T08"
+          ],
+          "acceptanceCriteria": [
+            "A report can be written, medications added and the study finalized without leaving the viewport",
+            "Autosave survives a lost lock - the text is still there"
+          ],
+          "tags": [
+            "blazor",
+            "reporting"
+          ],
+          "steps": [
+            "Slide-over panel with Findings and Impression textareas, autosaving every 20 s and on blur.",
+            "Medication rows with a drug type-ahead, dosage, frequency, duration, quantity and a remove button.",
+            "Finalize dialog forcing an explicit decision: Done (no further read) or Re-diagnosis (another read needed).",
+            "Block Finalize until findings and impression are non-empty - the same rule the aggregate enforces.",
+            "After finalize, show the confirmation, release the lock and navigate back to the worklist."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P10-T10",
+          "title": "SignalR client as a single scoped service",
+          "details": "One connection serves the whole shell. A connection per component is the mistake that makes Blazor feel broken.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P10-T09"
+          ],
+          "acceptanceCriteria": [
+            "One WebSocket connection per browser tab regardless of page",
+            "A server restart reconnects the client without a manual refresh"
+          ],
+          "tags": [
+            "blazor",
+            "signalr"
+          ],
+          "steps": [
+            "Wrap HubConnection in a scoped RealtimeService started once at shell level.",
+            "Expose C# events components subscribe to, and unsubscribe in Dispose.",
+            "Handle reconnect with a backoff, and re-join groups after a reconnect.",
+            "Show a small connection-state indicator in the header so you can see disconnects during the demo."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P10-T11",
+          "title": "Page 6 - admin doctor onboarding",
+          "details": "Screen 08, simplified. One form; the credential upload and verification queue are deferred.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P10-T10"
+          ],
+          "acceptanceCriteria": [
+            "An admin can create a doctor who can then sign in and appear as bookable"
+          ],
+          "tags": [
+            "blazor",
+            "admin"
+          ],
+          "steps": [
+            "Table of doctors with name, licence number, specialty and department.",
+            "Create-doctor form: email, full name, licence, specialty, department, temporary password.",
+            "Weekly schedule editor: a row per day with start, end and slot minutes.",
+            "Show the generated credentials once, with a copy button."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P10-T12",
+          "title": "Page 7 - admin x-ray import simulation",
+          "details": "Screen 09. This stands in for the modality: pick a study, drop .dcm files, watch them attach.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P10-T11"
+          ],
+          "acceptanceCriteria": [
+            "Dropping a folder of a dozen slices attaches them to the study",
+            "The doctor's Open button becomes enabled without a page refresh"
+          ],
+          "tags": [
+            "blazor",
+            "admin",
+            "dicom"
+          ],
+          "steps": [
+            "Study picker filtered to studies with no images.",
+            "Multi-file drop zone accepting .dcm with a per-file progress list.",
+            "POST to the imaging upload endpoint and show the summary: series created, instances added, total bytes.",
+            "After success, show that the study now has images and is ready to read."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P10-T13",
+          "title": "Page 8 - admin audit log and break-glass",
+          "details": "Screen 10. Actor, action, reason and before -> after on every override.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P10-T12"
+          ],
+          "acceptanceCriteria": [
+            "An override without a reason cannot be submitted",
+            "Every override appears in the audit table with its before/after"
+          ],
+          "tags": [
+            "blazor",
+            "admin",
+            "audit"
+          ],
+          "steps": [
+            "Searchable audit table: actor, role, action, entity, reason, timestamp.",
+            "Expandable row showing the before/after jsonb diff.",
+            "Break-glass dialog on a study: choose the target status, type a mandatory reason, confirm.",
+            "Force-release-lock action with the same mandatory-reason dialog.",
+            "Make the destructive nature obvious - red confirm, owner named, no default selection."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P10-T14",
+          "title": "Design pass against the mockups",
+          "details": "The mockups are already designed - match them rather than inventing. Half a day here is what makes the demo look finished.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "P10-T13"
+          ],
+          "acceptanceCriteria": [
+            "Screenshots of the running app are recognisably the mockups",
+            "No page shows a raw spinner-less blank state"
+          ],
+          "tags": [
+            "blazor",
+            "design"
+          ],
+          "steps": [
+            "Pull the palette, IBM Plex type scale and the four status colours from MediView UI.dc.html.",
+            "Apply the dark reading view to the viewport page only; everything else stays light.",
+            "Add loading skeletons and empty states for all eight pages - an empty worklist should say so.",
+            "Check every page at 1440 and 1280 wide; desktop only, mobile is deferred."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P11",
+      "name": "Audit, Break-glass & Security Pass",
+      "order": 11,
+      "dependsOn": [
+        "P10"
+      ],
+      "days": "Days 42-43",
+      "goal": "Days 42-43 - The healthcare-specific lesson, done properly but scoped: break-glass overrides that are always audited, and the four security checks worth doing. The v3 compliance programme (Key Vault, encryption at rest, GDPR tooling, PHI read-access logging) is deferred with the cloud deployment it belongs to.",
+      "tasks": [
+        {
+          "id": "P11-T01",
+          "title": "Audit writes as a first-class part of the command",
+          "details": "An audit row written by a middleware that guesses is worse than none. Write it in the handler where you know what actually changed.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [],
+          "acceptanceCriteria": [
+            "An override and its audit row commit or roll back together"
+          ],
+          "tags": [
+            "audit",
+            "admin"
+          ],
+          "steps": [
+            "Add an IAuditWriter port with Write(actor, action, entityType, entityId, reason, before, after).",
+            "Serialise before/after as jsonb from the projected DTO, never the whole entity.",
+            "Write the audit row in the same transaction as the change it describes.",
+            "Cover both actions: study.status.override and lock.force_release."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P11-T02",
+          "title": "Force-release lock, end to end",
+          "details": "The break-glass that unsticks a study when a doctor goes home with it open.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P11-T01"
+          ],
+          "acceptanceCriteria": [
+            "An admin can free a stuck study and the previous owner is told, live",
+            "The forced release is in the audit log with its reason"
+          ],
+          "tags": [
+            "audit",
+            "concurrency"
+          ],
+          "steps": [
+            "Add ForceReleaseLockCommand behind AdminOnly with a mandatory reason.",
+            "Delete the Redis key regardless of the owner token, mark study_locks with release_reason admin_force, write the audit row.",
+            "Push LockReleased over SignalR so the previous owner's viewport goes read-only immediately.",
+            "Decide the study status: it stays in_progress - the read is unfinished, and an admin is not a doctor."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P11-T03",
+          "title": "Prove the authorization boundary with tests",
+          "details": "The one authorization rule that carries real meaning: an admin has nearly every power but cannot author a clinical record.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P11-T02"
+          ],
+          "acceptanceCriteria": [
+            "The authorization test suite is green and covers all three roles"
+          ],
+          "tags": [
+            "security",
+            "testing"
+          ],
+          "steps": [
+            "Write endpoint tests asserting an admin token gets 403 on create-draft, save-draft, add-medication and finalize.",
+            "Assert a patient token gets 403 on every doctor and admin endpoint.",
+            "Assert a doctor cannot fetch another patient's studies.",
+            "Assert a patient cannot fetch a study that is not theirs by guessing the id."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P11-T04",
+          "title": "The four security checks worth doing now",
+          "details": "Not a compliance programme - four concrete things that would each be a real bug.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P11-T03"
+          ],
+          "acceptanceCriteria": [
+            "No log statement contains a patient name",
+            "No secret or hash is returned by any endpoint"
+          ],
+          "tags": [
+            "security"
+          ],
+          "steps": [
+            "Confirm no PHI in logs: grep the codebase for log statements that interpolate a name, DOB or report text.",
+            "Confirm passwords and refresh tokens are only ever stored hashed.",
+            "Confirm every ProblemDetails response in production hides exception details and stack traces.",
+            "Confirm the imaging retrieve endpoint requires authentication and note the deferred per-study authorization check in the ADR."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P11-T05",
+          "title": "Write the deferred-scope ADR",
+          "details": "Say out loud what you cut and why. In an educational project this document is worth as much as the code - it shows judgement, not just capability.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P11-T04"
+          ],
+          "acceptanceCriteria": [
+            "docs/adr/0001-mvp-scope.md exists and a reviewer can tell what was deliberate"
+          ],
+          "tags": [
+            "docs",
+            "architecture"
+          ],
+          "steps": [
+            "List every cut item from scope-cut.md with the reason and the re-entry cost.",
+            "For each, state what the design already accommodates - schemas, boundaries and events are unchanged.",
+            "Record the deliberate simplifications: snapshot columns instead of gRPC replicas, one report row per read instead of addenda, one role column instead of a permission matrix."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P12",
+      "name": "Tests, Docs, Demo & Buffer",
+      "order": 12,
+      "dependsOn": [
+        "P11"
+      ],
+      "days": "Days 44-45",
+      "goal": "Days 44-45 - Make it provable and showable. Two days is not enough to retrofit testing, which is why the aggregate tests were written in their own sections - this block adds the integration layer, the docs and the demo, and keeps a real buffer.",
+      "tasks": [
+        {
+          "id": "P12-T01",
+          "title": "One integration test per service with Testcontainers",
+          "details": "A real Postgres in a container beats a mocked DbContext for anything involving a migration or a unique index.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [],
+          "acceptanceCriteria": [
+            "`dotnet test` is green from a clean clone with Docker running"
+          ],
+          "tags": [
+            "testing",
+            "integration"
+          ],
+          "steps": [
+            "Add Testcontainers.PostgreSql and a shared fixture that applies migrations to a throwaway database.",
+            "Identity: register -> login -> refresh. Studies: book -> import -> start read. Imaging: upload -> retrieve. Reporting: draft -> finalize.",
+            "Use WebApplicationFactory with the test container's connection string.",
+            "Keep them under a minute total or you will stop running them."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P12-T02",
+          "title": "The end-to-end happy path test",
+          "details": "One test that walks the entire product. If this is green, the project works.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P12-T01"
+          ],
+          "acceptanceCriteria": [
+            "The full journey passes in one automated run"
+          ],
+          "tags": [
+            "testing",
+            "e2e"
+          ],
+          "steps": [
+            "Register a patient, admin-create a doctor with a schedule, book a slot, import two DICOM files, doctor opens under lock, writes a report with a medication, finalizes with Done.",
+            "Assert the study ends at done, the lock is released and the patient can fetch the finalized report.",
+            "Run it against docker compose, not mocks."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P12-T03",
+          "title": "GitHub Actions build and test workflow",
+          "details": "Cut from the v3 plan: containerise, scan, push to ACR, migrate and deploy to Azure. Kept: the part that protects you daily.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "P12-T02"
+          ],
+          "acceptanceCriteria": [
+            "A PR gets a green or red check within a few minutes"
+          ],
+          "tags": [
+            "ci"
+          ],
+          "steps": [
+            "Workflow on push and PR: setup .NET 10, restore, build with warnings-as-errors, run tests with the service containers.",
+            "Cache the NuGet packages.",
+            "Add a status badge to the README.",
+            "Do NOT add a deploy job - there is no cloud environment in this scope."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P12-T04",
+          "title": "README, architecture doc and diagrams",
+          "details": "The front door. Someone who has never seen the repo should be able to run it and understand it in fifteen minutes.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P12-T03"
+          ],
+          "acceptanceCriteria": [
+            "A stranger can clone, run and explain the system from the docs alone"
+          ],
+          "tags": [
+            "docs"
+          ],
+          "steps": [
+            "README: what it is, one screenshot of the viewport, the 6-line getting-started, the tech stack, the scope note.",
+            "docs/architecture.md: the four services, their schemas, the sync and async call paths, the lock design.",
+            "Regenerate the diagrams from static-graph so they show 4 services rather than 11.",
+            "Link mediview-mvp.dbml and scope-cut.md from the README."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P12-T05",
+          "title": "Demo script and seeded demo data",
+          "details": "Rehearse it. A five-minute walkthrough that shows the lock is the whole point of the project.",
+          "priority": "high",
+          "status": "todo",
+          "dependsOn": [
+            "P12-T04"
+          ],
+          "acceptanceCriteria": [
+            "The demo runs start to finish from a freshly seeded database"
+          ],
+          "tags": [
+            "demo",
+            "seed"
+          ],
+          "steps": [
+            "Write a seed command producing 2 doctors, 4 patients, 8 studies across all four statuses, and one study with real images.",
+            "Write the 5-minute script: patient books -> admin imports -> doctor A opens (lock) -> doctor B sees read-only -> A finalizes -> patient sees the result live.",
+            "Record it, or at least run it twice end to end without touching the database by hand.",
+            "Capture screenshots for the README while you are there."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "P12-T06",
+          "title": "Buffer and honest scope review",
+          "details": "Reserve this. Something will overrun - it is usually Cornerstone or the outbox.",
+          "priority": "medium",
+          "status": "todo",
+          "dependsOn": [
+            "P12-T05"
+          ],
+          "acceptanceCriteria": [
+            "Nothing is half-finished and undocumented at day 45"
+          ],
+          "tags": [
+            "planning"
+          ],
+          "steps": [
+            "Re-read the deferred list and move anything you now consider essential in, cutting something else out.",
+            "Fix the top three rough edges you have been ignoring.",
+            "Write a short retrospective: what took longer than planned, and what you would cut first next time."
+          ],
+          "stepsCompleted": [
+            false,
+            false,
+            false
+          ]
+        }
+      ]
+    }
+  ],
+  "exportedAt": "2026-08-10T16:44:01.119Z"
+}
