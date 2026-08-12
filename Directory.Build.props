@@ -6,6 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <AnalysisLevel>lastest-recommended</AnalysisLevel>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
   </PropertyGroup>
 </Project>
