@@ -128,7 +128,7 @@
           "title": "Create the solution skeleton and folder layout",
           "details": "src/BuildingBlocks, src/Services/{Identity,Studies,Imaging,Reporting}, src/Gateway, src/Web. Four projects per service: Domain / Application / Infrastructure / Api. Folders are named after domain concepts, never after patterns.",
           "priority": "high",
-          "status": "todo",
+          "status": "done",
           "dependsOn": [
             "P01-T01"
           ],
@@ -143,7 +143,7 @@
           "steps": [
             "Create the folder tree: src/BuildingBlocks, src/Services/{Identity,Studies,Imaging,Reporting}, src/Gateway, src/Web. Folders are named after domain concepts, never after patterns.",
             "For each of the 4 services create 4 projects — MediView.<Svc>.Domain (classlib), .Application (classlib), .Infrastructure (classlib), .Api (web) — 16 projects total.",
-            "Add the gateway (MediView.Gateway, web/empty) and the web app (MediView.Web, Blazor Server). That is the 18-project skeleton the acceptance criterion expects.",
+            "Add the gateway (MediView.Gateway, web/empty) and the web app (MediView.Web). NOTE: the `blazorserver` template was REMOVED in .NET 8+ — use the Blazor Web App template `dotnet new blazor -int Server -ai` instead (`-int Server` = server interactivity over a SignalR circuit, `-ai/--all-interactive` = interactive at the root, matching the old template). That is the 18-project skeleton the acceptance criterion expects.",
             "Wire inward-only project references per service: Application→Domain, Infrastructure→Application, Api→Infrastructure. The Domain project must have zero references.",
             "Add every project to MedicalView.sln and run `dotnet build` — it must be green before any logic is written."
           ],
@@ -151,7 +151,7 @@
             {
               "path": "scaffold.sh",
               "lang": "bash",
-              "content": "#!/usr/bin/env bash\nset -euo pipefail\nSOLN=MedicalView.sln\nSERVICES=(Identity Studies Imaging Reporting)\n\nfor S in \"${SERVICES[@]}\"; do\n  base=\"src/Services/$S\"\n  dotnet new classlib -n \"MediView.$S.Domain\"         -o \"$base/MediView.$S.Domain\"\n  dotnet new classlib -n \"MediView.$S.Application\"    -o \"$base/MediView.$S.Application\"\n  dotnet new classlib -n \"MediView.$S.Infrastructure\" -o \"$base/MediView.$S.Infrastructure\"\n  dotnet new web      -n \"MediView.$S.Api\"            -o \"$base/MediView.$S.Api\"\n\n  # inward-only references\n  dotnet add \"$base/MediView.$S.Application/MediView.$S.Application.csproj\"       reference \"$base/MediView.$S.Domain/MediView.$S.Domain.csproj\"\n  dotnet add \"$base/MediView.$S.Infrastructure/MediView.$S.Infrastructure.csproj\" reference \"$base/MediView.$S.Application/MediView.$S.Application.csproj\"\n  dotnet add \"$base/MediView.$S.Api/MediView.$S.Api.csproj\"                       reference \"$base/MediView.$S.Infrastructure/MediView.$S.Infrastructure.csproj\"\ndone\n\n# gateway + web\ndotnet new web        -n MediView.Gateway -o src/Gateway/MediView.Gateway\ndotnet new blazorserver -n MediView.Web   -o src/Web/MediView.Web\n\n# add everything to the solution\nfind src -name '*.csproj' -exec dotnet sln \"$SOLN\" add {} +\ndotnet build"
+              "content": "#!/usr/bin/env bash\nset -euo pipefail\nSOLN=MedicalView.sln\nSERVICES=(Identity Studies Imaging Reporting)\n\n# create a project only if it doesn't already exist (safe to re-run)\nnew_proj() { # <template> <name> <dir> [extra args...]\n  local tmpl=$1 name=$2 dir=$3; shift 3\n  if [[ -f \"$dir/$name.csproj\" ]]; then\n    echo \"skip: $name already exists\"\n  else\n    dotnet new \"$tmpl\" -n \"$name\" -o \"$dir\" \"$@\"\n  fi\n}\n\n# add a project-to-project reference only if it isn't there yet\nadd_ref() { # <from.csproj> <to.csproj>\n  if dotnet list \"$1\" reference 2>/dev/null | grep -qF \"$(basename \"$2\")\"; then\n    echo \"skip: $(basename \"$1\") -> $(basename \"$2\") already referenced\"\n  else\n    dotnet add \"$1\" reference \"$2\"\n  fi\n}\n\n[[ -f \"$SOLN\" ]] || dotnet new sln -n \"${SOLN%.sln}\"\n\nfor S in \"${SERVICES[@]}\"; do\n  base=\"src/Services/$S\"\n  new_proj classlib \"MediView.$S.Domain\"         \"$base/MediView.$S.Domain\"\n  new_proj classlib \"MediView.$S.Application\"    \"$base/MediView.$S.Application\"\n  new_proj classlib \"MediView.$S.Infrastructure\" \"$base/MediView.$S.Infrastructure\"\n  new_proj web      \"MediView.$S.Api\"            \"$base/MediView.$S.Api\"\n\n  # inward-only references\n  add_ref \"$base/MediView.$S.Application/MediView.$S.Application.csproj\"       \"$base/MediView.$S.Domain/MediView.$S.Domain.csproj\"\n  add_ref \"$base/MediView.$S.Infrastructure/MediView.$S.Infrastructure.csproj\" \"$base/MediView.$S.Application/MediView.$S.Application.csproj\"\n  add_ref \"$base/MediView.$S.Api/MediView.$S.Api.csproj\"                       \"$base/MediView.$S.Infrastructure/MediView.$S.Infrastructure.csproj\"\ndone\n\n# gateway + web\n# NOTE: the old `blazorserver` template was removed in .NET 8+.\n# The Blazor Web App template (`blazor`) with `-int Server` is its replacement.\nnew_proj web    MediView.Gateway src/Gateway/MediView.Gateway\nnew_proj blazor MediView.Web     src/Web/MediView.Web -int Server -ai\n\n# add everything to the solution\nfind src -name '*.csproj' -exec dotnet sln \"$SOLN\" add {} +\ndotnet build"
             }
           ],
           "commands": [
@@ -164,11 +164,11 @@
           ],
           "enriched": true,
           "stepsCompleted": [
-            false,
-            false,
-            false,
-            false,
-            false
+            true,
+            true,
+            true,
+            true,
+            true
           ]
         },
         {
