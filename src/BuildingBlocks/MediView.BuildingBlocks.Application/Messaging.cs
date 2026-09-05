@@ -1,0 +1,2 @@
+namespace MediView.BuildingBlocks.Application;
+

@@ -1,0 +1,107 @@
+name: mediview
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: mediview-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres            # init.sql creates the 4 app databases
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [mediview]
+
+  redis:
+    image: redis:7
+    container_name: mediview-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [mediview]
+
+  kafka:
+    image: apache/kafka:3.8.0          # official image, KRaft mode - NO ZooKeeper
+    container_name: mediview-kafka
+    restart: unless-stopped
+    ports:
+      - "${KAFKA_PORT}:29092"          # host clients (services in the IDE) reach the broker here
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      # two listeners: kafka:9092 for in-network (kafka-ui), localhost:${KAFKA_PORT} for the host
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:${KAFKA_PORT}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"   # topics are created explicitly in P08-T01
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    networks: [mediview]
+    # no named volume on purpose: the dev broker is ephemeral. Topics are re-created on boot
+    # by the TopicInitializer, and the transactional outbox re-publishes anything unacked - which
+    # is exactly why the consumers must be idempotent (P08-T05).
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: mediview-kafka-ui
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "${KAFKA_UI_PORT}:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: mediview
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      DYNAMIC_CONFIG_ENABLED: "true"
+    networks: [mediview]
+    # no healthcheck: image ships no reliable curl, so `--wait` would hang.
+
+  seq:
+    image: datalust/seq:2024.3
+    container_name: mediview-seq
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+    ports:
+      - "${SEQ_PORT}:80"               # UI + ingestion share port 80 in modern Seq
+    volumes:
+      - seqdata:/data
+    networks: [mediview]
+    # no healthcheck: the Seq image ships no reliable curl, so `--wait` would hang.
+
+volumes:
+  pgdata:
+  redisdata:
+  seqdata:
+
+networks:
+  mediview:
+    driver: bridge
