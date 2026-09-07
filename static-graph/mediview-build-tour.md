@@ -301,7 +301,7 @@ Stage / group / task, in order. `(new)` marks a task that did not exist in `mvp-
 | `mediview-architecture.html` | S0 reading, step 3 - the shape | no |
 | `mediview-mvp.dbml` | S0 reading, step 4; then the source for `S1-T90`; updated by `S2-T90` | no (you will edit it in S2) |
 | `MediView_UI_-_MVP_dc.html` | S0 reading, step 5; then the spec for each S3 slice and for `P10-T14` | no |
-| `checklist-tree-mvp.html` | superseded | keep as the v1 archive |
+| `checklist-tree-mvp.html` | superseded | **deleted** - recover from git commit `70b747b` |
 | **`checklist-tree-mvp-v2.html`** | **the guide you work from daily** | **new** |
 
 The four reference artefacts were already good - they *are* the whole picture, which is why S0 exists. The only thing that needed rebuilding was the checklist, because the checklist was the thing claiming to be a tour and behaving like a build queue.
