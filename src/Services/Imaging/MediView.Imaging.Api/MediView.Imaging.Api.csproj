@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\MediView.BuildingBlocks.Api\MediView.BuildingBlocks.Api.csproj" />
     <ProjectReference Include="..\MediView.Imaging.Infrastructure\MediView.Imaging.Infrastructure.csproj" />
   </ItemGroup>
 
