@@ -8,6 +8,7 @@ csharp_style_var_when_type_is_apparent = true:suggestion
 csharp_style_var_for_built_in_types = true:suggestion
 dotnet_sort_system_directives_first = true
 dotnet_style_require_accessibility_modifiers = always:warning
+dotnet_diagnostic.CA1716.severity = none
 
 [*.{json,yml,yaml,csproj,props}]
 indent_style = space
