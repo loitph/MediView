@@ -4,8 +4,27 @@ public abstract class Entity<TId> where TId : notnull
 {
     public TId Id { get; protected set; } = default!;
 
-    public override bool Equals(object? obj) =>
-        obj is Entity<TId> other && other.GetType() == GetType() && other.Id.Equals(Id);
+    private bool IsTransient => EqualityComparer<TId>.Default.Equals(Id, default!);
 
-    public override int GetHashCode() => Id.GetHashCode();
+    public override bool Equals(object? obj)
+    {
+        if (obj is not Entity<TId> other || other.GetType() != GetType())
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        return !IsTransient && !other.IsTransient && EqualityComparer<TId>.Default.Equals(Id, other.Id);
+    }
+
+    public override int GetHashCode() =>
+        IsTransient ? base.GetHashCode() : HashCode.Combine(GetType(), Id);
+
+    public static bool operator ==(Entity<TId>? left, Entity<TId>? right) => Equals(left, right);
+
+    public static bool operator !=(Entity<TId>? left, Entity<TId>? right) => !Equals(left, right);
 }

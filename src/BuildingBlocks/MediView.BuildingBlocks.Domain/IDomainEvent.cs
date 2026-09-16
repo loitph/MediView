@@ -2,5 +2,5 @@ namespace MediView.BuildingBlocks.Domain;
 
 public interface IDomainEvent
 {
-    DateTimeOffset OccurredOn { get; }
+    public DateTimeOffset OccurredOn { get; }
 }
