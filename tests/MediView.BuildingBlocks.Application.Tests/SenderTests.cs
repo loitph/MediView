@@ -21,7 +21,6 @@ internal sealed class SayHelloHandler : ICommandHandler<SayHello, Result<string>
 
 public sealed class SenderTests
 {
-    // Build a real DI container, exactly like Program.cs would, and hand back the ISender.
     private static ISender CreateSender()
     {
         var provider = new ServiceCollection()
@@ -34,13 +33,10 @@ public sealed class SenderTests
     [Fact]
     public async Task SendReturnsSuccessFromHandler()
     {
-        // Arrange
         var sender = CreateSender();
 
-        // Act
         var result = await sender.Send(new SayHello("Loi"), TestContext.Current.CancellationToken);
 
-        // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal("Hello, Loi!", result.Value);
     }

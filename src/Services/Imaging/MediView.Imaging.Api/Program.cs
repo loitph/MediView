@@ -2,14 +2,14 @@ using MediView.BuildingBlocks.Api;
 using MediView.Imaging.Infrastructure.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Host.UseMediViewLogging();   // console + Seq, enriched with ServiceName/CorrelationId/UserId
+builder.Host.UseMediViewLogging();
 builder.Services
     .AddOptions<DatabaseOptions>()
     .Bind(builder.Configuration.GetSection(DatabaseOptions.SectionName))
     .ValidateDataAnnotations()
-    .ValidateOnStart();   // missing secret => fails at startup, not at runtime
+    .ValidateOnStart();
 var app = builder.Build();
-app.UseMediViewRequestLogging();   // correlation id, then one summary line per request
+app.UseMediViewRequestLogging();
 
 app.MapGet("/", () => "Hello World!");
 

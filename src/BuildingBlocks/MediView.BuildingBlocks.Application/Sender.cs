@@ -13,13 +13,10 @@ internal sealed class Sender(IServiceProvider serviceProvider) : ISender
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        // Read the request type
         var handlerType = typeof(IRequestHandler<,>).MakeGenericType(request.GetType(), typeof(TResponse));
 
-        // Resolve the handler
         var handler = serviceProvider.GetRequiredService(handlerType);
 
-        // Return response from the handler
         var handle = handlerType.GetMethod(nameof(IRequestHandler<IRequest<TResponse>, TResponse>.Handle))!;
         return (Task<TResponse>)handle.Invoke(handler, [request, cancellationToken])!;
     }

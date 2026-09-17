@@ -5,10 +5,6 @@ using Serilog.Events;
 
 namespace MediView.BuildingBlocks.Api.Logging;
 
-/// <summary>
-/// Stamps the authenticated caller's id onto every log event raised inside a request.
-/// The id only - never the user's name, which is PHI in this system.
-/// </summary>
 public sealed class UserIdEnricher(IHttpContextAccessor accessor) : ILogEventEnricher
 {
     public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
