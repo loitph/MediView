@@ -28,8 +28,6 @@ public static class LoggingExtensions
             cfg.ReadFrom.Configuration(ctx.Configuration)
                .Enrich.FromLogContext()
                .Enrich.WithProperty("ServiceName", serviceName)
-               .Enrich.WithMachineName()
-               .Enrich.WithEnvironmentName()
                .Enrich.With(new UserIdEnricher(services.GetRequiredService<IHttpContextAccessor>()))
                .WriteTo.Console(outputTemplate: ConsoleOutputTemplate, formatProvider: CultureInfo.InvariantCulture)
                .WriteTo.Seq(

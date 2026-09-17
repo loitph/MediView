@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\MediView.BuildingBlocks.Api\MediView.BuildingBlocks.Api.csproj" />
@@ -6,9 +6,6 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>a6bcabbb-b3fb-458d-ab39-728fec76d06a</UserSecretsId>
   </PropertyGroup>
 
