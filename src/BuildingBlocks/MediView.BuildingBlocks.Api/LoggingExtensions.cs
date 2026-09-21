@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Reflection;
 using MediView.BuildingBlocks.Api.Logging;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,12 +33,5 @@ public static class LoggingExtensions
                    ctx.Configuration["Seq:ServerUrl"] ?? DefaultSeqServerUrl,
                    formatProvider: CultureInfo.InvariantCulture);
         });
-    }
-
-    public static WebApplication UseMediViewRequestLogging(this WebApplication app)
-    {
-        app.UseMiddleware<CorrelationIdMiddleware>();
-        app.UseSerilogRequestLogging();
-        return app;
     }
 }

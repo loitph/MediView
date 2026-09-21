@@ -6,6 +6,7 @@ namespace MediView.BuildingBlocks.Api;
 public sealed class CorrelationIdMiddleware(RequestDelegate next)
 {
     public const string HeaderName = "X-Correlation-Id";
+    public const string ItemKey = "CorrelationId";
 
     public async Task Invoke(HttpContext ctx)
     {
@@ -13,7 +14,12 @@ public sealed class CorrelationIdMiddleware(RequestDelegate next)
             ? value.ToString()
             : Guid.NewGuid().ToString("N");
 
-        ctx.Response.Headers[HeaderName] = id;
+        ctx.Items[ItemKey] = id;
+        ctx.Response.OnStarting(() =>
+        {
+            ctx.Response.Headers[HeaderName] = id;
+            return Task.CompletedTask;
+        });
 
         using (LogContext.PushProperty("CorrelationId", id))
         {

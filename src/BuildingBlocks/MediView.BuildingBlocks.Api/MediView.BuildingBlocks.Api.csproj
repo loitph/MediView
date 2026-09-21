@@ -9,4 +9,8 @@
     <PackageReference Include="Serilog.Sinks.Seq" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\MediView.BuildingBlocks.Domain\MediView.BuildingBlocks.Domain.csproj" />
+  </ItemGroup>
+
 </Project>
