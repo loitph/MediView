@@ -48,6 +48,12 @@ infrastructure, use `docker compose up -d` and `docker compose stop`.
 
 Every service answers `GET /health` with `200 Healthy`.
 
+### Database migrations
+
+In Development each service applies its pending EF Core migrations on startup, so `./run.sh` keeps
+every database current. To change an entity and add a migration, see
+[docs/migrations.md](docs/migrations.md).
+
 ## Logging rule (non-negotiable)
 
 Log identifiers, never protected health information.

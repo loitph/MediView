@@ -13,3 +13,6 @@ dotnet_diagnostic.CA1716.severity = none
 [*.{json,yml,yaml,csproj,props}]
 indent_style = space
 indent_size = 2
+
+[**/Migrations/*.cs]
+generated_code = true
