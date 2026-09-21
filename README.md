@@ -35,8 +35,9 @@ done
 ```
 
 It starts Postgres, Redis and Seq with `docker compose up -d --wait`, builds the solution once,
-then runs the four services, the gateway and the web app. Ctrl+C stops the .NET processes; the
-containers keep running (`docker compose down` stops them).
+then runs the four services, the gateway and the web app. Ctrl+C stops the .NET processes and
+the containers (`docker compose stop`, so data in the volumes is kept). To run only the
+infrastructure, use `docker compose up -d` and `docker compose stop`.
 
 | What | URL |
 | --- | --- |

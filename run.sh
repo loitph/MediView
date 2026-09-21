@@ -16,6 +16,7 @@ stop_all() {
   trap - INT TERM EXIT
   kill $(jobs -p) 2>/dev/null || true
   wait 2>/dev/null || true
+  docker compose stop
 }
 
 if [[ ! -f .env ]]; then
@@ -27,10 +28,10 @@ set -a
 source .env
 set +a
 
+trap stop_all INT TERM EXIT
+
 docker compose up -d --wait
 dotnet build MedicalView.sln --nologo --verbosity quiet
-
-trap stop_all INT TERM EXIT
 
 for project in "${projects[@]}"; do
   dotnet run --project "$project" --no-build --launch-profile http &
