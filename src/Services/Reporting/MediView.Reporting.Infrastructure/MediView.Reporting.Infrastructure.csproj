@@ -4,4 +4,9 @@
     <ProjectReference Include="..\MediView.Reporting.Application\MediView.Reporting.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="EFCore.NamingConventions" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
 </Project>
