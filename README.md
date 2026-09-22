@@ -28,6 +28,16 @@ for service in Identity Studies Imaging Reporting; do
 done
 ```
 
+The four services validate the same JWT, so they share one signing key of at least 32 bytes.
+A service refuses to start without it:
+
+```bash
+key=$(openssl rand -base64 48)
+for service in Identity Studies Imaging Reporting; do
+  dotnet user-secrets set "Jwt:SigningKey" "$key" --project "src/Services/$service/MediView.$service.Api"
+done
+```
+
 ### Run
 
 ```bash

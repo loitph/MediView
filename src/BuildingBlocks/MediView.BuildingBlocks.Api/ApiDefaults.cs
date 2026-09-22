@@ -1,3 +1,4 @@
+using MediView.BuildingBlocks.Api.Auth;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,7 @@ public static class ApiDefaults
         builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = AddCorrelationId);
         builder.Services.AddExceptionHandler<DomainExceptionHandler>();
         builder.Services.AddHealthChecks();
+        builder.Services.AddMediViewAuth(builder.Configuration);
 
         return builder;
     }
@@ -25,6 +27,8 @@ public static class ApiDefaults
         app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseSerilogRequestLogging();
         app.UseExceptionHandler();
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.MapHealthChecks(HealthPath);
 
         return app;

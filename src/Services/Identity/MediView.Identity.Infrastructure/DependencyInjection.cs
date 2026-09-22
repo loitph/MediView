@@ -1,4 +1,8 @@
+using MediView.Identity.Application.Auth;
+using MediView.Identity.Domain.Users;
 using MediView.Identity.Infrastructure.Persistence;
+using MediView.Identity.Infrastructure.Persistence.Repositories;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +21,10 @@ public static class DependencyInjection
         services.AddDbContext<IdentityDbContext>(options => options
             .UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", IdentityDbContext.Schema))
             .UseSnakeCaseNamingConvention());
+
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IDoctorRepository, DoctorRepository>();
+        services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 
         return services;
     }
