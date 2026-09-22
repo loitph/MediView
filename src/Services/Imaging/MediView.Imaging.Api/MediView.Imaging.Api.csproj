@@ -5,6 +5,10 @@
     <ProjectReference Include="..\MediView.Imaging.Infrastructure\MediView.Imaging.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+
   <PropertyGroup>
     <UserSecretsId>4b2b6840-c5ee-44ef-b30b-e18940fe8008</UserSecretsId>
   </PropertyGroup>
