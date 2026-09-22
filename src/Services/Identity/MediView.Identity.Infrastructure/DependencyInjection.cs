@@ -2,6 +2,7 @@ using MediView.Identity.Application.Auth;
 using MediView.Identity.Domain.Users;
 using MediView.Identity.Infrastructure.Persistence;
 using MediView.Identity.Infrastructure.Persistence.Repositories;
+using MediView.Identity.Infrastructure.Persistence.Seeding;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -25,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IDoctorRepository, DoctorRepository>();
         services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+        services.AddScoped<IdentitySeeder>();
 
         return services;
     }
@@ -33,5 +35,11 @@ public static class DependencyInjection
     {
         using var scope = services.CreateScope();
         scope.ServiceProvider.GetRequiredService<IdentityDbContext>().Database.Migrate();
+    }
+
+    public static void SeedIdentityDatabase(this IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<IdentitySeeder>().Seed();
     }
 }

@@ -58,6 +58,20 @@ infrastructure, use `docker compose up -d` and `docker compose stop`.
 
 Every service answers `GET /health` with `200 Healthy`.
 
+### Seeded accounts
+
+In Development, Identity seeds three users into an empty database. All share the password
+`MediView#2026`. The doctor works Monday to Friday, 08:00-16:00, in 30-minute slots.
+
+| Role | Email |
+| --- | --- |
+| Admin | admin@mediview.local |
+| Doctor | doctor@mediview.local |
+| Patient | patient@mediview.local |
+
+`src/Services/Identity/MediView.Identity.Api/MediView.Identity.Api.http` logs in as each one,
+directly and through the gateway.
+
 ### Database migrations
 
 In Development each service applies its pending EF Core migrations on startup, so `./run.sh` keeps

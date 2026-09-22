@@ -22,4 +22,12 @@ public sealed class Doctor : AggregateRoot<Guid>
         LicenseNumber = licenseNumber,
         Specialty = specialty,
     };
+
+    public void AddSchedule(DayOfWeek dayOfWeek, TimeOnly startTime, TimeOnly endTime, int slotMinutes)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(slotMinutes, 0);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(startTime, endTime);
+
+        _schedules.Add(DoctorSchedule.Create(Id, dayOfWeek, startTime, endTime, slotMinutes));
+    }
 }

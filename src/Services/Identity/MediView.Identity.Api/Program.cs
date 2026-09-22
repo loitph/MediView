@@ -18,6 +18,7 @@ app.MapAuthEndpoints();
 if (app.Environment.IsDevelopment())
 {
     app.Services.MigrateIdentityDatabase();
+    app.Services.SeedIdentityDatabase();
 }
 
 app.Run();

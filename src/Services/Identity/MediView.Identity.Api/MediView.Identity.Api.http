@@ -1,0 +1,55 @@
+@host = http://localhost:5156
+@gateway = http://localhost:5062
+@password = MediView#2026
+
+GET {{host}}/health
+
+###
+
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@mediview.local",
+  "password": "{{password}}"
+}
+
+###
+
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "doctor@mediview.local",
+  "password": "{{password}}"
+}
+
+###
+
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "patient@mediview.local",
+  "password": "{{password}}"
+}
+
+###
+
+POST {{gateway}}/api/identity/auth/login
+Content-Type: application/json
+
+{
+  "email": "doctor@mediview.local",
+  "password": "{{password}}"
+}
+
+###
+
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "doctor@mediview.local",
+  "password": "wrong-password"
+}
