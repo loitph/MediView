@@ -1,7 +1,14 @@
-﻿@page "/"
+@page "/"
 
-<PageTitle>Home</PageTitle>
+<PageTitle>MediView</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>MediView</h1>
 
-Welcome to your new app.
+<AuthorizeView>
+    <Authorized>
+        <p>Signed in as @context.User.Identity?.Name. Pick a page from the menu.</p>
+    </Authorized>
+    <NotAuthorized>
+        <p><a href="login">Sign in</a> to continue.</p>
+    </NotAuthorized>
+</AuthorizeView>

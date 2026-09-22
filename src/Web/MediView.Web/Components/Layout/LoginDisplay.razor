@@ -1,0 +1,20 @@
+@inject JwtAuthenticationStateProvider AuthState
+@inject NavigationManager Navigation
+
+<AuthorizeView>
+    <Authorized>
+        <span class="me-3">@context.User.Identity?.Name</span>
+        <button type="button" class="btn btn-link p-0" @onclick="SignOutAsync">Sign out</button>
+    </Authorized>
+    <NotAuthorized>
+        <a href="login">Sign in</a>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private async Task SignOutAsync()
+    {
+        await AuthState.SignOutAsync();
+        Navigation.NavigateTo("login");
+    }
+}

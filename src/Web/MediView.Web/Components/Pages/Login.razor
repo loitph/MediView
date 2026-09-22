@@ -1,0 +1,70 @@
+@page "/login"
+@using System.ComponentModel.DataAnnotations
+@inject MediViewApi Api
+@inject JwtAuthenticationStateProvider AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>Sign in</PageTitle>
+
+<h1>Sign in</h1>
+
+<EditForm Model="form" OnValidSubmit="SignInAsync" FormName="login" class="col-md-4">
+    <DataAnnotationsValidator />
+
+    <div class="mb-3">
+        <label for="email" class="form-label">Email</label>
+        <InputText id="email" type="email" class="form-control" autocomplete="username" @bind-Value="form.Email" />
+        <ValidationMessage For="() => form.Email" />
+    </div>
+
+    <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <InputText id="password" type="password" class="form-control" autocomplete="current-password" @bind-Value="form.Password" />
+        <ValidationMessage For="() => form.Password" />
+    </div>
+
+    @if (failure is not null)
+    {
+        <div class="alert alert-danger" role="alert">@failure</div>
+    }
+
+    <button type="submit" class="btn btn-primary" disabled="@signingIn">Sign in</button>
+</EditForm>
+
+@code {
+    private readonly LoginForm form = new();
+    private string? failure;
+    private bool signingIn;
+
+    private async Task SignInAsync()
+    {
+        signingIn = true;
+        failure = null;
+
+        try
+        {
+            var token = await Api.LoginAsync(form.Email, form.Password);
+            if (token is null)
+            {
+                failure = "Email or password is incorrect.";
+                return;
+            }
+
+            await AuthState.SignInAsync(token.Token);
+            Navigation.NavigateTo("");
+        }
+        finally
+        {
+            signingIn = false;
+        }
+    }
+
+    private sealed class LoginForm
+    {
+        [Required, EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        public string Password { get; set; } = string.Empty;
+    }
+}

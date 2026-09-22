@@ -1,6 +1,6 @@
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">MediView.Web</a>
+        <a class="navbar-brand" href="">MediView</a>
     </div>
 </div>
 
@@ -9,10 +9,39 @@
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">Home</NavLink>
         </div>
+
+        <AuthorizeView Roles="@MediViewRoles.Patient">
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="book">Book a checkup</NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="my-studies">My studies</NavLink>
+            </div>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="@MediViewRoles.Doctor">
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="worklist">Worklist</NavLink>
+            </div>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="@MediViewRoles.Admin">
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin/doctors">Doctors</NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin/import">Import x-rays</NavLink>
+            </div>
+        </AuthorizeView>
+
+        <AuthorizeView>
+            <NotAuthorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="login">Sign in</NavLink>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
     </nav>
 </div>
-

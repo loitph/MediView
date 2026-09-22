@@ -4,4 +4,8 @@
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\MediView.BuildingBlocks.Api\MediView.BuildingBlocks.Api.csproj" />
+  </ItemGroup>
+
 </Project>

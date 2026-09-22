@@ -11,13 +11,18 @@
     <link rel="stylesheet" href="@Assets["MediView.Web.styles.css"]" />
     <ImportMap />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <HeadOutlet @rendermode="InteractiveServer" />
+    <HeadOutlet @rendermode="InteractiveServerWithoutPrerender" />
 </head>
 
 <body>
-    <Routes @rendermode="InteractiveServer" />
+    <Routes @rendermode="InteractiveServerWithoutPrerender" />
     <ReconnectModal />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>
 
 </html>
+
+@code {
+    private static readonly IComponentRenderMode InteractiveServerWithoutPrerender =
+        new InteractiveServerRenderMode(prerender: false);
+}
