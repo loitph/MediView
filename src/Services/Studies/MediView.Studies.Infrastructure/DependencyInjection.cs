@@ -1,13 +1,17 @@
+using MediView.Studies.Application.Locking;
+using MediView.Studies.Infrastructure.Locking;
 using MediView.Studies.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 
 namespace MediView.Studies.Infrastructure;
 
 public static class DependencyInjection
 {
     private const string ConnectionStringName = "Postgres";
+    private const string RedisConfigurationKey = "Redis:Configuration";
 
     public static IServiceCollection AddStudiesInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
@@ -17,6 +21,12 @@ public static class DependencyInjection
         services.AddDbContext<StudiesDbContext>(options => options
             .UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", StudiesDbContext.Schema))
             .UseSnakeCaseNamingConvention());
+
+        var redisConfiguration = configuration[RedisConfigurationKey]
+            ?? throw new InvalidOperationException($"'{RedisConfigurationKey}' is not configured.");
+
+        services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConfiguration));
+        services.AddSingleton<IStudyLock, RedisStudyLock>();
 
         return services;
     }
