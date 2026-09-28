@@ -54,6 +54,12 @@ public sealed class RedisStudyLock(IConnectionMultiplexer redis) : IStudyLock
         }
     }
 
+    public async Task<LockOwner?> GetOwner(Guid studyId)
+    {
+        var stored = await Database.StringGetAsync(KeyFor(studyId));
+        return stored.HasValue ? Deserialize(stored.ToString()) : null;
+    }
+
     public Task<bool> Renew(Guid studyId, Guid doctorId) =>
         RunIfOwner(RenewIfOwnerScript, studyId, doctorId, (long)Ttl.TotalMilliseconds);
 

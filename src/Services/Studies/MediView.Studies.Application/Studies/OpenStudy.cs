@@ -1,5 +1,4 @@
 using MediView.BuildingBlocks.Application;
-using MediView.BuildingBlocks.Domain;
 using MediView.Studies.Application.Locking;
 using MediView.Studies.Domain.Studies;
 
@@ -19,7 +18,7 @@ internal sealed class OpenStudyCommandHandler(
         var acquisition = await studyLock.TryAcquire(studyId, doctor);
         if (!acquisition.Acquired)
         {
-            throw new ConflictException($"Study {studyId} is being read by {acquisition.CurrentOwner.DoctorName}.");
+            throw StudyLockConflict.HeldBy(studyId, acquisition.CurrentOwner);
         }
 
         var study = await studies.FindAsync(studyId, cancellationToken);

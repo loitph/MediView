@@ -1,11 +1,9 @@
 using MediView.BuildingBlocks.Application;
 using MediView.BuildingBlocks.Domain;
-using MediView.Studies.Application;
 using MediView.Studies.Application.Locking;
 using MediView.Studies.Application.Studies;
 using MediView.Studies.Domain.Studies;
 using MediView.Studies.Infrastructure.Locking;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MediView.Studies.Tests;
@@ -18,7 +16,7 @@ public sealed class OpenStudyTests : IClassFixture<RedisFixture>, IAsyncLifetime
 
     private readonly InMemoryStudyRepository _studies = new();
     private readonly RedisStudyLock _lock;
-    private readonly ServiceProvider _services;
+    private readonly StudiesApplication _application;
     private readonly Study _study = Study.Book(
         Guid.NewGuid(), "Test Patient", "MRN-0001", AssignedDoctor.DoctorId, AssignedDoctor.DoctorName, Now.AddDays(1), StudyPriority.Routine, Now);
 
@@ -26,12 +24,7 @@ public sealed class OpenStudyTests : IClassFixture<RedisFixture>, IAsyncLifetime
     {
         _lock = new RedisStudyLock(redis.Connection);
         _studies.Add(_study);
-        _services = new ServiceCollection()
-            .AddStudiesApplication()
-            .AddSingleton<IStudyLock>(_lock)
-            .AddSingleton<IStudyRepository>(_studies)
-            .AddSingleton(TimeProvider.System)
-            .BuildServiceProvider();
+        _application = new StudiesApplication(_lock, _studies);
     }
 
     public ValueTask InitializeAsync() => ValueTask.CompletedTask;
@@ -39,7 +32,7 @@ public sealed class OpenStudyTests : IClassFixture<RedisFixture>, IAsyncLifetime
     public async ValueTask DisposeAsync()
     {
         await _lock.ForceRelease(_study.Id);
-        await _services.DisposeAsync();
+        await _application.DisposeAsync();
     }
 
     [Fact]
@@ -112,10 +105,6 @@ public sealed class OpenStudyTests : IClassFixture<RedisFixture>, IAsyncLifetime
         await _lock.ForceRelease(unknownId);
     }
 
-    private async Task<Result> Open(Guid studyId, LockOwner doctor)
-    {
-        await using var scope = _services.CreateAsyncScope();
-        return await scope.ServiceProvider.GetRequiredService<ISender>()
-            .Send(new OpenStudyCommand(studyId, doctor), TestContext.Current.CancellationToken);
-    }
+    private Task<Result> Open(Guid studyId, LockOwner doctor) =>
+        _application.Send(new OpenStudyCommand(studyId, doctor));
 }

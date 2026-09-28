@@ -12,6 +12,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 var app = builder.Build();
 app.UseApiDefaults();
 app.MapStudyEndpoints();
+app.MapStudyLockEndpoints();
 
 if (app.Environment.IsDevelopment())
 {
