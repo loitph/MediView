@@ -11,4 +11,19 @@ public sealed class StudyStatusHistory
     public Guid ChangedBy { get; private set; }
     public string? Reason { get; private set; }
     public DateTimeOffset ChangedAt { get; private set; }
+
+    internal static StudyStatusHistory Record(
+        StudyStatus? from,
+        StudyStatus to,
+        Guid changedBy,
+        string? reason,
+        DateTimeOffset changedAt) =>
+        new()
+        {
+            FromStatus = from,
+            ToStatus = to,
+            ChangedBy = changedBy,
+            Reason = reason,
+            ChangedAt = changedAt,
+        };
 }
