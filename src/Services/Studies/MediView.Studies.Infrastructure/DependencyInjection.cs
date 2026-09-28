@@ -1,6 +1,8 @@
 using MediView.Studies.Application.Locking;
+using MediView.Studies.Application.Studies;
 using MediView.Studies.Infrastructure.Locking;
 using MediView.Studies.Infrastructure.Persistence;
+using MediView.Studies.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +23,8 @@ public static class DependencyInjection
         services.AddDbContext<StudiesDbContext>(options => options
             .UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", StudiesDbContext.Schema))
             .UseSnakeCaseNamingConvention());
+
+        services.AddScoped<IStudyRepository, StudyRepository>();
 
         var redisConfiguration = configuration[RedisConfigurationKey]
             ?? throw new InvalidOperationException($"'{RedisConfigurationKey}' is not configured.");
