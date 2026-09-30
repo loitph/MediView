@@ -28,4 +28,15 @@ public sealed class DoctorSchedule : Entity<Guid>
         EndTime = endTime,
         SlotMinutes = slotMinutes,
     };
+
+    public IEnumerable<ScheduledSlot> SlotsOn(DateOnly date)
+    {
+        var length = TimeSpan.FromMinutes(SlotMinutes);
+        var shiftEnd = EndTime.ToTimeSpan();
+
+        for (var start = StartTime.ToTimeSpan(); start + length <= shiftEnd; start += length)
+        {
+            yield return new ScheduledSlot(date, TimeOnly.FromTimeSpan(start), TimeOnly.FromTimeSpan(start + length));
+        }
+    }
 }

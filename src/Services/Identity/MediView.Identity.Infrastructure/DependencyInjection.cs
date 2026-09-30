@@ -1,4 +1,7 @@
+using MediView.Identity.Application;
 using MediView.Identity.Application.Auth;
+using MediView.Identity.Application.Doctors;
+using MediView.Identity.Application.Patients;
 using MediView.Identity.Domain.Users;
 using MediView.Identity.Infrastructure.Persistence;
 using MediView.Identity.Infrastructure.Persistence.Repositories;
@@ -25,6 +28,8 @@ public static class DependencyInjection
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IDoctorRepository, DoctorRepository>();
+        services.AddScoped<IPatientRepository, PatientRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
         services.AddScoped<IdentitySeeder>();
 

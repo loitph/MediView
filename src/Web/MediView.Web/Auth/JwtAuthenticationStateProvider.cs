@@ -19,10 +19,12 @@ public sealed class JwtAuthenticationStateProvider(TokenStore tokens, TimeProvid
         return token is null ? Anonymous : StateFor(token);
     }
 
-    public async Task SignInAsync(string accessToken)
+    public async Task<ClaimsPrincipal> SignInAsync(string accessToken)
     {
         await tokens.SetAsync(accessToken);
-        NotifyAuthenticationStateChanged(Task.FromResult(StateFor(accessToken)));
+        var state = StateFor(accessToken);
+        NotifyAuthenticationStateChanged(Task.FromResult(state));
+        return state.User;
     }
 
     public async Task SignOutAsync()

@@ -31,6 +31,8 @@
     <button type="submit" class="btn btn-primary" disabled="@signingIn">Sign in</button>
 </EditForm>
 
+<p class="mt-3">New patient? <a href="register">Create an account</a></p>
+
 @code {
     private readonly LoginForm form = new();
     private string? failure;
@@ -50,8 +52,8 @@
                 return;
             }
 
-            await AuthState.SignInAsync(token.Token);
-            Navigation.NavigateTo("");
+            var user = await AuthState.SignInAsync(token.Token);
+            Navigation.NavigateTo(LandingPage.For(user));
         }
         finally
         {

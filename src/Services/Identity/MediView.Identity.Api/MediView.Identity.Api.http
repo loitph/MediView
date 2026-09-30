@@ -1,6 +1,8 @@
 @host = http://localhost:5156
 @gateway = http://localhost:5062
 @password = MediView#2026
+@adminToken = paste-the-admin-login-token
+@doctorId = paste-a-doctor-id-from-get-doctors
 
 GET {{host}}/health
 
@@ -53,3 +55,45 @@ Content-Type: application/json
   "email": "doctor@mediview.local",
   "password": "wrong-password"
 }
+
+###
+
+POST {{host}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "new.patient@mediview.local",
+  "password": "{{password}}",
+  "fullName": "Nia Newcomer"
+}
+
+###
+
+GET {{host}}/doctors
+
+###
+
+GET {{host}}/doctors/{{doctorId}}/availability?from=2026-10-05&to=2026-10-11
+
+###
+
+POST {{host}}/admin/doctors
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "fullName": "Carla Cardio",
+  "email": "carla@mediview.local",
+  "password": "{{password}}",
+  "licenseNumber": "LIC-000002",
+  "specialty": "Cardiology",
+  "shifts": [
+    { "dayOfWeek": "Monday", "start": "08:00", "end": "16:00", "slotMinutes": 30 },
+    { "dayOfWeek": "Wednesday", "start": "08:00", "end": "12:00", "slotMinutes": 20 }
+  ]
+}
+
+###
+
+GET {{host}}/internal/doctors/{{doctorId}}
+Authorization: Bearer {{adminToken}}

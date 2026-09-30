@@ -13,12 +13,21 @@ public sealed class User : AggregateRoot<Guid>
     public string FullName { get; private set; } = null!;
     public Role Role { get; private set; }
 
-    public static User Create(string email, string passwordHash, string fullName, Role role) => new()
+    public static User Create(string email, string fullName, Role role, Func<User, string> hashPassword)
     {
-        Id = Guid.CreateVersion7(),
-        Email = email,
-        PasswordHash = passwordHash,
-        FullName = fullName,
-        Role = role,
-    };
+        ArgumentNullException.ThrowIfNull(hashPassword);
+
+        var user = new User
+        {
+            Id = Guid.CreateVersion7(),
+            Email = NormalizeEmail(email),
+            FullName = fullName.Trim(),
+            Role = role,
+        };
+        user.PasswordHash = hashPassword(user);
+
+        return user;
+    }
+
+    public static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 }

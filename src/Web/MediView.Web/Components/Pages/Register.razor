@@ -1,0 +1,97 @@
+@page "/register"
+@using System.ComponentModel.DataAnnotations
+@inject MediViewApi Api
+@inject JwtAuthenticationStateProvider AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>Register</PageTitle>
+
+<h1>Create a patient account</h1>
+
+<EditForm Model="form" OnValidSubmit="RegisterAsync" FormName="register" class="col-md-4">
+    <DataAnnotationsValidator />
+
+    <div class="mb-3">
+        <label for="full-name" class="form-label">Full name</label>
+        <InputText id="full-name" class="form-control" autocomplete="name" @bind-Value="form.FullName" />
+        <ValidationMessage For="() => form.FullName" />
+    </div>
+
+    <div class="mb-3">
+        <label for="email" class="form-label">Email</label>
+        <InputText id="email" type="email" class="form-control" autocomplete="username" @bind-Value="form.Email" />
+        <ValidationMessage For="() => form.Email" />
+    </div>
+
+    <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <InputText id="password" type="password" class="form-control" autocomplete="new-password" @bind-Value="form.Password" />
+        <ValidationMessage For="() => form.Password" />
+    </div>
+
+    <div class="mb-3">
+        <label for="confirm-password" class="form-label">Confirm password</label>
+        <InputText id="confirm-password" type="password" class="form-control" autocomplete="new-password" @bind-Value="form.ConfirmPassword" />
+        <ValidationMessage For="() => form.ConfirmPassword" />
+    </div>
+
+    @if (failure is not null)
+    {
+        <div class="alert alert-danger" role="alert">@failure</div>
+    }
+
+    <button type="submit" class="btn btn-primary" disabled="@registering">Register</button>
+</EditForm>
+
+<p class="mt-3">Already registered? <a href="login">Sign in</a></p>
+
+@code {
+    private readonly RegisterForm form = new();
+    private string? failure;
+    private bool registering;
+
+    private async Task RegisterAsync()
+    {
+        registering = true;
+        failure = null;
+
+        try
+        {
+            var outcome = await Api.RegisterAsync(new RegisterRequest(form.Email, form.Password, form.FullName));
+            if (!outcome.Succeeded)
+            {
+                failure = outcome.Problem;
+                return;
+            }
+
+            var token = await Api.LoginAsync(form.Email, form.Password);
+            if (token is null)
+            {
+                Navigation.NavigateTo("login");
+                return;
+            }
+
+            var user = await AuthState.SignInAsync(token.Token);
+            Navigation.NavigateTo(LandingPage.For(user));
+        }
+        finally
+        {
+            registering = false;
+        }
+    }
+
+    private sealed class RegisterForm
+    {
+        [Required, MaxLength(200)]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required, EmailAddress, MaxLength(320)]
+        public string Email { get; set; } = string.Empty;
+
+        [Required, MinLength(8, ErrorMessage = "Use at least 8 characters."), MaxLength(128)]
+        public string Password { get; set; } = string.Empty;
+
+        [Required, Compare(nameof(Password), ErrorMessage = "The passwords do not match.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

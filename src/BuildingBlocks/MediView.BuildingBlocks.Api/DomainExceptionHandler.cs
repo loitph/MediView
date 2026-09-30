@@ -19,6 +19,7 @@ public sealed partial class DomainExceptionHandler(
         {
             ConflictException conflict => Problem(StatusCodes.Status409Conflict, "Conflict", conflict.Message),
             DomainException domain => Problem(StatusCodes.Status400BadRequest, "Domain rule violated", domain.Message),
+            BadHttpRequestException badRequest => Problem(badRequest.StatusCode, "Bad request", badRequest.Message),
             _ => Problem(StatusCodes.Status500InternalServerError, "An unexpected error occurred", null),
         };
 

@@ -38,8 +38,7 @@ internal sealed class IdentitySeeder(IdentityDbContext db, IPasswordHasher<User>
 
     private User AddUser(string email, string fullName, Role role)
     {
-        var unhashed = User.Create(email, string.Empty, fullName, role);
-        var user = User.Create(email, passwordHasher.HashPassword(unhashed, DevelopmentPassword), fullName, role);
+        var user = User.Create(email, fullName, role, unhashed => passwordHasher.HashPassword(unhashed, DevelopmentPassword));
         db.Users.Add(user);
         return user;
     }

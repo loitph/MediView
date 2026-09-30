@@ -1,4 +1,5 @@
 using MediView.BuildingBlocks.Application;
+using MediView.Identity.Application.Doctors;
 using MediView.Identity.Domain.Users;
 using Microsoft.AspNetCore.Identity;
 

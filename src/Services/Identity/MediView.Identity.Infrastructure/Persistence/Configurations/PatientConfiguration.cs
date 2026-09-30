@@ -14,7 +14,7 @@ internal sealed class PatientConfiguration : IEntityTypeConfiguration<Patient>
         builder.HasKey(patient => patient.Id);
         builder.Property(patient => patient.Mrn)
             .HasMaxLength(16)
-            .HasDefaultValueSql($"'MRN' || nextval('{IdentityDbContext.Schema}.{MrnSequence}')")
+            .HasDefaultValueSql($"'MRN-' || nextval('{IdentityDbContext.Schema}.{MrnSequence}')")
             .ValueGeneratedOnAdd();
         builder.HasIndex(patient => patient.Mrn).IsUnique();
         builder.HasIndex(patient => patient.UserId).IsUnique();

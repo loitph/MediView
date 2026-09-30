@@ -5,6 +5,9 @@ namespace MediView.BuildingBlocks.Api.Auth;
 
 public static class ClaimsPrincipalExtensions
 {
+    public static Guid UserId(this ClaimsPrincipal user) =>
+        Guid.Parse(user.FindFirstValue(MediViewClaims.Subject) ?? throw MissingClaim(MediViewClaims.Subject), CultureInfo.InvariantCulture);
+
     public static Guid DoctorId(this ClaimsPrincipal user) =>
         Guid.Parse(user.FindFirstValue(MediViewClaims.DoctorId) ?? throw MissingClaim(MediViewClaims.DoctorId), CultureInfo.InvariantCulture);
 
