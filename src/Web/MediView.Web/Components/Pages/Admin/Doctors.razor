@@ -1,149 +1,199 @@
 @page "/admin/doctors"
 @using System.ComponentModel.DataAnnotations
+@using System.Globalization
 @inject MediViewApi Api
-
-<PageTitle>Doctors</PageTitle>
-
-<h1>Doctors</h1>
 
 <AuthorizeView Roles="@MediViewRoles.Admin" Context="admin">
     <Authorized>
-        <div class="row g-5">
-            <section class="col-lg-5">
-                <h2 class="h5">On staff</h2>
+        <TopBar Title="Doctors" Meta="@StaffCount" />
 
-                @if (doctors is null)
-                {
-                    <p>Loading…</p>
-                }
-                else if (doctors.Count == 0)
-                {
-                    <p>No doctors yet.</p>
-                }
-                else
-                {
-                    <table class="table table-sm">
+        <div class="mv-page">
+            <section class="mv-page__main" aria-label="Doctors on staff">
+                <div class="mv-card">
+                    <table class="mv-table">
                         <thead>
                             <tr>
-                                <th>Name</th>
-                                <th>Specialty</th>
+                                <th scope="col">Doctor</th>
+                                <th scope="col">Specialty</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var doctor in doctors)
+                            @foreach (var doctor in doctors ?? [])
                             {
                                 <tr @key="doctor.Id">
-                                    <td>@doctor.FullName</td>
+                                    <td>
+                                        <div class="mv-table__primary">
+                                            <span class="mv-avatar mv-avatar--soft" aria-hidden="true">@Initials.Of(doctor.FullName)</span>
+                                            <span class="mv-table__name">@doctor.FullName</span>
+                                        </div>
+                                    </td>
                                     <td>@doctor.Specialty</td>
                                 </tr>
                             }
                         </tbody>
                     </table>
-                }
+
+                    @if (doctors is null)
+                    {
+                        <p class="mv-table__empty">Loading doctors…</p>
+                    }
+                    else if (doctors.Count == 0)
+                    {
+                        <p class="mv-table__empty">No doctors yet — create the first one with the form.</p>
+                    }
+
+                    <p class="mv-card__footer mv-small-print">
+                        A doctor is bookable as soon as the account exists: availability is the weekly hours expanded
+                        into slots for a date range, minus the slots already booked.
+                    </p>
+                </div>
             </section>
 
-            <section class="col-lg-7">
-                <h2 class="h5">Add a doctor</h2>
-
-                <EditForm Model="form" OnValidSubmit="CreateAsync" FormName="create-doctor">
-                    <DataAnnotationsValidator />
-
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label for="full-name" class="form-label">Full name</label>
-                            <InputText id="full-name" class="form-control" @bind-Value="form.FullName" />
-                            <ValidationMessage For="() => form.FullName" />
-                        </div>
-                        <div class="col-md-6">
-                            <label for="specialty" class="form-label">Specialty</label>
-                            <InputText id="specialty" class="form-control" @bind-Value="form.Specialty" />
-                            <ValidationMessage For="() => form.Specialty" />
-                        </div>
-                        <div class="col-md-6">
-                            <label for="email" class="form-label">Email</label>
-                            <InputText id="email" type="email" class="form-control" autocomplete="off" @bind-Value="form.Email" />
-                            <ValidationMessage For="() => form.Email" />
-                        </div>
-                        <div class="col-md-6">
-                            <label for="password" class="form-label">Initial password</label>
-                            <InputText id="password" type="password" class="form-control" autocomplete="new-password" @bind-Value="form.Password" />
-                            <ValidationMessage For="() => form.Password" />
-                        </div>
-                        <div class="col-md-6">
-                            <label for="license" class="form-label">Licence number</label>
-                            <InputText id="license" class="form-control" @bind-Value="form.LicenseNumber" />
-                            <ValidationMessage For="() => form.LicenseNumber" />
-                        </div>
-                        <div class="col-md-6">
-                            <label for="slot-minutes" class="form-label">Slot length (minutes)</label>
-                            <InputNumber id="slot-minutes" class="form-control" @bind-Value="form.SlotMinutes" />
-                            <ValidationMessage For="() => form.SlotMinutes" />
-                        </div>
+            <section class="mv-page__side mv-page__side--form">
+                <div class="mv-card">
+                    <div class="mv-card__header">
+                        <h2 class="mv-card__title">New doctor account</h2>
                     </div>
 
-                    <fieldset class="mb-3">
-                        <legend class="h6">Weekly hours</legend>
-                        <table class="table table-sm align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Works</th>
-                                    <th>Day</th>
-                                    <th>From</th>
-                                    <th>To</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var day in form.Week)
-                                {
-                                    <tr @key="day.DayOfWeek">
-                                        <td><InputCheckbox class="form-check-input" @bind-Value="day.Works" aria-label="@($"Works on {day.DayOfWeek}")" /></td>
-                                        <td>@day.DayOfWeek</td>
-                                        <td><InputDate Type="InputDateType.Time" class="form-control form-control-sm" @bind-Value="day.Start" disabled="@(!day.Works)" /></td>
-                                        <td><InputDate Type="InputDateType.Time" class="form-control form-control-sm" @bind-Value="day.End" disabled="@(!day.Works)" /></td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </fieldset>
+                    <EditForm Model="form" OnValidSubmit="CreateAsync" FormName="create-doctor" class="mv-card__body">
+                        <DataAnnotationsValidator />
 
-                    @if (failure is not null)
-                    {
-                        <div class="alert alert-danger" role="alert">@failure</div>
-                    }
+                        <div class="mv-form-grid">
+                            <div class="mv-field mv-field--wide">
+                                <label for="email" class="mv-field__label">Email</label>
+                                <InputText id="email" type="email" class="mv-input" autocomplete="off" @bind-Value="form.Email" />
+                                <ValidationMessage For="() => form.Email" />
+                            </div>
+                            <div class="mv-field">
+                                <label for="full-name" class="mv-field__label">Full name</label>
+                                <InputText id="full-name" class="mv-input" @bind-Value="form.FullName" />
+                                <ValidationMessage For="() => form.FullName" />
+                            </div>
+                            <div class="mv-field">
+                                <label for="specialty" class="mv-field__label">Specialty</label>
+                                <InputText id="specialty" class="mv-input" @bind-Value="form.Specialty" />
+                                <ValidationMessage For="() => form.Specialty" />
+                            </div>
+                            <div class="mv-field">
+                                <label for="license" class="mv-field__label">Licence number</label>
+                                <InputText id="license" class="mv-input mv-mono" @bind-Value="form.LicenseNumber" />
+                                <ValidationMessage For="() => form.LicenseNumber" />
+                            </div>
+                            <div class="mv-field">
+                                <label for="slot-minutes" class="mv-field__label">Slot length (min)</label>
+                                <InputNumber id="slot-minutes" class="mv-input mv-mono" @bind-Value="form.SlotMinutes" />
+                                <ValidationMessage For="() => form.SlotMinutes" />
+                            </div>
+                            <div class="mv-field mv-field--wide">
+                                <label for="password" class="mv-field__label">Initial password</label>
+                                <InputText id="password" type="password" class="mv-input" autocomplete="new-password" @bind-Value="form.Password" />
+                                <ValidationMessage For="() => form.Password" />
+                            </div>
+                        </div>
 
-                    @if (created is not null)
-                    {
-                        <div class="alert alert-success" role="status">@created can now sign in.</div>
-                    }
+                        <div class="schedule">
+                            <div class="schedule__header">
+                                <span id="schedule-label" class="mv-eyebrow">Weekly schedule</span>
+                                <span class="schedule__hint">untick a day to keep it off</span>
+                            </div>
+                            <table class="schedule__table" aria-labelledby="schedule-label">
+                                <tbody>
+                                    @foreach (var day in form.Week)
+                                    {
+                                        <tr @key="day.DayOfWeek" class="@(day.Works ? null : "schedule__row--off")">
+                                            <th scope="row">
+                                                <label class="schedule__day">
+                                                    <InputCheckbox @bind-Value="day.Works" />
+                                                    @day.ShortName
+                                                </label>
+                                            </th>
+                                            <td>
+                                                <InputSelect class="schedule__time" @bind-Value="day.Start" disabled="@(!day.Works)" aria-label="@($"{day.DayOfWeek} start")">
+                                                    @TimeOptions
+                                                </InputSelect>
+                                            </td>
+                                            <td>
+                                                <InputSelect class="schedule__time" @bind-Value="day.End" disabled="@(!day.Works)" aria-label="@($"{day.DayOfWeek} end")">
+                                                    @TimeOptions
+                                                </InputSelect>
+                                            </td>
+                                            <td class="@SlotsClass(day)">@day.SlotsLabel(form.SlotMinutes)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
 
-                    <button type="submit" class="btn btn-primary" disabled="@saving">Create doctor</button>
-                </EditForm>
+                        @if (failure is not null)
+                        {
+                            <p class="mv-callout mv-callout--danger" role="alert">@failure</p>
+                        }
+
+                        @if (created is not null)
+                        {
+                            <p class="mv-callout mv-callout--info" role="status">@created can now sign in with the password you set.</p>
+                        }
+
+                        <p class="mv-small-print">
+                            Saving writes the user, the doctor and the weekly hours in one transaction. You attest the
+                            licence; there is no verification step.
+                        </p>
+
+                        <button type="submit" class="mv-button mv-button--create mv-button--block" disabled="@saving">Create doctor</button>
+                    </EditForm>
+                </div>
             </section>
         </div>
     </Authorized>
     <NotAuthorized>
-        <p><a href="login">Sign in</a> as an administrator to manage doctors.</p>
+        <TopBar Title="Doctors" />
+        <div class="mv-page">
+            <p class="mv-callout mv-callout--warning"><span><a href="login">Sign in</a> as an administrator to manage doctors.</span></p>
+        </div>
     </NotAuthorized>
 </AuthorizeView>
 
 @code {
+    private const string TimeFormat = "HH:mm";
+    private const int TimeStepMinutes = 15;
+
+    private static readonly string[] Times =
+    [
+        .. Enumerable.Range(0, 24 * 60 / TimeStepMinutes)
+            .Select(step => TimeOnly.MinValue.AddMinutes(step * TimeStepMinutes).ToString(TimeFormat, CultureInfo.InvariantCulture)),
+    ];
+
     private DoctorForm form = new();
     private IReadOnlyList<DoctorSummary>? doctors;
     private string? failure;
     private string? created;
     private bool saving;
 
+    private string? StaffCount => doctors is null ? null : $"{doctors.Count} on staff";
+
+    private static RenderFragment TimeOptions =>
+        @<text>
+            @foreach (var time in Times)
+            {
+                <option value="@time">@time</option>
+            }
+        </text>;
+
     protected override async Task OnInitializedAsync() => doctors = await Api.ListDoctorsAsync();
+
+    private string SlotsClass(WorkingDay day) => day switch
+    {
+        { Works: false } => "schedule__slots",
+        _ when day.SlotCount(form.SlotMinutes) == 0 => "schedule__slots schedule__slots--invalid",
+        _ => "schedule__slots schedule__slots--open",
+    };
 
     private async Task CreateAsync()
     {
-        failure = null;
         created = null;
-
-        var shifts = form.ToShifts();
-        if (shifts.Count == 0)
+        failure = form.ScheduleProblem();
+        if (failure is not null)
         {
-            failure = "Pick at least one working day.";
             return;
         }
 
@@ -157,7 +207,7 @@
                 form.Password,
                 form.LicenseNumber,
                 form.Specialty,
-                shifts));
+                form.ToShifts()));
 
             if (!outcome.Succeeded)
             {
@@ -188,39 +238,58 @@
             DayOfWeek.Sunday,
         ];
 
-        [Required, MaxLength(200)]
+        [Required(ErrorMessage = "Enter the doctor's full name."), MaxLength(200)]
         public string FullName { get; set; } = string.Empty;
 
-        [Required, EmailAddress, MaxLength(320)]
+        [Required(ErrorMessage = "Enter the doctor's email."), EmailAddress(ErrorMessage = "Enter a valid email address."), MaxLength(320)]
         public string Email { get; set; } = string.Empty;
 
-        [Required, MinLength(8, ErrorMessage = "Use at least 8 characters."), MaxLength(128)]
+        [Required(ErrorMessage = "Set an initial password."), MinLength(8, ErrorMessage = "Use at least 8 characters."), MaxLength(128)]
         public string Password { get; set; } = string.Empty;
 
-        [Required, MaxLength(64)]
+        [Required(ErrorMessage = "Enter the licence number."), MaxLength(64)]
         public string LicenseNumber { get; set; } = string.Empty;
 
-        [Required, MaxLength(100)]
+        [Required(ErrorMessage = "Enter the specialty."), MaxLength(100)]
         public string Specialty { get; set; } = string.Empty;
 
-        [Range(5, 240)]
+        [Range(5, 240, ErrorMessage = "Use 5 to 240 minutes.")]
         public int SlotMinutes { get; set; } = 30;
 
         public IReadOnlyList<WorkingDay> Week { get; } = [.. MondayFirst.Select(day => new WorkingDay(day))];
 
+        private IEnumerable<WorkingDay> WorkingDays => Week.Where(day => day.Works);
+
+        public string? ScheduleProblem()
+        {
+            if (!WorkingDays.Any())
+            {
+                return "Pick at least one working day.";
+            }
+
+            var tooShort = WorkingDays.FirstOrDefault(day => day.SlotCount(SlotMinutes) == 0);
+            return tooShort is null
+                ? null
+                : $"{tooShort.DayOfWeek} has no room for a {SlotMinutes}-minute slot. Check its hours.";
+        }
+
         public List<ShiftRequest> ToShifts() =>
-        [
-            .. Week
-                .Where(day => day.Works)
-                .Select(day => new ShiftRequest(day.DayOfWeek, day.Start, day.End, SlotMinutes)),
-        ];
+            [.. WorkingDays.Select(day => new ShiftRequest(day.DayOfWeek, day.StartTime, day.EndTime, SlotMinutes))];
     }
 
     private sealed class WorkingDay(DayOfWeek dayOfWeek)
     {
         public DayOfWeek DayOfWeek => dayOfWeek;
+        public string ShortName => CultureInfo.InvariantCulture.DateTimeFormat.GetAbbreviatedDayName(dayOfWeek);
         public bool Works { get; set; } = dayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday);
-        public TimeOnly Start { get; set; } = new(8, 0);
-        public TimeOnly End { get; set; } = new(16, 0);
+        public string Start { get; set; } = "08:00";
+        public string End { get; set; } = "16:00";
+        public TimeOnly StartTime => TimeOnly.ParseExact(Start, TimeFormat, CultureInfo.InvariantCulture);
+        public TimeOnly EndTime => TimeOnly.ParseExact(End, TimeFormat, CultureInfo.InvariantCulture);
+
+        public int SlotCount(int slotMinutes) =>
+            slotMinutes > 0 && StartTime < EndTime ? (int)((EndTime - StartTime).TotalMinutes / slotMinutes) : 0;
+
+        public string SlotsLabel(int slotMinutes) => Works ? $"{SlotCount(slotMinutes)} slots" : "off";
     }
 }

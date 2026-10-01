@@ -1,0 +1,17 @@
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font: 500 11.5px var(--mv-font-mono);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--mv-text-faint);
+}
+
+.divider::before,
+.divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--mv-border-chip);
+}

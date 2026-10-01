@@ -1,14 +1,16 @@
 @page "/"
 
-<PageTitle>MediView</PageTitle>
-
-<h1>MediView</h1>
-
 <AuthorizeView>
     <Authorized>
-        <p>Signed in as @context.User.Identity?.Name. Pick a page from the menu.</p>
+        <TopBar Title="Home" />
+        <div class="mv-page">
+            <p class="mv-callout mv-callout--info">Signed in as @context.User.DisplayName(). Pick a page from the menu.</p>
+        </div>
     </Authorized>
     <NotAuthorized>
-        <p><a href="login">Sign in</a> to continue.</p>
+        <TopBar Title="Home" />
+        <div class="mv-page">
+            <p class="mv-callout mv-callout--info"><span><a href="login">Sign in</a> to continue, or <a href="register">create a patient account</a>.</span></p>
+        </div>
     </NotAuthorized>
 </AuthorizeView>

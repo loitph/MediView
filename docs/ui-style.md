@@ -30,6 +30,12 @@ is dark.
 
 Copy into the `:root` of `wwwroot/app.css`. Component styles reference these names only.
 
+`app.css` also holds the shared classes every page uses: `mv-page` (with `__main` and
+`__side--summary|target|form`), `mv-card`, `mv-table`, `mv-button--primary|secondary|accent|create`
+(plus `--block`, `--tall`, `--compact`), `mv-field`, `mv-input`, `mv-form-grid`, `mv-callout--info|warning|danger`,
+`mv-segmented`, `mv-avatar`, `mv-eyebrow`. A page's own `.razor.css` only holds what is unique to that
+page. Shell pages start with `<TopBar Title="…" Meta="…">`; sign in and register use `@layout AuthLayout`.
+
 ```css
 :root {
     --mv-font-sans: 'IBM Plex Sans', system-ui, sans-serif;
@@ -65,6 +71,7 @@ Copy into the `:root` of `wwwroot/app.css`. Component styles reference these nam
     --mv-sidebar-text: #a4b5cb;
     --mv-sidebar-section: #5d738f;
     --mv-sidebar-active-bg: rgba(37, 179, 196, .16);
+    --mv-auth-pitch-text: #9fb2cd;
 
     --mv-role-patient: #1d7f4e;
     --mv-role-doctor: #1f5fa8;
@@ -106,6 +113,13 @@ Copy into the `:root` of `wwwroot/app.css`. Component styles reference these nam
     --mv-warn-bg: #fdf9ee;
     --mv-warn-border: #f0dcae;
     --mv-warn-text: #6d5316;
+    --mv-danger-bg: #fcf1ee;
+    --mv-danger-border: #f0c9bf;
+    --mv-danger-text: #7d3324;
+
+    --mv-button-disabled-text: #b3bdcb;
+    --mv-segment-inactive: #6b7c93;
+    --mv-segment-shadow: 0 1px 2px rgba(20, 40, 74, .1);
 
     --mv-radius-frame: 10px;
     --mv-radius-card: 9px;
@@ -202,7 +216,7 @@ Use `-webkit-font-smoothing: antialiased` on `body`. Long prose gets `text-wrap:
 ### Sign in / register
 
 No shell. A 600 px navy panel on the left (brand, one-line pitch at 29 / 500 white, three bullet
-lines in `#9fb2cd` with teal dots), and a centred 392 px form column on `--mv-bg` on the right.
+lines in `--mv-auth-pitch-text` with teal dots), and a centred 392 px form column on `--mv-bg` on the right.
 Sign in / Register is a segmented control.
 
 ### Viewport (dark)
@@ -268,7 +282,7 @@ fully faded.
 | Secondary | white | `--mv-border-input` | `--mv-ink` | alternative actions, table row actions |
 | Accent | `--mv-accent` | none | white | import |
 | Confirm-create | `--mv-success` | none | white | creating an account |
-| Disabled | `--mv-surface-subtle` | `--mv-surface-track` | `#b3bdcb` | e.g. "Awaiting images" |
+| Disabled | `--mv-surface-subtle` | `--mv-surface-track` | `--mv-button-disabled-text` | e.g. "Awaiting images" |
 
 Full-width panel buttons are 44 px high (46 px on sign in), radius 7 px. Row and header buttons are
 compact: padding 7px 14px, radius 6 px, 12.5 / 600. Labels are verbs in sentence case: "Confirm
@@ -288,7 +302,7 @@ booking", "Create doctor", "Finalize & release lock".
 ### Segmented control
 
 Track `--mv-surface-track`, radius 7 px, padding 4 px, gap 4 px. Active segment white, radius 5 px,
-`box-shadow: 0 1px 2px rgba(20,40,74,.1)`, 13.5 / 600 ink. Inactive 13.5 / 500 `#6b7c93`.
+`box-shadow: var(--mv-segment-shadow)`, 13.5 / 600 ink. Inactive 13.5 / 500 `--mv-segment-inactive`.
 
 ### Stepper
 
@@ -313,6 +327,8 @@ Padding 16px 18px, radius 9 px, a 7 px dot aligned to the first line, text 12.5 
 
 - **Info** (`--mv-info-*`, dot `--mv-accent`): explains what the page does next.
 - **Warning** (`--mv-warn-*`, dot `--mv-warning`): consequences the user should weigh.
+- **Danger** (`--mv-danger-*`, dot `--mv-danger`): a page-level failure, such as a rejected sign in
+  or a request the API refused.
 
 ### Timeline
 

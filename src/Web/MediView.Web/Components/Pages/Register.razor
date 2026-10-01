@@ -1,49 +1,50 @@
 @page "/register"
+@layout AuthLayout
 @using System.ComponentModel.DataAnnotations
 @inject MediViewApi Api
 @inject JwtAuthenticationStateProvider AuthState
 @inject NavigationManager Navigation
 
-<PageTitle>Register</PageTitle>
+<PageTitle>Register · MediView</PageTitle>
 
-<h1>Create a patient account</h1>
+<h1 class="mv-visually-hidden">Create a patient account</h1>
 
-<EditForm Model="form" OnValidSubmit="RegisterAsync" FormName="register" class="col-md-4">
+<EditForm Model="form" OnValidSubmit="RegisterAsync" FormName="register" class="mv-form">
     <DataAnnotationsValidator />
 
-    <div class="mb-3">
-        <label for="full-name" class="form-label">Full name</label>
-        <InputText id="full-name" class="form-control" autocomplete="name" @bind-Value="form.FullName" />
+    <div class="mv-field">
+        <label for="full-name" class="mv-field__label">Full name</label>
+        <InputText id="full-name" class="mv-input mv-input--tall" autocomplete="name" @bind-Value="form.FullName" />
         <ValidationMessage For="() => form.FullName" />
     </div>
 
-    <div class="mb-3">
-        <label for="email" class="form-label">Email</label>
-        <InputText id="email" type="email" class="form-control" autocomplete="username" @bind-Value="form.Email" />
+    <div class="mv-field">
+        <label for="email" class="mv-field__label">Email</label>
+        <InputText id="email" type="email" class="mv-input mv-input--tall" autocomplete="username" @bind-Value="form.Email" />
         <ValidationMessage For="() => form.Email" />
     </div>
 
-    <div class="mb-3">
-        <label for="password" class="form-label">Password</label>
-        <InputText id="password" type="password" class="form-control" autocomplete="new-password" @bind-Value="form.Password" />
+    <div class="mv-field">
+        <label for="password" class="mv-field__label">Password</label>
+        <InputText id="password" type="password" class="mv-input mv-input--tall" autocomplete="new-password" @bind-Value="form.Password" />
         <ValidationMessage For="() => form.Password" />
     </div>
 
-    <div class="mb-3">
-        <label for="confirm-password" class="form-label">Confirm password</label>
-        <InputText id="confirm-password" type="password" class="form-control" autocomplete="new-password" @bind-Value="form.ConfirmPassword" />
+    <div class="mv-field">
+        <label for="confirm-password" class="mv-field__label">Confirm password</label>
+        <InputText id="confirm-password" type="password" class="mv-input mv-input--tall" autocomplete="new-password" @bind-Value="form.ConfirmPassword" />
         <ValidationMessage For="() => form.ConfirmPassword" />
     </div>
 
     @if (failure is not null)
     {
-        <div class="alert alert-danger" role="alert">@failure</div>
+        <p class="mv-callout mv-callout--danger" role="alert">@failure</p>
     }
 
-    <button type="submit" class="btn btn-primary" disabled="@registering">Register</button>
+    <button type="submit" class="mv-button mv-button--primary mv-button--block mv-button--tall" disabled="@registering">Create patient account</button>
 </EditForm>
 
-<p class="mt-3">Already registered? <a href="login">Sign in</a></p>
+<p class="mv-callout mv-callout--info">Registering creates a patient account with its own MRN. You are signed in straight away and can book a checkup.</p>
 
 @code {
     private readonly RegisterForm form = new();
@@ -82,16 +83,16 @@
 
     private sealed class RegisterForm
     {
-        [Required, MaxLength(200)]
+        [Required(ErrorMessage = "Enter your full name."), MaxLength(200)]
         public string FullName { get; set; } = string.Empty;
 
-        [Required, EmailAddress, MaxLength(320)]
+        [Required(ErrorMessage = "Enter your email."), EmailAddress(ErrorMessage = "Enter a valid email address."), MaxLength(320)]
         public string Email { get; set; } = string.Empty;
 
-        [Required, MinLength(8, ErrorMessage = "Use at least 8 characters."), MaxLength(128)]
+        [Required(ErrorMessage = "Choose a password."), MinLength(8, ErrorMessage = "Use at least 8 characters."), MaxLength(128)]
         public string Password { get; set; } = string.Empty;
 
-        [Required, Compare(nameof(Password), ErrorMessage = "The passwords do not match.")]
+        [Required(ErrorMessage = "Repeat the password."), Compare(nameof(Password), ErrorMessage = "The passwords do not match.")]
         public string ConfirmPassword { get; set; } = string.Empty;
     }
 }

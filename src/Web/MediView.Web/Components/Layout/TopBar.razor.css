@@ -1,0 +1,35 @@
+.top-bar {
+    flex: none;
+    height: var(--mv-topbar-height);
+    padding: 0 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    background: var(--mv-surface);
+    border-bottom: 1px solid var(--mv-border);
+}
+
+.top-bar__heading {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    min-width: 0;
+}
+
+.top-bar__title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--mv-ink);
+}
+
+.top-bar__meta {
+    font: 400 12.5px var(--mv-font-mono);
+    color: var(--mv-text-muted);
+}
+
+.top-bar__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
