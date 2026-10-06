@@ -4,6 +4,8 @@ namespace MediView.Studies.Domain.Studies;
 
 public sealed class Study : AggregateRoot<Guid>
 {
+    public const int MaxReasonLength = 500;
+
     private static readonly HashSet<(StudyStatus From, StudyStatus To)> AllowedTransitions =
     [
         (StudyStatus.ToDo, StudyStatus.InProgress),
@@ -79,17 +81,30 @@ public sealed class Study : AggregateRoot<Guid>
 
     public void AdminOverride(StudyStatus to, Guid adminId, string reason, DateTimeOffset now)
     {
-        if (string.IsNullOrWhiteSpace(reason))
-        {
-            throw new DomainException($"An override of study {Id} requires a reason.");
-        }
+        var justification = RequireReason(reason, "An override");
 
         if (to == Status)
         {
             throw new DomainException($"Study {Id} is already {Status}.");
         }
 
-        Apply(to, adminId, reason.Trim(), now);
+        Apply(to, adminId, justification, now);
+    }
+
+    public void NoteLockForceRelease(Guid adminId, string reason, DateTimeOffset now) =>
+        _history.Add(StudyStatusHistory.Record(Status, Status, adminId, RequireReason(reason, "A forced lock release"), now));
+
+    private string RequireReason(string? reason, string action)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new DomainException($"{action} of study {Id} requires a reason.");
+        }
+
+        var trimmed = reason.Trim();
+        return trimmed.Length <= MaxReasonLength
+            ? trimmed
+            : throw new DomainException($"A reason may be at most {MaxReasonLength} characters.");
     }
 
     private void TransitionTo(StudyStatus to, Guid changedBy, DateTimeOffset now)

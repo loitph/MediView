@@ -6,6 +6,7 @@
 @inject TokenStore Tokens
 @inject IJSRuntime JS
 @inject ClinicTime Clinic
+@inject NavigationManager Navigation
 
 <PageTitle>@(study is null ? "Read" : $"Read {study.StudyNumber}") · MediView</PageTitle>
 
@@ -78,38 +79,47 @@
                     </footer>
                 </section>
 
-                <aside class="viewport__panel" aria-label="Lock">
-                    <span class="viewport__eyebrow">Lock</span>
+                <aside class="viewport__panel" aria-label="Report">
                     @switch (access)
                     {
                         case Access.Owner:
-                            <h2 class="viewport__panel-title">You are reading this study</h2>
-                            <p class="viewport__panel-text">
-                                Other doctors see it read-only while this page is open. The lock is renewed every
-                                minute and released when you leave.
-                            </p>
+                            <ReportPanel StudyId="StudyId" Editable="true" OnFinalized="FinishedAsync" />
                             break;
                         case Access.LockedByOther:
-                            <h2 class="viewport__panel-title viewport__panel-title--other">Locked by @OwnerName</h2>
-                            <p class="viewport__panel-text">
-                                @OwnerName opened this study first. You can look at the images; writing stays with
-                                them until they finish or leave.
-                            </p>
+                            <div class="viewport__lock">
+                                <span class="viewport__eyebrow">Lock</span>
+                                <h2 class="viewport__panel-title viewport__panel-title--other">Locked by @OwnerName</h2>
+                                <p class="viewport__panel-text">
+                                    @OwnerName opened this study first. You can look at the images; the report stays
+                                    with them until they finish or leave.
+                                </p>
+                            </div>
+                            <ReportPanel StudyId="StudyId" />
                             break;
                         case Access.LockLost:
-                            <h2 class="viewport__panel-title viewport__panel-title--other">Lock lost</h2>
-                            <p class="viewport__panel-text">The lock could not be renewed. Go back to the worklist and open the study again.</p>
+                            <div class="viewport__lock">
+                                <span class="viewport__eyebrow">Lock</span>
+                                <h2 class="viewport__panel-title viewport__panel-title--other">Lock lost</h2>
+                                <p class="viewport__panel-text">The lock could not be renewed. Your draft is kept; go back to the worklist and open the study again.</p>
+                            </div>
                             break;
                         case Access.Refused:
-                            <h2 class="viewport__panel-title">Not opened for reading</h2>
-                            <p class="viewport__panel-text">@refusal</p>
+                            <div class="viewport__lock">
+                                <span class="viewport__eyebrow">Read-only</span>
+                                <p class="viewport__panel-text">@refusal</p>
+                            </div>
+                            <ReportPanel StudyId="StudyId" />
                             break;
                         case Access.NotFound:
-                            <h2 class="viewport__panel-title">Study not found</h2>
-                            <p class="viewport__panel-text">It may have been removed. Go back to the worklist.</p>
+                            <div class="viewport__lock">
+                                <h2 class="viewport__panel-title">Study not found</h2>
+                                <p class="viewport__panel-text">It may have been removed. Go back to the worklist.</p>
+                            </div>
                             break;
                         default:
-                            <p class="viewport__panel-text">Opening the study…</p>
+                            <div class="viewport__lock">
+                                <p class="viewport__panel-text">@(access == Access.Finished ? "Report finalized." : "Opening the study…")</p>
+                            </div>
                             break;
                     }
                 </aside>
@@ -155,6 +165,7 @@
         Owner,
         LockedByOther,
         LockLost,
+        Finished,
         Refused,
         NotFound,
     }
@@ -165,7 +176,7 @@
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationState { get; set; } = null!;
 
-    private bool IsReadOnly => access != Access.Owner;
+    private bool IsReadOnly => access is not (Access.Owner or Access.Finished);
 
     private string OwnerName => lockOwner ?? "another doctor";
 
@@ -297,6 +308,13 @@
         catch (OperationCanceledException) when (stop.IsCancellationRequested)
         {
         }
+    }
+
+    private async Task FinishedAsync()
+    {
+        access = Access.Finished;
+        await heartbeatStop.CancelAsync();
+        Navigation.NavigateTo(LandingPage.Worklist);
     }
 
     private async Task SetToolAsync(string name)

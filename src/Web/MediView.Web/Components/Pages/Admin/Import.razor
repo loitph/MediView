@@ -33,7 +33,7 @@
                                     </td>
                                     <td>
                                         <div class="mv-table__text">
-                                            <span class="mv-mono">@study.StudyNumber</span>
+                                            <a class="mv-mono" href="@($"admin/studies/{study.Id}")">@study.StudyNumber</a>
                                             <span class="mv-table__sub">@Clinic.DayAndTime(study.ScheduledStart)</span>
                                         </div>
                                     </td>

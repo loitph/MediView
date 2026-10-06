@@ -76,14 +76,67 @@
                         </div>
                     </div>
 
-                    <div class="mv-card">
-                        <div class="mv-card__header">
-                            <h2 class="mv-card__title">Result</h2>
+                    @if (reports.Count == 0)
+                    {
+                        <div class="mv-card">
+                            <div class="mv-card__header">
+                                <h2 class="mv-card__title">Result</h2>
+                            </div>
+                            <div class="mv-card__body">
+                                <p class="mv-small-print">No result yet — it appears here when your doctor finalizes the report.</p>
+                            </div>
                         </div>
-                        <div class="mv-card__body">
-                            <p class="mv-small-print">No result yet — it appears here when your doctor finalizes the report.</p>
+                    }
+
+                    @foreach (var report in reports)
+                    {
+                        <div @key="report.Id" class="mv-card">
+                            <div class="mv-card__header">
+                                <h2 class="mv-card__title">Result</h2>
+                                <span class="mv-card__meta">@report.DoctorName · @(report.FinalizedAt is { } at ? Clinic.DayAndTime(at) : null)</span>
+                            </div>
+                            <div class="mv-card__body">
+                                @if (report.Decision == ReportDecision.ReDiagnosis)
+                                {
+                                    <p class="mv-callout mv-callout--warning">Your doctor asked for a second read. A new result follows this one.</p>
+                                }
+
+                                <div class="result">
+                                    <span class="mv-eyebrow">Impression</span>
+                                    <p class="result__impression">@report.Impression</p>
+                                </div>
+                                <div class="result">
+                                    <span class="mv-eyebrow">Findings</span>
+                                    <p class="result__findings">@report.Findings</p>
+                                </div>
+
+                                @if (report.Medications.Count > 0)
+                                {
+                                    <table class="mv-table result__medications">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">Medication</th>
+                                                <th scope="col">Dosage</th>
+                                                <th scope="col">Frequency</th>
+                                                <th scope="col">Duration</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var medication in report.Medications)
+                                            {
+                                                <tr @key="medication.Id">
+                                                    <td class="mv-table__name">@medication.DrugName</td>
+                                                    <td>@medication.Dosage</td>
+                                                    <td>@medication.Frequency</td>
+                                                    <td>@medication.Duration</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                }
+                            </div>
                         </div>
-                    </div>
+                    }
                 }
             </section>
 
@@ -155,6 +208,7 @@
 @code {
     private IReadOnlyList<StudySummary>? studies;
     private StudyDetail? detail;
+    private IReadOnlyList<ReportView> reports = [];
 
     private string? Meta => studies is null ? null : $"{studies.Count} booked";
 
@@ -170,13 +224,17 @@
         }
     }
 
-    private async Task SelectAsync(Guid studyId) => detail = await Api.GetStudyAsync(studyId);
+    private async Task SelectAsync(Guid studyId)
+    {
+        detail = await Api.GetStudyAsync(studyId);
+        reports = await Api.ListReportsAsync(studyId);
+    }
 
     private List<TimelineStep> TimelineOf(StudyDetail study)
     {
         List<(StudyStatus Status, string? When)> milestones =
         [
-            .. study.History.Select(change => (change.To, (string?)WhenAndWho(change, study.Study))),
+            .. study.History.Where(change => change.From != change.To).Select(change => (change.To, (string?)WhenAndWho(change, study.Study))),
             .. StillAhead(study.Study.Status).Select(status => (status, (string?)null)),
         ];
 

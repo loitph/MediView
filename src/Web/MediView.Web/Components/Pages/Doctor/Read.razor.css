@@ -255,12 +255,20 @@
 .viewport__panel {
     flex: none;
     width: 392px;
-    padding: 22px 24px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--mv-dark-chrome);
+    border-left: 1px solid var(--mv-dark-border);
+}
+
+.viewport__lock {
+    flex: none;
+    padding: 22px 24px 18px;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    background: var(--mv-dark-chrome);
-    border-left: 1px solid var(--mv-dark-border);
+    border-bottom: 1px solid var(--mv-dark-border);
 }
 
 .viewport__eyebrow {

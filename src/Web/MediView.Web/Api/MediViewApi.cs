@@ -119,6 +119,49 @@ public sealed class MediViewApi(HttpClient http)
             : await response.Content.ReadFromJsonAsync<LockOwner>(cancellationToken);
     }
 
+    public async Task<ApiOutcome> OverrideStudyAsync(Guid studyId, StudyStatus to, string reason, CancellationToken cancellationToken = default) =>
+        await PostJsonAsync($"api/studies/studies/{studyId}/override", new { To = to, Reason = reason }, cancellationToken);
+
+    public async Task<ApiOutcome> ForceReleaseLockAsync(Guid studyId, string reason, CancellationToken cancellationToken = default) =>
+        await PostJsonAsync($"api/studies/studies/{studyId}/lock/force-release", new { Reason = reason }, cancellationToken);
+
+    public async Task<IReadOnlyList<ReportView>> ListReportsAsync(Guid studyId, CancellationToken cancellationToken = default) =>
+        await http.GetFromJsonAsync<IReadOnlyList<ReportView>>($"api/reporting/reports?studyId={studyId}", cancellationToken) ?? [];
+
+    public async Task<ApiOutcome> StartReportAsync(Guid studyId, CancellationToken cancellationToken = default) =>
+        await PostJsonAsync("api/reporting/reports", new { StudyId = studyId }, cancellationToken);
+
+    public async Task<ApiOutcome> UpdateReportAsync(
+        Guid reportId,
+        string? findings,
+        string? impression,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await http.PutAsJsonAsync(
+            $"api/reporting/reports/{reportId}",
+            new { Findings = findings, Impression = impression },
+            cancellationToken);
+        return await ApiOutcome.FromAsync(response, cancellationToken);
+    }
+
+    public async Task<ApiOutcome> AddMedicationAsync(Guid reportId, MedicationRequest medication, CancellationToken cancellationToken = default) =>
+        await PostJsonAsync($"api/reporting/reports/{reportId}/medications", medication, cancellationToken);
+
+    public async Task<ApiOutcome> RemoveMedicationAsync(Guid reportId, Guid medicationId, CancellationToken cancellationToken = default)
+    {
+        using var response = await http.DeleteAsync($"api/reporting/reports/{reportId}/medications/{medicationId}", cancellationToken);
+        return await ApiOutcome.FromAsync(response, cancellationToken);
+    }
+
+    public async Task<ApiOutcome> FinalizeReportAsync(Guid reportId, ReportDecision decision, CancellationToken cancellationToken = default) =>
+        await PostJsonAsync($"api/reporting/reports/{reportId}/finalize", new { Decision = decision }, cancellationToken);
+
+    private async Task<ApiOutcome> PostJsonAsync<T>(string uri, T body, CancellationToken cancellationToken)
+    {
+        using var response = await http.PostAsJsonAsync(uri, body, cancellationToken);
+        return await ApiOutcome.FromAsync(response, cancellationToken);
+    }
+
     private async Task<ApiOutcome> PostAsync(string uri, CancellationToken cancellationToken)
     {
         using var response = await http.PostAsync(uri, content: null, cancellationToken);

@@ -3,17 +3,21 @@ using MediView.BuildingBlocks.Api.Auth;
 using MediView.BuildingBlocks.Application;
 using MediView.Studies.Application.Locking;
 using MediView.Studies.Application.Studies;
+using MediView.Studies.Domain.Studies;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace MediView.Studies.Api.Studies;
 
 internal static class StudyEndpoints
 {
+    public sealed record OverrideRequest(StudyStatus To, string? Reason);
+
     public static IEndpointRouteBuilder MapStudyEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet("/studies", List).RequireAuthorization();
         endpoints.MapGet("/studies/{id:guid}", Detail).RequireAuthorization();
         endpoints.MapPost("/studies/{id:guid}/open", Open).RequireAuthorization(AuthPolicies.DoctorOnly);
+        endpoints.MapPost("/studies/{id:guid}/override", Override).RequireAuthorization(AuthPolicies.AdminOnly);
         return endpoints;
     }
 
@@ -63,5 +67,20 @@ internal static class StudyEndpoints
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Study not found",
                 detail: result.Error.Message);
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> Override(
+        Guid id,
+        OverrideRequest request,
+        ClaimsPrincipal user,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var command = new OverrideStudyStatusCommand(id, user.UserId(), request.To, request.Reason ?? string.Empty);
+        var result = await sender.Send(command, cancellationToken);
+
+        return result.IsSuccess
+            ? TypedResults.NoContent()
+            : TypedResults.Problem(statusCode: StatusCodes.Status404NotFound, title: "Study not found", detail: result.Error.Message);
     }
 }

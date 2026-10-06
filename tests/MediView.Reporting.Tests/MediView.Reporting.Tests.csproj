@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Services\Reporting\MediView.Reporting.Domain\MediView.Reporting.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Reporting\MediView.Reporting.Infrastructure\MediView.Reporting.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

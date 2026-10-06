@@ -59,3 +59,27 @@
     font: 400 11.5px var(--mv-font-mono);
     color: var(--mv-text-faint);
 }
+
+.result {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.result__impression {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--mv-ink);
+}
+
+.result__findings {
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--mv-text);
+    white-space: pre-line;
+}
+
+.result__medications {
+    border: 1px solid var(--mv-divider);
+    border-radius: var(--mv-radius-control);
+}
