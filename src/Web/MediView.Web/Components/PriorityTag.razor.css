@@ -1,0 +1,24 @@
+.priority {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: var(--mv-radius-tag);
+    font: 600 10.5px var(--mv-font-mono);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    line-height: 1.2;
+}
+
+.priority--routine {
+    background: var(--mv-priority-routine-bg);
+    color: var(--mv-priority-routine-fg);
+}
+
+.priority--urgent {
+    background: var(--mv-priority-urgent-bg);
+    color: var(--mv-priority-urgent-fg);
+}
+
+.priority--stat {
+    background: var(--mv-priority-stat-bg);
+    color: var(--mv-priority-stat-fg);
+}

@@ -1,0 +1,237 @@
+@page "/admin/import"
+@using System.Globalization
+@inject MediViewApi Api
+@inject ClinicTime Clinic
+
+<AuthorizeView Roles="@MediViewRoles.Admin" Context="admin">
+    <Authorized>
+        <TopBar Title="Import x-rays" Meta="@Meta" />
+
+        <div class="mv-page">
+            <section class="mv-page__main" aria-label="Studies">
+                <div class="mv-card">
+                    <table class="mv-table studies">
+                        <thead>
+                            <tr>
+                                <th scope="col">Patient</th>
+                                <th scope="col">Study</th>
+                                <th scope="col">Doctor</th>
+                                <th scope="col">X-rays</th>
+                                <th scope="col" class="mv-table__action"><span class="mv-visually-hidden">Action</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var study in studies ?? [])
+                            {
+                                var isSelected = study.Id == selected?.Id;
+                                <tr @key="study.Id" class="@(isSelected ? "mv-table__row--selected" : null)">
+                                    <td>
+                                        <div class="mv-table__text">
+                                            <span class="mv-table__name">@study.PatientName</span>
+                                            <span class="mv-table__sub">@study.PatientMrn</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="mv-table__text">
+                                            <a class="mv-mono" href="@($"admin/studies/{study.Id}")">@study.StudyNumber</a>
+                                            <span class="mv-table__sub">@Clinic.DayAndTime(study.ScheduledStart)</span>
+                                        </div>
+                                    </td>
+                                    <td>@study.DoctorName</td>
+                                    <td class="@(study.ImagesImported ? "images images--imported" : "images")">@ImagesLabel(study)</td>
+                                    <td class="mv-table__action">
+                                        <button type="button" class="mv-button mv-button--secondary mv-button--compact" disabled="@(isSelected || importing)" @onclick="() => Select(study)">Select</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+
+                    @if (studies is null)
+                    {
+                        <p class="mv-table__empty">Loading studies…</p>
+                    }
+                    else if (studies.Count == 0)
+                    {
+                        <p class="mv-table__empty">No studies yet — a study appears here when a patient books a checkup.</p>
+                    }
+                </div>
+            </section>
+
+            <section class="mv-page__side mv-page__side--target" aria-label="Import target">
+                <div class="mv-card">
+                    <div class="mv-card__header">
+                        <h2 class="mv-card__title">Import target</h2>
+                        <span class="mv-card__meta">@selected?.StudyNumber</span>
+                    </div>
+
+                    <div class="mv-card__body">
+                        @if (selected is null)
+                        {
+                            <p class="mv-small-print">Select a study from the list to attach x-rays to it.</p>
+                        }
+                        else
+                        {
+                            <dl class="mv-facts">
+                                <div class="mv-facts__row">
+                                    <dt>Patient</dt>
+                                    <dd>@selected.PatientName</dd>
+                                </div>
+                                <div class="mv-facts__row">
+                                    <dt>MRN</dt>
+                                    <dd class="mv-mono">@selected.PatientMrn</dd>
+                                </div>
+                                <div class="mv-facts__row">
+                                    <dt>Doctor</dt>
+                                    <dd>@selected.DoctorName</dd>
+                                </div>
+                                <div class="mv-facts__row">
+                                    <dt>X-rays</dt>
+                                    <dd>@ImagesLabel(selected)</dd>
+                                </div>
+                            </dl>
+
+                            <label class="dropzone @(importing ? "dropzone--busy" : null)">
+                                <InputFile @key="pickerVersion" class="dropzone__input" multiple accept=".dcm,application/dicom" OnChange="Choose" disabled="@importing" />
+                                <span class="dropzone__title">Drop .dcm files here</span>
+                                <span class="dropzone__hint">or click to browse · up to @MaxFiles files</span>
+                            </label>
+
+                            @if (chosen.Count > 0)
+                            {
+                                <p class="chosen mv-mono">@chosen.Count @(chosen.Count == 1 ? "file" : "files") · @Megabytes(chosen.Sum(file => file.Size))</p>
+                            }
+                        }
+
+                        @if (failure is not null)
+                        {
+                            <p class="mv-callout mv-callout--danger" role="alert">@failure</p>
+                        }
+
+                        @if (confirmation is not null)
+                        {
+                            <p class="mv-callout mv-callout--info" role="status">@confirmation</p>
+                        }
+
+                        <button type="button" class="mv-button mv-button--accent mv-button--block" disabled="@(selected is null || chosen.Count == 0 || importing)" @onclick="ImportAsync">
+                            @(importing ? "Importing…" : "Import x-rays")
+                        </button>
+                    </div>
+                </div>
+
+                <p class="mv-callout mv-callout--info">
+                    Import stands in for the modality: every file is checked as DICOM, stored, and attached to the
+                    study. The study stays To do until its doctor opens it from the worklist.
+                </p>
+            </section>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <TopBar Title="Import x-rays" />
+        <div class="mv-page">
+            <p class="mv-callout mv-callout--warning"><span><a href="login">Sign in</a> as an administrator to import x-rays.</span></p>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private const int MaxFiles = 500;
+    private const long MaxFileBytes = 64L * 1024 * 1024;
+
+    private IReadOnlyList<StudySummary>? studies;
+    private StudySummary? selected;
+    private IReadOnlyList<IBrowserFile> chosen = [];
+    private int pickerVersion;
+    private string? failure;
+    private string? confirmation;
+    private bool importing;
+
+    private string? Meta => studies is null
+        ? null
+        : $"{studies.Count(study => !study.ImagesImported)} awaiting images";
+
+    private static string ImagesLabel(StudySummary study) => study.ImagesImported ? "Imported" : "Awaiting images";
+
+    private static string Megabytes(long bytes) =>
+        string.Create(CultureInfo.InvariantCulture, $"{bytes / 1024d / 1024d:0.0} MB");
+
+    protected override async Task OnInitializedAsync() => studies = await Api.ListStudiesAsync();
+
+    private void Select(StudySummary study)
+    {
+        selected = study;
+        ClearChoice();
+        failure = null;
+        confirmation = null;
+    }
+
+    private void Choose(InputFileChangeEventArgs args)
+    {
+        failure = null;
+        confirmation = null;
+
+        if (args.FileCount > MaxFiles)
+        {
+            ClearChoice();
+            failure = $"Pick at most {MaxFiles} files at a time.";
+            return;
+        }
+
+        chosen = args.GetMultipleFiles(MaxFiles);
+        if (chosen.FirstOrDefault(file => file.Size > MaxFileBytes) is { } tooLarge)
+        {
+            ClearChoice();
+            failure = $"'{tooLarge.Name}' is larger than {Megabytes(MaxFileBytes)}.";
+        }
+    }
+
+    private async Task ImportAsync()
+    {
+        if (selected is null || chosen.Count == 0)
+        {
+            return;
+        }
+
+        importing = true;
+        failure = null;
+        confirmation = null;
+
+        var uploads = chosen
+            .Select(file => new UploadFile(file.Name, file.Size, () => file.OpenReadStream(MaxFileBytes)))
+            .ToList();
+
+        try
+        {
+            var (outcome, imported) = await Api.ImportImagesAsync(selected.Id, uploads);
+            if (!outcome.Succeeded || imported is null)
+            {
+                failure = outcome.Problem;
+                return;
+            }
+
+            confirmation = Describe(imported, selected.StudyNumber);
+            ClearChoice();
+            studies = await Api.ListStudiesAsync();
+            selected = studies.FirstOrDefault(study => study.Id == selected.Id);
+        }
+        finally
+        {
+            importing = false;
+        }
+    }
+
+    private static string Describe(ImportedImages imported, string studyNumber) => imported switch
+    {
+        { Imported: 0 } => $"{studyNumber} already had all {Files(imported.AlreadyPresent)}; nothing new was stored.",
+        { AlreadyPresent: 0 } => $"{Files(imported.Imported)} attached to {studyNumber}.",
+        _ => $"{Files(imported.Imported)} attached to {studyNumber}; {imported.AlreadyPresent} it already had were skipped.",
+    };
+
+    private static string Files(int count) => count == 1 ? "1 file" : $"{count} files";
+
+    private void ClearChoice()
+    {
+        chosen = [];
+        pickerVersion++;
+    }
+}

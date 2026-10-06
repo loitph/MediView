@@ -1,0 +1,30 @@
+.status {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    border-radius: var(--mv-radius-pill);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.status--todo {
+    background: var(--mv-status-todo-bg);
+    color: var(--mv-status-todo-fg);
+}
+
+.status--progress {
+    background: var(--mv-status-progress-bg);
+    color: var(--mv-status-progress-fg);
+}
+
+.status--rediagnosis {
+    background: var(--mv-status-rediagnosis-bg);
+    color: var(--mv-status-rediagnosis-fg);
+}
+
+.status--done {
+    background: var(--mv-status-done-bg);
+    color: var(--mv-status-done-fg);
+}

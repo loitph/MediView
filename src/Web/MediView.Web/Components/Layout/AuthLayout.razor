@@ -1,0 +1,31 @@
+@inherits LayoutComponentBase
+
+<div class="auth">
+    <aside class="auth__panel">
+        <span class="auth__brand">MediView</span>
+
+        <div class="auth__pitch">
+            <p class="auth__headline">One study, one status, one source of truth.</p>
+            <ul class="auth__points">
+                <li>Patients book inside a doctor's working hours and follow their study to the result.</li>
+                <li>Doctors diagnose in a locked DICOM viewport — one writer at a time.</li>
+                <li>Admins onboard doctors and import the x-rays.</li>
+            </ul>
+        </div>
+
+        <span class="auth__stack">.NET 10 · Blazor · Cornerstone.js</span>
+    </aside>
+
+    <main class="auth__main">
+        <div class="auth__column">
+            <nav class="mv-segmented" aria-label="Account">
+                <NavLink href="login">Sign in</NavLink>
+                <NavLink href="register">Register</NavLink>
+            </nav>
+
+            @Body
+
+            <p class="auth__note">Doctor and admin accounts are provisioned internally. Contact your administrator.</p>
+        </div>
+    </main>
+</div>

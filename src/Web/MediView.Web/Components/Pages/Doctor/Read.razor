@@ -1,0 +1,387 @@
+@page "/studies/{StudyId:guid}/read"
+@layout ViewportLayout
+@using System.Net
+@implements IAsyncDisposable
+@inject MediViewApi Api
+@inject TokenStore Tokens
+@inject IJSRuntime JS
+@inject ClinicTime Clinic
+@inject NavigationManager Navigation
+
+<PageTitle>@(study is null ? "Read" : $"Read {study.StudyNumber}") · MediView</PageTitle>
+
+<AuthorizeView Roles="@MediViewRoles.Doctor" Context="doctor">
+    <Authorized>
+        <div class="mv-viewport viewport @(IsReadOnly ? "viewport--read-only" : null)">
+            <header class="viewport__bar">
+                <a class="viewport__back" href="@LandingPage.Worklist">← Worklist</a>
+
+                <div class="viewport__study">
+                    @if (study is not null)
+                    {
+                        <h1 class="viewport__patient">@study.PatientName</h1>
+                        <span class="viewport__meta">@study.PatientMrn · @study.StudyNumber · @Clinic.WeekdayAndTime(study.ScheduledStart)</span>
+                    }
+                </div>
+
+                <div class="viewport__pills">
+                    @if (study is not null)
+                    {
+                        <StatusBadge Status="study.Status" />
+                    }
+                    <span class="lock lock--@LockModifier"><span class="lock__dot" aria-hidden="true"></span>@LockLabel</span>
+                    <span class="mv-avatar mv-avatar--doctor" aria-hidden="true">@Initials.Of(doctor.User.DisplayName())</span>
+                </div>
+            </header>
+
+            @if (IsReadOnly && access != Access.Opening)
+            {
+                <p class="viewport__banner" role="status"><strong>Read-only</strong> @ReadOnlyReason</p>
+            }
+
+            <div class="viewport__body">
+                <nav class="viewport__tools" aria-label="Viewer tools">
+                    @foreach (var tool in Tools)
+                    {
+                        var isActive = tool.Name == activeTool;
+                        <button type="button" class="tool @(isActive ? "tool--active" : null)" aria-pressed="@(isActive ? "true" : "false")" disabled="@(viewer is null)" @onclick="() => SetToolAsync(tool.Name)">
+                            <span class="tool__glyph" aria-hidden="true">@tool.Glyph</span>
+                            @tool.Label
+                        </button>
+                    }
+                    <button type="button" class="tool" disabled="@(viewer is null)" @onclick="ResetAsync">
+                        <span class="tool__glyph" aria-hidden="true">↺</span>
+                        Reset
+                    </button>
+                </nav>
+
+                <section class="viewport__stage" aria-label="Images">
+                    <div class="viewport__frame">
+                        <div class="viewport__canvas" @ref="canvas"></div>
+
+                        @if (study is not null && imageCount > 0)
+                        {
+                            <span class="overlay overlay--top-left">@study.PatientName<br />@study.PatientMrn</span>
+                            <span class="overlay overlay--top-right">@study.StudyNumber<br />@Clinic.DayAndTime(study.ScheduledStart)</span>
+                            <span class="overlay overlay--bottom-left">Image @(imageIndex + 1) / @imageCount</span>
+                            <span class="overlay overlay--bottom-right">@ActiveToolLabel · drag<br />Scroll · wheel</span>
+                        }
+
+                        @if (StageMessage is { } message)
+                        {
+                            <p class="viewport__placeholder">@message</p>
+                        }
+                    </div>
+
+                    <footer class="viewport__footer">
+                        <span>@(imageCount > 0 ? $"{imageCount} images · {SeriesCount} series" : "No images")</span>
+                        <span>Left drag · @ActiveToolLabel — wheel · scroll — Reset restores the view</span>
+                    </footer>
+                </section>
+
+                <aside class="viewport__panel" aria-label="Report">
+                    @switch (access)
+                    {
+                        case Access.Owner:
+                            <ReportPanel StudyId="StudyId" Editable="true" OnFinalized="FinishedAsync" />
+                            break;
+                        case Access.LockedByOther:
+                            <div class="viewport__lock">
+                                <span class="viewport__eyebrow">Lock</span>
+                                <h2 class="viewport__panel-title viewport__panel-title--other">Locked by @OwnerName</h2>
+                                <p class="viewport__panel-text">
+                                    @OwnerName opened this study first. You can look at the images; the report stays
+                                    with them until they finish or leave.
+                                </p>
+                            </div>
+                            <ReportPanel StudyId="StudyId" />
+                            break;
+                        case Access.LockLost:
+                            <div class="viewport__lock">
+                                <span class="viewport__eyebrow">Lock</span>
+                                <h2 class="viewport__panel-title viewport__panel-title--other">Lock lost</h2>
+                                <p class="viewport__panel-text">The lock could not be renewed. Your draft is kept; go back to the worklist and open the study again.</p>
+                            </div>
+                            break;
+                        case Access.Refused:
+                            <div class="viewport__lock">
+                                <span class="viewport__eyebrow">Read-only</span>
+                                <p class="viewport__panel-text">@refusal</p>
+                            </div>
+                            <ReportPanel StudyId="StudyId" />
+                            break;
+                        case Access.NotFound:
+                            <div class="viewport__lock">
+                                <h2 class="viewport__panel-title">Study not found</h2>
+                                <p class="viewport__panel-text">It may have been removed. Go back to the worklist.</p>
+                            </div>
+                            break;
+                        default:
+                            <div class="viewport__lock">
+                                <p class="viewport__panel-text">@(access == Access.Finished ? "Report finalized." : "Opening the study…")</p>
+                            </div>
+                            break;
+                    }
+                </aside>
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="mv-viewport viewport viewport--signed-out">
+            <p class="viewport__panel-text"><a href="login">Sign in</a> as a doctor to read a study.</p>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(60);
+
+    private static readonly ViewerTool[] Tools =
+    [
+        new("windowLevel", "W/L", "◐"),
+        new("pan", "Pan", "✥"),
+        new("zoom", "Zoom", "⌕"),
+    ];
+
+    private readonly CancellationTokenSource heartbeatStop = new();
+    private Task? heartbeat;
+    private Access access = Access.Opening;
+    private string? lockOwner;
+    private string? refusal;
+    private StudySummary? study;
+    private IReadOnlyList<InstanceSummary> instances = [];
+    private ElementReference canvas;
+    private IJSObjectReference? viewer;
+    private DotNetObjectReference<Read>? listener;
+    private bool viewerRequested;
+    private bool viewerFailed;
+    private int imageIndex;
+    private int imageCount;
+    private string activeTool = "windowLevel";
+
+    private enum Access
+    {
+        Opening,
+        Owner,
+        LockedByOther,
+        LockLost,
+        Finished,
+        Refused,
+        NotFound,
+    }
+
+    [Parameter]
+    public Guid StudyId { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = null!;
+
+    private bool IsReadOnly => access is not (Access.Owner or Access.Finished);
+
+    private string OwnerName => lockOwner ?? "another doctor";
+
+    private string ReadOnlyReason => access switch
+    {
+        Access.LockedByOther => $"· {OwnerName} holds the lock on this study.",
+        Access.LockLost => "· your lock expired.",
+        Access.NotFound => "· this study does not exist.",
+        _ => $"· {refusal}",
+    };
+
+    private string LockModifier => access switch
+    {
+        Access.Owner => "mine",
+        Access.LockedByOther or Access.LockLost => "other",
+        _ => "free",
+    };
+
+    private string LockLabel => access switch
+    {
+        Access.Owner => "You",
+        Access.LockedByOther => OwnerName,
+        Access.LockLost => "Lock lost",
+        Access.Opening => "Opening…",
+        _ => "Free",
+    };
+
+    private string ActiveToolLabel => Tools.Single(tool => tool.Name == activeTool).Label;
+
+    private int SeriesCount => instances.Select(instance => instance.SeriesInstanceUid).Distinct().Count();
+
+    private string? StageMessage => (access, instances.Count, viewerFailed, imageCount) switch
+    {
+        (Access.Opening, _, _, _) => "Opening the study…",
+        (Access.NotFound, _, _, _) => "Study not found",
+        (_, 0, _, _) => "Awaiting images",
+        (_, _, true, _) => "The images could not be displayed.",
+        (_, _, _, 0) => "Loading images…",
+        _ => null,
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!(await AuthenticationState).User.IsInRole(MediViewRoles.Doctor))
+        {
+            return;
+        }
+
+        await OpenAsync();
+        if (access == Access.NotFound)
+        {
+            return;
+        }
+
+        study = (await Api.GetStudyAsync(StudyId))?.Study;
+        instances = study is null ? [] : await Api.ListInstancesAsync(StudyId);
+
+        if (access == Access.Owner)
+        {
+            heartbeat = KeepLockAsync(heartbeatStop.Token);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (viewerRequested || instances.Count == 0 || string.IsNullOrEmpty(canvas.Id))
+        {
+            return;
+        }
+
+        viewerRequested = true;
+        try
+        {
+            viewer = await JS.InvokeAsync<IJSObjectReference>("import", "./js/viewport.js");
+            listener = DotNetObjectReference.Create(this);
+            await viewer.InvokeVoidAsync("init", canvas, await Tokens.GetAsync(), listener);
+            var fileUrls = instances.Select(instance => instance.FileUrl).ToList();
+            imageCount = await viewer.InvokeAsync<int>("loadStack", fileUrls);
+        }
+        catch (JSException)
+        {
+            viewerFailed = true;
+        }
+
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnImageChanged(int index)
+    {
+        imageIndex = index;
+        StateHasChanged();
+    }
+
+    private async Task OpenAsync()
+    {
+        var opening = await Api.OpenStudyAsync(StudyId);
+        access = opening switch
+        {
+            { Succeeded: true } => Access.Owner,
+            { StatusCode: HttpStatusCode.Conflict } => Access.LockedByOther,
+            { StatusCode: HttpStatusCode.NotFound } => Access.NotFound,
+            _ => Access.Refused,
+        };
+        refusal = opening.Problem;
+        lockOwner = access == Access.LockedByOther ? (await Api.GetLockOwnerAsync(StudyId))?.DoctorName : null;
+    }
+
+    private async Task KeepLockAsync(CancellationToken stop)
+    {
+        using var timer = new PeriodicTimer(HeartbeatInterval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(stop))
+            {
+                if ((await Api.RenewLockAsync(StudyId, stop)).Succeeded || (await Api.OpenStudyAsync(StudyId, stop)).Succeeded)
+                {
+                    continue;
+                }
+
+                await InvokeAsync(() =>
+                {
+                    access = Access.LockLost;
+                    StateHasChanged();
+                });
+                return;
+            }
+        }
+        catch (OperationCanceledException) when (stop.IsCancellationRequested)
+        {
+        }
+    }
+
+    private async Task FinishedAsync()
+    {
+        access = Access.Finished;
+        await heartbeatStop.CancelAsync();
+        Navigation.NavigateTo(LandingPage.Worklist);
+    }
+
+    private async Task SetToolAsync(string name)
+    {
+        if (viewer is null)
+        {
+            return;
+        }
+
+        activeTool = name;
+        await viewer.InvokeVoidAsync("setTool", name);
+    }
+
+    private async Task ResetAsync()
+    {
+        if (viewer is not null)
+        {
+            await viewer.InvokeVoidAsync("reset");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await heartbeatStop.CancelAsync();
+        if (heartbeat is not null)
+        {
+            await heartbeat;
+        }
+
+        heartbeatStop.Dispose();
+
+        if (access == Access.Owner)
+        {
+            await ReleaseLockAsync();
+        }
+
+        await DisposeViewerAsync();
+        listener?.Dispose();
+    }
+
+    private async Task ReleaseLockAsync()
+    {
+        try
+        {
+            await Api.ReleaseLockAsync(StudyId);
+        }
+        catch (HttpRequestException)
+        {
+        }
+    }
+
+    private async Task DisposeViewerAsync()
+    {
+        if (viewer is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await viewer.InvokeVoidAsync("dispose");
+            await viewer.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private sealed record ViewerTool(string Name, string Label, string Glyph);
+}

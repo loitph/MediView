@@ -1,0 +1,85 @@
+.timeline {
+    display: flex;
+    margin: 0;
+    padding: 4px 0;
+    list-style: none;
+}
+
+.timeline__step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.timeline__track {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.timeline__dot {
+    flex: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--mv-surface-track);
+}
+
+.timeline__step--reached .timeline__dot {
+    background: var(--mv-status-done-dot);
+}
+
+.timeline__bar {
+    flex: 1;
+    height: 2px;
+    margin: 0 8px;
+    background: var(--mv-surface-track);
+}
+
+.timeline__bar--reached {
+    background: var(--mv-status-done-dot);
+}
+
+.timeline__label {
+    padding-right: 12px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--mv-ink);
+}
+
+.timeline__step--upcoming .timeline__label {
+    font-weight: 500;
+    color: var(--mv-text-muted);
+}
+
+.timeline__when {
+    padding-right: 12px;
+    font: 400 11.5px var(--mv-font-mono);
+    color: var(--mv-text-faint);
+}
+
+.result {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.result__impression {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--mv-ink);
+}
+
+.result__findings {
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--mv-text);
+    white-space: pre-line;
+}
+
+.result__medications {
+    border: 1px solid var(--mv-divider);
+    border-radius: var(--mv-radius-control);
+}

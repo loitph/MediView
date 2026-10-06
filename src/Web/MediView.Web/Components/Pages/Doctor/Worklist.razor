@@ -1,0 +1,101 @@
+@page "/worklist"
+@inject MediViewApi Api
+@inject ClinicTime Clinic
+
+<AuthorizeView Roles="@MediViewRoles.Doctor" Context="doctor">
+    <Authorized>
+        <TopBar Title="Worklist" Meta="@Meta" />
+
+        <div class="mv-page">
+            <section class="mv-page__main" aria-label="Assigned studies">
+                <ul class="kpis" aria-label="Studies by status">
+                    @foreach (var status in Statuses)
+                    {
+                        <li class="mv-card kpi">
+                            <span class="kpi__label"><span class="kpi__dot kpi__dot--@status.CssModifier()"></span>@status.Label()</span>
+                            <span class="kpi__value">@CountOf(status)</span>
+                        </li>
+                    }
+                </ul>
+
+                <div class="mv-card">
+                    <table class="mv-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Patient</th>
+                                <th scope="col">Study</th>
+                                <th scope="col">Scheduled</th>
+                                <th scope="col">Priority</th>
+                                <th scope="col">Status</th>
+                                <th scope="col" class="mv-table__action"><span class="mv-visually-hidden">Action</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var study in studies ?? [])
+                            {
+                                <tr @key="study.Id">
+                                    <td>
+                                        <div class="mv-table__primary">
+                                            <span class="mv-avatar mv-avatar--soft" aria-hidden="true">@Initials.Of(study.PatientName)</span>
+                                            <div class="mv-table__text">
+                                                <span class="mv-table__name">@study.PatientName</span>
+                                                <span class="mv-table__sub">@study.PatientMrn</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="mv-mono">@study.StudyNumber</td>
+                                    <td class="mv-mono">@Clinic.WeekdayAndTime(study.ScheduledStart)</td>
+                                    <td><PriorityTag Priority="study.Priority" /></td>
+                                    <td><StatusBadge Status="study.Status" /></td>
+                                    <td class="mv-table__action">
+                                        @if (study.ImagesImported)
+                                        {
+                                            <a class="mv-button mv-button--secondary mv-button--compact" href="@($"studies/{study.Id}/read")">Open</a>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" class="mv-button mv-button--compact" disabled>Awaiting images</button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+
+                    @if (studies is null)
+                    {
+                        <p class="mv-table__empty">Loading your worklist…</p>
+                    }
+                    else if (studies.Count == 0)
+                    {
+                        <p class="mv-table__empty">No studies yet — a study appears here when a patient books one of your slots.</p>
+                    }
+
+                    <p class="mv-card__footer mv-small-print">
+                        Stat first, then urgent, then routine; each group by scheduled time. A study opens once an
+                        administrator has imported its x-rays, and opening it takes the lock.
+                    </p>
+                </div>
+            </section>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <TopBar Title="Worklist" />
+        <div class="mv-page">
+            <p class="mv-callout mv-callout--warning"><span><a href="login">Sign in</a> as a doctor to see your worklist.</span></p>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private static readonly StudyStatus[] Statuses =
+        [StudyStatus.ToDo, StudyStatus.InProgress, StudyStatus.ReDiagnosis, StudyStatus.Done];
+
+    private IReadOnlyList<StudySummary>? studies;
+
+    private string? Meta => studies is null ? null : $"{studies.Count} assigned · stat first";
+
+    protected override async Task OnInitializedAsync() => studies = await Api.ListStudiesAsync();
+
+    private int CountOf(StudyStatus status) => studies?.Count(study => study.Status == status) ?? 0;
+}

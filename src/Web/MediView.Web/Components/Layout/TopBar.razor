@@ -1,0 +1,26 @@
+<PageTitle>@Title · MediView</PageTitle>
+
+<header class="top-bar">
+    <div class="top-bar__heading">
+        <h1 class="top-bar__title">@Title</h1>
+        @if (Meta is not null)
+        {
+            <span class="top-bar__meta">@Meta</span>
+        }
+    </div>
+    @if (ChildContent is not null)
+    {
+        <div class="top-bar__actions">@ChildContent</div>
+    }
+</header>
+
+@code {
+    [Parameter, EditorRequired]
+    public required string Title { get; set; }
+
+    [Parameter]
+    public string? Meta { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

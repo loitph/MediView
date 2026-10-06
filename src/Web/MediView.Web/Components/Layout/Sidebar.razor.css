@@ -1,0 +1,122 @@
+.sidebar {
+    flex: none;
+    width: var(--mv-sidebar-width);
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    padding: 22px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+    background: var(--mv-sidebar-bg);
+}
+
+.sidebar__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 20px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--mv-surface);
+}
+
+.sidebar__brand::before {
+    content: "";
+    width: 4px;
+    height: 22px;
+    border-radius: 2px;
+    background: var(--mv-accent-bright);
+}
+
+.sidebar__brand:hover {
+    color: var(--mv-surface);
+    text-decoration: none;
+}
+
+.sidebar__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 0 12px;
+}
+
+.sidebar__section {
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar__section-label {
+    padding: 0 8px 8px;
+    font: 600 10.5px var(--mv-font-mono);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--mv-sidebar-section);
+}
+
+.sidebar__items {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sidebar__items ::deep a {
+    display: block;
+    padding: 10px 12px;
+    border-radius: var(--mv-radius-small);
+    font-size: 13.5px;
+    color: var(--mv-sidebar-text);
+}
+
+.sidebar__items ::deep a:hover {
+    color: var(--mv-surface);
+    text-decoration: none;
+}
+
+.sidebar__items ::deep a.active {
+    background: var(--mv-sidebar-active-bg);
+    color: var(--mv-surface);
+    font-weight: 600;
+}
+
+.sidebar__user {
+    margin-top: auto;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sidebar__user-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+}
+
+.sidebar__user-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mv-surface);
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 150px;
+}
+
+.sidebar__sign-out {
+    padding: 0;
+    background: none;
+    border: 0;
+    font: 400 10.5px var(--mv-font-mono);
+    color: var(--mv-sidebar-section);
+    cursor: pointer;
+}
+
+.sidebar__sign-out:hover {
+    color: var(--mv-sidebar-text);
+}

@@ -1,0 +1,291 @@
+@page "/book"
+@inject MediViewApi Api
+@inject ClinicTime Clinic
+
+<AuthorizeView Roles="@MediViewRoles.Patient" Context="patient">
+    <Authorized>
+        <TopBar Title="Book a checkup" Meta="@WindowLabel" />
+
+        <div class="mv-page">
+            <section class="mv-page__main" aria-label="Doctor and time">
+                <div class="mv-card">
+                    <div class="mv-card__header">
+                        <h2 class="mv-card__title">Choose a doctor</h2>
+                        <span class="mv-card__meta">@doctors?.Count</span>
+                    </div>
+
+                    @if (doctors is null)
+                    {
+                        <p class="mv-table__empty">Loading doctors…</p>
+                    }
+                    else if (doctors.Count == 0)
+                    {
+                        <p class="mv-table__empty">No doctors yet — an administrator creates one before you can book.</p>
+                    }
+                    else
+                    {
+                        <ul class="doctors">
+                            @foreach (var doctor in doctors)
+                            {
+                                var isSelected = doctor == selectedDoctor;
+                                <li @key="doctor.Id">
+                                    <button type="button" class="doctor @(isSelected ? "doctor--selected" : null)" aria-pressed="@Pressed(isSelected)" @onclick="() => SelectDoctorAsync(doctor)">
+                                        <span class="mv-avatar mv-avatar--soft" aria-hidden="true">@Initials.Of(doctor.FullName)</span>
+                                        <span class="doctor__text">
+                                            <span class="doctor__name">@doctor.FullName</span>
+                                            <span class="doctor__specialty">@doctor.Specialty</span>
+                                        </span>
+                                    </button>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+
+                @if (selectedDoctor is not null)
+                {
+                    <div class="mv-card">
+                        <div class="mv-card__header">
+                            <h2 class="mv-card__title">Choose a time</h2>
+                            <div class="window-nav">
+                                <button type="button" class="mv-button mv-button--secondary mv-button--compact" disabled="@(!CanGoEarlier || freeSlots is null)" @onclick="() => MoveWindowAsync(-WindowDays)">Earlier</button>
+                                <button type="button" class="mv-button mv-button--secondary mv-button--compact" disabled="@(freeSlots is null)" @onclick="() => MoveWindowAsync(WindowDays)">Later</button>
+                            </div>
+                        </div>
+
+                        <div class="mv-card__body">
+                            <div class="days" role="group" aria-label="Day">
+                                @foreach (var day in WindowDates)
+                                {
+                                    var free = FreeOn(day).Count;
+                                    var isSelected = day == selectedDay;
+                                    <button type="button" class="day @(isSelected ? "day--selected" : null)" aria-pressed="@Pressed(isSelected)" disabled="@(free == 0)" @onclick="() => SelectDay(day)">
+                                        <span class="day__name">@ClinicTime.Weekday(day)</span>
+                                        <span class="day__date">@day.Day</span>
+                                        <span class="day__free">@(free == 0 ? "no slots" : $"{free} free")</span>
+                                    </button>
+                                }
+                            </div>
+
+                            @if (freeSlots is null)
+                            {
+                                <p class="mv-small-print">Loading free slots…</p>
+                            }
+                            else if (FreeOn(selectedDay).Count == 0)
+                            {
+                                <p class="mv-small-print">No free slots on these days — try later dates.</p>
+                            }
+                            else
+                            {
+                                <div class="slots" role="group" aria-label="@($"Free slots on {ClinicTime.Day(selectedDay)}")">
+                                    @foreach (var slot in FreeOn(selectedDay))
+                                    {
+                                        var isSelected = slot == selectedSlot;
+                                        <button type="button" @key="slot.Start" class="slot @(isSelected ? "slot--selected" : null)" aria-pressed="@Pressed(isSelected)" @onclick="() => SelectSlot(slot)">
+                                            @Clinic.Time(slot.Start)
+                                        </button>
+                                    }
+                                </div>
+
+                                <div class="legend" aria-hidden="true">
+                                    <span class="legend__item"><span class="legend__swatch"></span>Free</span>
+                                    <span class="legend__item"><span class="legend__swatch legend__swatch--selected"></span>Selected</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </section>
+
+            <section class="mv-page__side mv-page__side--summary" aria-label="Booking summary">
+                <div class="mv-card">
+                    <div class="mv-card__header">
+                        <h2 class="mv-card__title">Your booking</h2>
+                    </div>
+
+                    <div class="mv-card__body">
+                        <dl class="mv-facts">
+                            <div class="mv-facts__row">
+                                <dt>Patient</dt>
+                                <dd>@patient.User.DisplayName()</dd>
+                            </div>
+                        </dl>
+
+                        <dl class="mv-facts">
+                            <div class="mv-facts__row">
+                                <dt>Doctor</dt>
+                                <dd>@Fact(selectedDoctor?.FullName)</dd>
+                            </div>
+                            <div class="mv-facts__row">
+                                <dt>Specialty</dt>
+                                <dd>@Fact(selectedDoctor?.Specialty)</dd>
+                            </div>
+                            <div class="mv-facts__row">
+                                <dt>Day</dt>
+                                <dd>@Fact(selectedSlot is null ? null : ClinicTime.Day(Clinic.DateOf(selectedSlot.Start)))</dd>
+                            </div>
+                            <div class="mv-facts__row">
+                                <dt>Time</dt>
+                                <dd class="mv-mono">@Fact(selectedSlot is null ? null : $"{Clinic.Time(selectedSlot.Start)}–{Clinic.Time(selectedSlot.End)}")</dd>
+                            </div>
+                        </dl>
+
+                        @if (failure is not null)
+                        {
+                            <p class="mv-callout mv-callout--danger" role="alert">@failure</p>
+                        }
+
+                        @if (confirmation is not null)
+                        {
+                            <p class="mv-callout mv-callout--info" role="status">
+                                <span>@confirmation <a href="@LandingPage.MyStudies">See it in My studies</a>.</span>
+                            </p>
+                        }
+
+                        <button type="button" class="mv-button mv-button--primary mv-button--block" disabled="@(selectedSlot is null || booking)" @onclick="ConfirmAsync">Confirm booking</button>
+                    </div>
+                </div>
+
+                <p class="mv-callout mv-callout--info">
+                    Booking copies your name and MRN onto the study. It shows as To do under My studies until your
+                    doctor opens it.
+                </p>
+            </section>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <TopBar Title="Book a checkup" />
+        <div class="mv-page">
+            <p class="mv-callout mv-callout--warning"><span><a href="login">Sign in</a> as a patient to book a checkup.</span></p>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private const int WindowDays = 5;
+
+    private IReadOnlyList<DoctorSummary>? doctors;
+    private DoctorSummary? selectedDoctor;
+    private DateOnly windowStart;
+    private DateOnly selectedDay;
+    private IReadOnlyList<AvailableSlot>? freeSlots;
+    private AvailableSlot? selectedSlot;
+    private string? failure;
+    private string? confirmation;
+    private bool booking;
+
+    private IEnumerable<DateOnly> WindowDates => Enumerable.Range(0, WindowDays).Select(windowStart.AddDays);
+
+    private bool CanGoEarlier => windowStart > Clinic.Today;
+
+    private string? WindowLabel => selectedDoctor is null
+        ? null
+        : $"{ClinicTime.Day(windowStart)}–{ClinicTime.Day(windowStart.AddDays(WindowDays - 1))}";
+
+    private static string Pressed(bool isSelected) => isSelected ? "true" : "false";
+
+    private static RenderFragment Fact(string? value) => value is null
+        ? @<span class="mv-facts__pending">—</span>
+        : @<text>@value</text>;
+
+    protected override async Task OnInitializedAsync()
+    {
+        windowStart = Clinic.Today;
+        doctors = await Api.ListDoctorsAsync();
+    }
+
+    private async Task SelectDoctorAsync(DoctorSummary doctor)
+    {
+        selectedDoctor = doctor;
+        windowStart = Clinic.Today;
+        ClearMessages();
+        await LoadFreeSlotsAsync();
+    }
+
+    private async Task MoveWindowAsync(int days)
+    {
+        windowStart = windowStart.AddDays(days);
+        await LoadFreeSlotsAsync();
+    }
+
+    private void SelectDay(DateOnly day)
+    {
+        selectedDay = day;
+        selectedSlot = null;
+    }
+
+    private void SelectSlot(AvailableSlot slot)
+    {
+        selectedSlot = slot;
+        ClearMessages();
+    }
+
+    private List<AvailableSlot> FreeOn(DateOnly day) =>
+        freeSlots?.Where(slot => Clinic.DateOf(slot.Start) == day).ToList() ?? [];
+
+    private bool HasFreeSlots(DateOnly day) => WindowDates.Contains(day) && FreeOn(day).Count > 0;
+
+    private async Task LoadFreeSlotsAsync()
+    {
+        if (selectedDoctor is not { Id: var doctorId })
+        {
+            return;
+        }
+
+        freeSlots = null;
+        selectedSlot = null;
+
+        var offered = await Api.GetAvailabilityAsync(doctorId, windowStart, windowStart.AddDays(WindowDays - 1));
+        var booked = offered.Count == 0
+            ? []
+            : await Api.GetBookedSlotsAsync(doctorId, offered[0].Start, offered[^1].End);
+
+        if (selectedDoctor?.Id != doctorId)
+        {
+            return;
+        }
+
+        var taken = booked.ToHashSet();
+        freeSlots = [.. offered.Where(slot => !taken.Contains(slot.Start))];
+        selectedDay = HasFreeSlots(selectedDay)
+            ? selectedDay
+            : WindowDates.FirstOrDefault(HasFreeSlots, windowStart);
+    }
+
+    private async Task ConfirmAsync()
+    {
+        if (selectedDoctor is null || selectedSlot is null)
+        {
+            return;
+        }
+
+        booking = true;
+        ClearMessages();
+
+        try
+        {
+            var outcome = await Api.BookAsync(new BookAppointmentRequest(selectedDoctor.Id, selectedSlot.Start));
+
+            if (outcome.Succeeded)
+            {
+                confirmation = $"Booked with {selectedDoctor.FullName} on {Clinic.WeekdayAndTime(selectedSlot.Start)}.";
+            }
+            else
+            {
+                failure = outcome.Problem;
+            }
+
+            await LoadFreeSlotsAsync();
+        }
+        finally
+        {
+            booking = false;
+        }
+    }
+
+    private void ClearMessages()
+    {
+        failure = null;
+        confirmation = null;
+    }
+}

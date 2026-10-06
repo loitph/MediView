@@ -1,0 +1,75 @@
+@page "/login"
+@layout AuthLayout
+@using System.ComponentModel.DataAnnotations
+@inject MediViewApi Api
+@inject JwtAuthenticationStateProvider AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>Sign in · MediView</PageTitle>
+
+<h1 class="mv-visually-hidden">Sign in</h1>
+
+<EditForm Model="form" OnValidSubmit="SignInAsync" FormName="login" class="mv-form">
+    <DataAnnotationsValidator />
+
+    <div class="mv-field">
+        <label for="email" class="mv-field__label">Email</label>
+        <InputText id="email" type="email" class="mv-input mv-input--tall" autocomplete="username" @bind-Value="form.Email" />
+        <ValidationMessage For="() => form.Email" />
+    </div>
+
+    <div class="mv-field">
+        <label for="password" class="mv-field__label">Password</label>
+        <InputText id="password" type="password" class="mv-input mv-input--tall" autocomplete="current-password" @bind-Value="form.Password" />
+        <ValidationMessage For="() => form.Password" />
+    </div>
+
+    @if (failure is not null)
+    {
+        <p class="mv-callout mv-callout--danger" role="alert">@failure</p>
+    }
+
+    <button type="submit" class="mv-button mv-button--primary mv-button--block mv-button--tall" disabled="@signingIn">Sign in</button>
+</EditForm>
+
+<p class="divider">New patient</p>
+
+<a href="register" class="mv-button mv-button--secondary mv-button--block mv-button--tall">Create a patient account</a>
+
+@code {
+    private readonly LoginForm form = new();
+    private string? failure;
+    private bool signingIn;
+
+    private async Task SignInAsync()
+    {
+        signingIn = true;
+        failure = null;
+
+        try
+        {
+            var token = await Api.LoginAsync(form.Email, form.Password);
+            if (token is null)
+            {
+                failure = "Email or password is incorrect.";
+                return;
+            }
+
+            var user = await AuthState.SignInAsync(token.Token);
+            Navigation.NavigateTo(LandingPage.For(user));
+        }
+        finally
+        {
+            signingIn = false;
+        }
+    }
+
+    private sealed class LoginForm
+    {
+        [Required(ErrorMessage = "Enter your email."), EmailAddress(ErrorMessage = "Enter a valid email address.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Enter your password.")]
+        public string Password { get; set; } = string.Empty;
+    }
+}

@@ -1,0 +1,226 @@
+@page "/admin/studies/{StudyId:guid}"
+@inject MediViewApi Api
+@inject ClinicTime Clinic
+
+<AuthorizeView Roles="@MediViewRoles.Admin" Context="admin">
+    <Authorized>
+        <TopBar Title="@(detail?.Study.StudyNumber ?? "Study")" Meta="@(detail is null ? null : $"{detail.Study.DoctorName} · {Clinic.WeekdayAndTime(detail.Study.ScheduledStart)}")">
+            @if (detail is not null)
+            {
+                <StatusBadge Status="detail.Study.Status" />
+            }
+        </TopBar>
+
+        <div class="mv-page">
+            <section class="mv-page__main" aria-label="History">
+                <div class="mv-card">
+                    <div class="mv-card__header">
+                        <h2 class="mv-card__title">History</h2>
+                        <span class="mv-card__meta">@detail?.History.Count</span>
+                    </div>
+                    <table class="mv-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">When</th>
+                                <th scope="col">Change</th>
+                                <th scope="col">By</th>
+                                <th scope="col">Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var change in detail?.History ?? [])
+                            {
+                                <tr>
+                                    <td class="mv-mono">@Clinic.DayAndTime(change.ChangedAt)</td>
+                                    <td>@Describe(change)</td>
+                                    <td>@ActorName(change.ChangedBy)</td>
+                                    <td class="reason">@change.Reason</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+
+                    @if (detail is null)
+                    {
+                        <p class="mv-table__empty">@(missing ? "This study does not exist." : "Loading the study…")</p>
+                    }
+
+                    <p class="mv-card__footer mv-small-print">
+                        History rows are the audit trail: every override and forced release keeps the administrator
+                        and the reason.
+                    </p>
+                </div>
+            </section>
+
+            @if (detail is not null)
+            {
+                <section class="mv-page__side mv-page__side--form" aria-label="Break-glass">
+                    <div class="mv-card">
+                        <div class="mv-card__header">
+                            <h2 class="mv-card__title">Study</h2>
+                            <a href="admin/import" class="mv-small-print">Back to import</a>
+                        </div>
+                        <div class="mv-card__body">
+                            <dl class="mv-facts">
+                                <div class="mv-facts__row">
+                                    <dt>Patient</dt>
+                                    <dd>@detail.Study.PatientName</dd>
+                                </div>
+                                <div class="mv-facts__row">
+                                    <dt>MRN</dt>
+                                    <dd class="mv-mono">@detail.Study.PatientMrn</dd>
+                                </div>
+                                <div class="mv-facts__row">
+                                    <dt>X-rays</dt>
+                                    <dd>@(detail.Study.ImagesImported ? "Imported" : "Awaiting images")</dd>
+                                </div>
+                                <div class="mv-facts__row">
+                                    <dt>Lock</dt>
+                                    <dd>
+                                        @if (lockOwner is null)
+                                        {
+                                            <span class="mv-facts__pending">Free</span>
+                                        }
+                                        else
+                                        {
+                                            @lockOwner.DoctorName
+                                        }
+                                    </dd>
+                                </div>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <div class="mv-card">
+                        <div class="mv-card__header">
+                            <h2 class="mv-card__title">Break-glass</h2>
+                        </div>
+                        <div class="mv-card__body">
+                            <div class="mv-field">
+                                <label for="reason" class="mv-field__label">Reason</label>
+                                <textarea id="reason" class="mv-input reason-box" maxlength="500" @bind="reason" @bind:event="oninput"></textarea>
+                            </div>
+
+                            <div class="mv-field">
+                                <label for="target" class="mv-field__label">Move the study to</label>
+                                <select id="target" class="mv-input" @bind="target">
+                                    @foreach (var status in Statuses.Where(status => status != detail.Study.Status))
+                                    {
+                                        <option value="@status">@status.Label()</option>
+                                    }
+                                </select>
+                            </div>
+
+                            @if (failure is not null)
+                            {
+                                <p class="mv-callout mv-callout--danger" role="alert">@failure</p>
+                            }
+
+                            @if (confirmation is not null)
+                            {
+                                <p class="mv-callout mv-callout--info" role="status">@confirmation</p>
+                            }
+
+                            <button type="button" class="mv-button mv-button--primary mv-button--block" disabled="@(busy || !HasReason)" @onclick="OverrideAsync">Override status</button>
+                            <button type="button" class="mv-button mv-button--secondary mv-button--block" disabled="@(busy || !HasReason || lockOwner is null)" @onclick="ForceReleaseAsync">Force release lock</button>
+                        </div>
+                    </div>
+
+                    <p class="mv-callout mv-callout--warning">
+                        Use these only when the normal flow is stuck. An override skips the transition rules; a forced
+                        release lets another doctor open the study while the first still has it on screen.
+                    </p>
+                </section>
+            }
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <TopBar Title="Study" />
+        <div class="mv-page">
+            <p class="mv-callout mv-callout--warning"><span><a href="login">Sign in</a> as an administrator to manage studies.</span></p>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private static readonly StudyStatus[] Statuses =
+        [StudyStatus.ToDo, StudyStatus.InProgress, StudyStatus.ReDiagnosis, StudyStatus.Done];
+
+    private StudyDetail? detail;
+    private LockOwner? lockOwner;
+    private StudyStatus target;
+    private string reason = string.Empty;
+    private string? failure;
+    private string? confirmation;
+    private bool missing;
+    private bool busy;
+
+    [Parameter]
+    public Guid StudyId { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = null!;
+
+    private bool HasReason => !string.IsNullOrWhiteSpace(reason);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if ((await AuthenticationState).User.IsInRole(MediViewRoles.Admin))
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        detail = await Api.GetStudyAsync(StudyId);
+        missing = detail is null;
+        lockOwner = detail is null ? null : await Api.GetLockOwnerAsync(StudyId);
+        target = Statuses.FirstOrDefault(status => status != detail?.Study.Status);
+    }
+
+    private string Describe(StatusChange change) => change switch
+    {
+        { From: null } => $"Booked · {change.To.Label()}",
+        _ when change.From == change.To => "Lock force-released",
+        _ => $"{change.From!.Value.Label()} → {change.To.Label()}",
+    };
+
+    private string ActorName(StudyActor actor) => actor switch
+    {
+        StudyActor.Patient => detail?.Study.PatientName ?? "Patient",
+        StudyActor.Doctor => detail?.Study.DoctorName ?? "Doctor",
+        _ => "Admin",
+    };
+
+    private Task OverrideAsync() =>
+        RunAsync(() => Api.OverrideStudyAsync(StudyId, target, reason), $"Moved to {target.Label()}.");
+
+    private Task ForceReleaseAsync() =>
+        RunAsync(() => Api.ForceReleaseLockAsync(StudyId, reason), "Lock released. Another doctor can open the study now.");
+
+    private async Task RunAsync(Func<Task<ApiOutcome>> action, string success)
+    {
+        busy = true;
+        failure = null;
+        confirmation = null;
+
+        try
+        {
+            var outcome = await action();
+            if (!outcome.Succeeded)
+            {
+                failure = outcome.Problem;
+                return;
+            }
+
+            confirmation = success;
+            reason = string.Empty;
+            await LoadAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

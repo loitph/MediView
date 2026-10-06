@@ -1,0 +1,26 @@
+@page "/Error"
+@using System.Diagnostics
+
+<TopBar Title="Error" />
+
+<div class="mv-page">
+    <div class="mv-page__main">
+        <p class="mv-callout mv-callout--danger">An error occurred while processing your request.</p>
+
+        @if (ShowRequestId)
+        {
+            <p class="mv-small-print">Request ID <span class="mv-mono">@RequestId</span></p>
+        }
+    </div>
+</div>
+
+@code{
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+    private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+    protected override void OnInitialized() =>
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

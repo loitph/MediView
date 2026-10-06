@@ -1,0 +1,16 @@
+@page "/"
+
+<AuthorizeView>
+    <Authorized>
+        <TopBar Title="Home" />
+        <div class="mv-page">
+            <p class="mv-callout mv-callout--info">Signed in as @context.User.DisplayName(). Pick a page from the menu.</p>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <TopBar Title="Home" />
+        <div class="mv-page">
+            <p class="mv-callout mv-callout--info"><span><a href="login">Sign in</a> to continue, or <a href="register">create a patient account</a>.</span></p>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
