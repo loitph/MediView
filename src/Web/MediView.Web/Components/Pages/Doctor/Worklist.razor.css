@@ -1,0 +1,55 @@
+.kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 18px 20px;
+}
+
+.kpi__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font: 600 11px var(--mv-font-mono);
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--mv-text-faint);
+}
+
+.kpi__dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+}
+
+.kpi__dot--todo {
+    background: var(--mv-status-todo-dot);
+}
+
+.kpi__dot--progress {
+    background: var(--mv-status-progress-dot);
+}
+
+.kpi__dot--rediagnosis {
+    background: var(--mv-status-rediagnosis-dot);
+}
+
+.kpi__dot--done {
+    background: var(--mv-status-done-dot);
+}
+
+.kpi__value {
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--mv-ink);
+}

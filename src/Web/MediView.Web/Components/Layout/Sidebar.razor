@@ -41,8 +41,8 @@
 @code {
     private static readonly NavSection[] Sections =
     [
-        new(MediViewRoles.Patient, "patient", [new("book", "Book a checkup"), new("my-studies", "My studies")]),
-        new(MediViewRoles.Doctor, "doctor", [new("worklist", "Worklist")]),
+        new(MediViewRoles.Patient, "patient", [new("book", "Book a checkup"), new(LandingPage.MyStudies, "My studies")]),
+        new(MediViewRoles.Doctor, "doctor", [new(LandingPage.Worklist, "Worklist")]),
         new(MediViewRoles.Admin, "admin", [new(LandingPage.AdminDoctors, "Doctors"), new("admin/import", "Import x-rays")]),
     ];
 

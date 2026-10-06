@@ -11,6 +11,7 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddAuthorizationCore();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<ClinicTime>();
 builder.Services.AddSingleton<CircuitServicesAccessor>();
 builder.Services.AddScoped<CircuitHandler, CircuitServicesAccessorHandler>();
 builder.Services.AddScoped<TokenStore>();

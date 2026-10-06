@@ -293,10 +293,65 @@ button, input, select, textarea {
     color: var(--mv-text-muted);
 }
 
+.mv-table__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.mv-table__action {
+    text-align: right;
+}
+
+.mv-table tbody tr.mv-table__row--selected td {
+    background: var(--mv-surface-subtle);
+}
+
+.mv-table tbody tr.mv-table__row--selected td:first-child {
+    box-shadow: inset 3px 0 0 var(--mv-accent);
+}
+
 .mv-table__empty {
     padding: 28px 24px;
     font-size: 13px;
     color: var(--mv-text-muted);
+}
+
+.mv-facts {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+}
+
+.mv-facts + .mv-facts {
+    padding-top: 14px;
+    border-top: 1px solid var(--mv-divider);
+}
+
+.mv-facts__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+}
+
+.mv-facts dt {
+    font-size: 13px;
+    color: var(--mv-text-muted);
+}
+
+.mv-facts dd {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--mv-ink);
+    text-align: right;
+}
+
+.mv-facts__pending {
+    font-weight: 400;
+    color: var(--mv-text-faint);
 }
 
 .mv-avatar {

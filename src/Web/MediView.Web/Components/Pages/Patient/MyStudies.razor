@@ -1,0 +1,215 @@
+@page "/my-studies"
+@inject MediViewApi Api
+@inject ClinicTime Clinic
+@inject TimeProvider TimeProvider
+
+<AuthorizeView Roles="@MediViewRoles.Patient" Context="patient">
+    <Authorized>
+        <TopBar Title="My studies" Meta="@Meta">
+            <a href="book" class="mv-button mv-button--primary mv-button--compact">Book a checkup</a>
+        </TopBar>
+
+        <div class="mv-page">
+            <section class="mv-page__main" aria-label="Your studies">
+                <div class="mv-card">
+                    <table class="mv-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Study</th>
+                                <th scope="col">Scheduled</th>
+                                <th scope="col">Doctor</th>
+                                <th scope="col">Status</th>
+                                <th scope="col" class="mv-table__action"><span class="mv-visually-hidden">Action</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var study in studies ?? [])
+                            {
+                                var isSelected = study.Id == detail?.Study.Id;
+                                <tr @key="study.Id" class="@(isSelected ? "mv-table__row--selected" : null)">
+                                    <td class="mv-mono">@study.StudyNumber</td>
+                                    <td class="mv-mono">@Clinic.WeekdayAndTime(study.ScheduledStart)</td>
+                                    <td>@study.DoctorName</td>
+                                    <td><StatusBadge Status="study.Status" /></td>
+                                    <td class="mv-table__action">
+                                        <button type="button" class="mv-button mv-button--secondary mv-button--compact" disabled="@isSelected" @onclick="() => SelectAsync(study.Id)">View</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+
+                    @if (studies is null)
+                    {
+                        <p class="mv-table__empty">Loading your studies…</p>
+                    }
+                    else if (studies.Count == 0)
+                    {
+                        <p class="mv-table__empty">No studies yet — <a href="book">book a checkup</a> and it appears here as To do.</p>
+                    }
+                </div>
+
+                @if (detail is not null)
+                {
+                    <div class="mv-card">
+                        <div class="mv-card__header">
+                            <h2 class="mv-card__title">Progress</h2>
+                            <span class="mv-card__meta">@detail.Study.StudyNumber</span>
+                        </div>
+                        <div class="mv-card__body">
+                            <ol class="timeline">
+                                @foreach (var step in TimelineOf(detail))
+                                {
+                                    <li class="timeline__step @(step.Reached ? "timeline__step--reached" : "timeline__step--upcoming")">
+                                        <span class="timeline__track" aria-hidden="true">
+                                            <span class="timeline__dot"></span>
+                                            @if (!step.IsLast)
+                                            {
+                                                <span class="timeline__bar @(step.LeadsToReached ? "timeline__bar--reached" : null)"></span>
+                                            }
+                                        </span>
+                                        <span class="timeline__label">@step.Status.Label()</span>
+                                        <span class="timeline__when">@(step.When ?? "not yet")</span>
+                                    </li>
+                                }
+                            </ol>
+                        </div>
+                    </div>
+
+                    <div class="mv-card">
+                        <div class="mv-card__header">
+                            <h2 class="mv-card__title">Result</h2>
+                        </div>
+                        <div class="mv-card__body">
+                            <p class="mv-small-print">No result yet — it appears here when your doctor finalizes the report.</p>
+                        </div>
+                    </div>
+                }
+            </section>
+
+            @if (detail is not null)
+            {
+                <section class="mv-page__side mv-page__side--summary" aria-label="Study facts">
+                    <div class="mv-card">
+                        <div class="mv-card__header">
+                            <h2 class="mv-card__title">Study</h2>
+                            <StatusBadge Status="detail.Study.Status" />
+                        </div>
+                        <div class="mv-card__body">
+                            <dl class="mv-facts">
+                                <div class="mv-facts__row">
+                                    <dt>Study</dt>
+                                    <dd class="mv-mono">@detail.Study.StudyNumber</dd>
+                                </div>
+                                <div class="mv-facts__row">
+                                    <dt>MRN</dt>
+                                    <dd class="mv-mono">@detail.Study.PatientMrn</dd>
+                                </div>
+                            </dl>
+                            <dl class="mv-facts">
+                                <div class="mv-facts__row">
+                                    <dt>Doctor</dt>
+                                    <dd>@detail.Study.DoctorName</dd>
+                                </div>
+                                <div class="mv-facts__row">
+                                    <dt>Scheduled</dt>
+                                    <dd class="mv-mono">@Clinic.WeekdayAndTime(detail.Study.ScheduledStart)</dd>
+                                </div>
+                                <div class="mv-facts__row">
+                                    <dt>Priority</dt>
+                                    <dd><PriorityTag Priority="detail.Study.Priority" /></dd>
+                                </div>
+                                <div class="mv-facts__row">
+                                    <dt>X-rays</dt>
+                                    <dd>
+                                        @if (detail.Study.ImagesImported)
+                                        {
+                                            <text>Imported</text>
+                                        }
+                                        else
+                                        {
+                                            <span class="mv-facts__pending">Awaiting images</span>
+                                        }
+                                    </dd>
+                                </div>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <p class="mv-callout mv-callout--info">
+                        A study is To do until your doctor opens it, In progress while they read it, and Done when the
+                        report is finalized. Re-diagnosis means your doctor asked for a second read.
+                    </p>
+                </section>
+            }
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <TopBar Title="My studies" />
+        <div class="mv-page">
+            <p class="mv-callout mv-callout--warning"><span><a href="login">Sign in</a> as a patient to see your studies.</span></p>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private IReadOnlyList<StudySummary>? studies;
+    private StudyDetail? detail;
+
+    private string? Meta => studies is null ? null : $"{studies.Count} booked";
+
+    protected override async Task OnInitializedAsync()
+    {
+        studies = await Api.ListStudiesAsync();
+
+        if (studies.Count > 0)
+        {
+            var now = TimeProvider.GetUtcNow();
+            var nextVisit = studies.FirstOrDefault(study => study.ScheduledStart >= now) ?? studies[^1];
+            await SelectAsync(nextVisit.Id);
+        }
+    }
+
+    private async Task SelectAsync(Guid studyId) => detail = await Api.GetStudyAsync(studyId);
+
+    private List<TimelineStep> TimelineOf(StudyDetail study)
+    {
+        List<(StudyStatus Status, string? When)> milestones =
+        [
+            .. study.History.Select(change => (change.To, (string?)WhenAndWho(change, study.Study))),
+            .. StillAhead(study.Study.Status).Select(status => (status, (string?)null)),
+        ];
+
+        return
+        [
+            .. milestones.Select((milestone, index) => new TimelineStep(
+                milestone.Status,
+                milestone.When,
+                LeadsToReached: index + 1 < milestones.Count && milestones[index + 1].When is not null,
+                IsLast: index == milestones.Count - 1)),
+        ];
+    }
+
+    private string WhenAndWho(StatusChange change, StudySummary study) =>
+        $"{Clinic.DayAndTime(change.ChangedAt)} · {ActorName(change.ChangedBy, study)}";
+
+    private static StudyStatus[] StillAhead(StudyStatus current) => current switch
+    {
+        StudyStatus.ToDo => [StudyStatus.InProgress, StudyStatus.Done],
+        StudyStatus.InProgress => [StudyStatus.Done],
+        StudyStatus.ReDiagnosis => [StudyStatus.InProgress, StudyStatus.Done],
+        _ => [],
+    };
+
+    private static string ActorName(StudyActor actor, StudySummary study) => actor switch
+    {
+        StudyActor.Patient => "You",
+        StudyActor.Doctor => study.DoctorName,
+        _ => "Admin",
+    };
+
+    private sealed record TimelineStep(StudyStatus Status, string? When, bool LeadsToReached, bool IsLast)
+    {
+        public bool Reached => When is not null;
+    }
+}

@@ -1,5 +1,8 @@
+using MediView.BuildingBlocks.Api.Http;
+using MediView.Studies.Application.Booking;
 using MediView.Studies.Application.Locking;
 using MediView.Studies.Application.Studies;
+using MediView.Studies.Infrastructure.Identity;
 using MediView.Studies.Infrastructure.Locking;
 using MediView.Studies.Infrastructure.Persistence;
 using MediView.Studies.Infrastructure.Persistence.Repositories;
@@ -14,6 +17,7 @@ public static class DependencyInjection
 {
     private const string ConnectionStringName = "Postgres";
     private const string RedisConfigurationKey = "Redis:Configuration";
+    private const string IdentityBaseAddressKey = "Identity:BaseAddress";
 
     public static IServiceCollection AddStudiesInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
@@ -25,6 +29,13 @@ public static class DependencyInjection
             .UseSnakeCaseNamingConvention());
 
         services.AddScoped<IStudyRepository, StudyRepository>();
+        services.AddScoped<IStudyReadStore>(provider => provider.GetRequiredService<StudiesDbContext>());
+
+        var identityBaseAddress = configuration.GetValue<Uri>(IdentityBaseAddressKey)
+            ?? throw new InvalidOperationException($"'{IdentityBaseAddressKey}' is not configured.");
+
+        services.AddHttpClient<IIdentityDirectory, IdentityDirectoryClient>(client => client.BaseAddress = identityBaseAddress)
+            .ForwardCallerBearerToken();
 
         var redisConfiguration = configuration[RedisConfigurationKey]
             ?? throw new InvalidOperationException($"'{RedisConfigurationKey}' is not configured.");
