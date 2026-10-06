@@ -80,7 +80,7 @@ public sealed class MediViewApi(HttpClient http)
         return await response.Content.ReadFromJsonAsync<StudyDetail>(cancellationToken);
     }
 
-    public async Task<ApiOutcome> ImportImagesAsync(
+    public async Task<(ApiOutcome Outcome, ImportedImages? Imported)> ImportImagesAsync(
         Guid studyId,
         IReadOnlyList<UploadFile> files,
         CancellationToken cancellationToken = default)
@@ -94,7 +94,11 @@ public sealed class MediViewApi(HttpClient http)
         }
 
         using var response = await http.PostAsync($"api/imaging/studies/{studyId}/images", form, cancellationToken);
-        return await ApiOutcome.FromAsync(response, cancellationToken);
+        var outcome = await ApiOutcome.FromAsync(response, cancellationToken);
+
+        return outcome.Succeeded
+            ? (outcome, await response.Content.ReadFromJsonAsync<ImportedImages>(cancellationToken))
+            : (outcome, null);
     }
 
     public async Task<IReadOnlyList<InstanceSummary>> ListInstancesAsync(Guid studyId, CancellationToken cancellationToken = default) =>

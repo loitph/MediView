@@ -202,14 +202,14 @@
 
         try
         {
-            var outcome = await Api.ImportImagesAsync(selected.Id, uploads);
-            if (!outcome.Succeeded)
+            var (outcome, imported) = await Api.ImportImagesAsync(selected.Id, uploads);
+            if (!outcome.Succeeded || imported is null)
             {
                 failure = outcome.Problem;
                 return;
             }
 
-            confirmation = $"{uploads.Count} {(uploads.Count == 1 ? "file" : "files")} attached to {selected.StudyNumber}.";
+            confirmation = Describe(imported, selected.StudyNumber);
             ClearChoice();
             studies = await Api.ListStudiesAsync();
             selected = studies.FirstOrDefault(study => study.Id == selected.Id);
@@ -219,6 +219,15 @@
             importing = false;
         }
     }
+
+    private static string Describe(ImportedImages imported, string studyNumber) => imported switch
+    {
+        { Imported: 0 } => $"{studyNumber} already had all {Files(imported.AlreadyPresent)}; nothing new was stored.",
+        { AlreadyPresent: 0 } => $"{Files(imported.Imported)} attached to {studyNumber}.",
+        _ => $"{Files(imported.Imported)} attached to {studyNumber}; {imported.AlreadyPresent} it already had were skipped.",
+    };
+
+    private static string Files(int count) => count == 1 ? "1 file" : $"{count} files";
 
     private void ClearChoice()
     {
