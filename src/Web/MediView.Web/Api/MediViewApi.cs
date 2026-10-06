@@ -1,10 +1,13 @@
 using System.Globalization;
 using System.Net;
+using System.Net.Http.Headers;
 
 namespace MediView.Web.Api;
 
 public sealed class MediViewApi(HttpClient http)
 {
+    private const string DicomMediaType = "application/dicom";
+
     public async Task<AccessToken?> LoginAsync(string email, string password, CancellationToken cancellationToken = default)
     {
         using var response = await http.PostAsJsonAsync(
@@ -75,6 +78,51 @@ public sealed class MediViewApi(HttpClient http)
 
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<StudyDetail>(cancellationToken);
+    }
+
+    public async Task<ApiOutcome> ImportImagesAsync(
+        Guid studyId,
+        IReadOnlyList<UploadFile> files,
+        CancellationToken cancellationToken = default)
+    {
+        using var form = new MultipartFormDataContent();
+        foreach (var file in files)
+        {
+            var content = new DeferredStreamContent(file);
+            content.Headers.ContentType = new MediaTypeHeaderValue(DicomMediaType);
+            form.Add(content, "files", file.FileName);
+        }
+
+        using var response = await http.PostAsync($"api/imaging/studies/{studyId}/images", form, cancellationToken);
+        return await ApiOutcome.FromAsync(response, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<InstanceSummary>> ListInstancesAsync(Guid studyId, CancellationToken cancellationToken = default) =>
+        await http.GetFromJsonAsync<IReadOnlyList<InstanceSummary>>($"api/imaging/studies/{studyId}/instances", cancellationToken) ?? [];
+
+    public Task<ApiOutcome> OpenStudyAsync(Guid studyId, CancellationToken cancellationToken = default) =>
+        PostAsync($"api/studies/studies/{studyId}/open", cancellationToken);
+
+    public Task<ApiOutcome> RenewLockAsync(Guid studyId, CancellationToken cancellationToken = default) =>
+        PostAsync($"api/studies/studies/{studyId}/lock/heartbeat", cancellationToken);
+
+    public Task<ApiOutcome> ReleaseLockAsync(Guid studyId, CancellationToken cancellationToken = default) =>
+        PostAsync($"api/studies/studies/{studyId}/lock/release", cancellationToken);
+
+    public async Task<LockOwner?> GetLockOwnerAsync(Guid studyId, CancellationToken cancellationToken = default)
+    {
+        using var response = await http.GetAsync($"api/studies/studies/{studyId}/lock", cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        return response.StatusCode == HttpStatusCode.NoContent
+            ? null
+            : await response.Content.ReadFromJsonAsync<LockOwner>(cancellationToken);
+    }
+
+    private async Task<ApiOutcome> PostAsync(string uri, CancellationToken cancellationToken)
+    {
+        using var response = await http.PostAsync(uri, content: null, cancellationToken);
+        return await ApiOutcome.FromAsync(response, cancellationToken);
     }
 
     private static string QueryInstant(DateTimeOffset instant) =>

@@ -22,7 +22,7 @@ public sealed class StudyVisibilityTests
     [Fact]
     public void DoctorSeesOnlyTheirOwnStudiesStatFirst()
     {
-        var worklist = new DoctorViewer(DoctorId).Visible(All).InWorklistOrder().ToList();
+        var worklist = new DoctorViewer(DoctorId).Listed(All).InWorklistOrder().ToList();
 
         Assert.Equal([_statLatest, _urgentLate, _routineEarly], worklist);
     }
@@ -30,22 +30,36 @@ public sealed class StudyVisibilityTests
     [Fact]
     public void PatientSeesOnlyTheirOwnStudies()
     {
-        var studies = new PatientViewer(PatientId).Visible(All).ToList();
+        var studies = new PatientViewer(PatientId).Listed(All).ToList();
 
         Assert.DoesNotContain(_urgentLate, studies);
         Assert.Equal(3, studies.Count);
     }
 
     [Fact]
+    public void DoctorCanReadAStudyAssignedToAColleague()
+    {
+        var readable = new DoctorViewer(OtherDoctorId).Readable(All).ToList();
+
+        Assert.Contains(_urgentLate, readable);
+    }
+
+    [Fact]
+    public void PatientCannotReadAnotherPatientsStudy()
+    {
+        Assert.DoesNotContain(_urgentLate, new PatientViewer(PatientId).Readable(All));
+    }
+
+    [Fact]
     public void AdminSeesEveryStudy()
     {
-        Assert.Equal(4, new AdminViewer().Visible(All).Count());
+        Assert.Equal(4, new AdminViewer().Listed(All).Count());
     }
 
     [Fact]
     public void StudiesOfEqualPriorityAreOrderedByScheduledStart()
     {
-        var worklist = new PatientViewer(PatientId).Visible(All).InWorklistOrder().ToList();
+        var worklist = new PatientViewer(PatientId).Listed(All).InWorklistOrder().ToList();
 
         Assert.Equal([_otherDoctors, _statLatest, _routineEarly], worklist);
     }

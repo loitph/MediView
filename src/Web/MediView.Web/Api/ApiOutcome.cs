@@ -1,15 +1,15 @@
+using System.Net;
+
 namespace MediView.Web.Api;
 
-public sealed record ApiOutcome(string? Problem)
+public sealed record ApiOutcome(HttpStatusCode StatusCode, string? Problem)
 {
     private const string ProblemMediaType = "application/problem+json";
-
-    public static readonly ApiOutcome Success = new(Problem: null);
 
     public bool Succeeded => Problem is null;
 
     internal static async Task<ApiOutcome> FromAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>
-        response.IsSuccessStatusCode ? Success : new ApiOutcome(await DescribeAsync(response, cancellationToken));
+        new(response.StatusCode, response.IsSuccessStatusCode ? null : await DescribeAsync(response, cancellationToken));
 
     private static async Task<string> DescribeAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {

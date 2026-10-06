@@ -15,7 +15,7 @@ internal sealed class InstanceConfiguration : IEntityTypeConfiguration<Instance>
         builder.Property(instance => instance.SopInstanceUid).HasMaxLength(DicomUidMaxLength);
         builder.Property(instance => instance.StoragePath).HasMaxLength(500);
 
-        builder.HasIndex(instance => instance.SopInstanceUid).IsUnique();
+        builder.HasIndex(instance => new { instance.StudyId, instance.SopInstanceUid }).IsUnique();
         builder.HasIndex(instance => new { instance.StudyId, instance.SeriesInstanceUid, instance.InstanceNumber });
     }
 }

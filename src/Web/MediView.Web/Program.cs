@@ -25,6 +25,7 @@ var gatewayAddress = builder.Configuration.GetValue<Uri>("Gateway:BaseAddress")
 builder.Services.AddTransient<BearerTokenHandler>();
 builder.Services.AddHttpClient<MediViewApi>(client => client.BaseAddress = gatewayAddress)
     .AddHttpMessageHandler<BearerTokenHandler>();
+builder.Services.AddHttpForwarder();
 
 var app = builder.Build();
 
@@ -39,6 +40,7 @@ app.UseHttpsRedirection();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapForwarder("/api/{**catch-all}", gatewayAddress.ToString());
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

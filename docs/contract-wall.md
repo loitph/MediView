@@ -117,3 +117,4 @@ This section pins **where each guard is enforced**, so no later task can quietly
 | --- | --- | --- |
 | 2026-09-08 | Initial wall pinned (S0-T03). | Written before S1 so later stages implement rather than negotiate. |
 | 2026-09-17 | Kafka event map replaced by four HTTP calls; SignalR, refresh tokens, lock mirror, audit table and PDF removed. | Plan cut to 54 tasks: keep the golden path and the lock, drop transport and polish. |
+| 2026-10-06 | The web app forwards `/api/**` to the gateway (`MapForwarder`). | Cornerstone fetches DICOM bytes from the browser; forwarding keeps the page's own origin as the one public origin, so no CORS is needed. |

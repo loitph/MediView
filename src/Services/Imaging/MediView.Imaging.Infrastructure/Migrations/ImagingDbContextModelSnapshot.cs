@@ -63,9 +63,9 @@ namespace MediView.Imaging.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("pk_instances");
 
-                    b.HasIndex("SopInstanceUid")
+                    b.HasIndex("StudyId", "SopInstanceUid")
                         .IsUnique()
-                        .HasDatabaseName("ix_instances_sop_instance_uid");
+                        .HasDatabaseName("ix_instances_study_id_sop_instance_uid");
 
                     b.HasIndex("StudyId", "SeriesInstanceUid", "InstanceNumber")
                         .HasDatabaseName("ix_instances_study_id_series_instance_uid_instance_number");

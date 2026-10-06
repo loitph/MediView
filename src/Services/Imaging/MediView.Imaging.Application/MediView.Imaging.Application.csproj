@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\MediView.BuildingBlocks.Application\MediView.BuildingBlocks.Application.csproj" />
     <ProjectReference Include="..\MediView.Imaging.Domain\MediView.Imaging.Domain.csproj" />
   </ItemGroup>
 

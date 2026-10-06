@@ -17,6 +17,7 @@ app.UseApiDefaults();
 app.MapAppointmentEndpoints();
 app.MapStudyEndpoints();
 app.MapStudyLockEndpoints();
+app.MapInternalStudyEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

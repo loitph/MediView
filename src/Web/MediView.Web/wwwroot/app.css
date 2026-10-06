@@ -96,6 +96,27 @@
     --mv-focus-ring: 0 0 0 3px var(--mv-accent-ring);
 }
 
+.mv-viewport {
+    --mv-dark-bg: #0f1319;
+    --mv-dark-chrome: #171c24;
+    --mv-dark-rail: #131820;
+    --mv-dark-border: #262d38;
+    --mv-dark-input: #0f141b;
+    --mv-dark-input-border: #2b3340;
+    --mv-dark-control-border: #333c4a;
+    --mv-dark-text: #eef2f7;
+    --mv-dark-text-body: #c9d3df;
+    --mv-dark-text-secondary: #8b97a6;
+    --mv-dark-text-label: #6d7a8b;
+    --mv-dark-text-disabled: #5c6878;
+    --mv-dark-on-accent: #06222a;
+    --mv-dark-overlay: rgba(255, 255, 255, .55);
+    --mv-dark-stripe-a: #20262f;
+    --mv-dark-stripe-b: #252c36;
+    --mv-dark-lock-mine-text: #5fd39c;
+    --mv-dark-lock-other-text: #eb9280;
+}
+
 *, *::before, *::after {
     box-sizing: border-box;
 }

@@ -72,6 +72,25 @@ In Development, Identity seeds three users into an empty database. All share the
 `src/Services/Identity/MediView.Identity.Api/MediView.Identity.Api.http` logs in as each one,
 directly and through the gateway.
 
+### Sample x-rays
+
+`samples/chest-phantom/` holds a 12-slice synthetic CT of a chest phantom (`Patient A`, uncompressed
+DICOM, no real patient data). To walk the golden path: book a checkup as the patient, sign in as the
+admin, open **Import x-rays**, select the study and drop the twelve files. The study stays To do
+and the doctor can now open it from the worklist.
+
+Uploaded files are stored under `.data/imaging/` (git-ignored); the root is `BlobStorage:Root` in
+the Imaging service's `appsettings.json`.
+
+### Cornerstone.js
+
+The viewer libraries are vendored into `src/Web/MediView.Web/wwwroot/lib/cornerstone` (no CDN).
+To upgrade them, change the versions in `tools/cornerstone/package.json` and rebuild:
+
+```bash
+cd tools/cornerstone && npm install && npm run build
+```
+
 ### Database migrations
 
 In Development each service applies its pending EF Core migrations on startup, so `./run.sh` keeps

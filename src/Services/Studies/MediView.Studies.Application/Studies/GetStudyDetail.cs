@@ -27,16 +27,16 @@ internal sealed class GetStudyDetailQueryHandler(IStudyReadStore store)
 {
     public async Task<Result<StudyDetail>> Handle(GetStudyDetailQuery request, CancellationToken cancellationToken)
     {
-        var visible = request.Viewer.Visible(store.Studies.AsNoTracking())
+        var readable = request.Viewer.Readable(store.Studies.AsNoTracking())
             .Where(study => study.Id == request.StudyId);
 
-        var summary = await visible.Select(StudySummary.FromStudy).SingleOrDefaultAsync(cancellationToken);
+        var summary = await readable.Select(StudySummary.FromStudy).SingleOrDefaultAsync(cancellationToken);
         if (summary is null)
         {
             return Result.Failure<StudyDetail>(StudyErrors.NotFound(request.StudyId));
         }
 
-        var history = await visible
+        var history = await readable
             .SelectMany(study => study.History, (study, entry) => new { study.PatientId, study.DoctorId, Entry = entry })
             .OrderBy(row => row.Entry.ChangedAt)
             .Select(row => new StatusChange(

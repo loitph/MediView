@@ -77,6 +77,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediView.Reporting.Tests", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediView.Identity.Tests", "tests\MediView.Identity.Tests\MediView.Identity.Tests.csproj", "{35A8DACB-6A4D-41AF-8D67-22D47DAA7EE7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediView.Imaging.Tests", "tests\MediView.Imaging.Tests\MediView.Imaging.Tests.csproj", "{F964D2A9-2469-4D13-B5BB-1E0E478FE13C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -411,6 +413,18 @@ Global
 		{35A8DACB-6A4D-41AF-8D67-22D47DAA7EE7}.Release|x64.Build.0 = Release|Any CPU
 		{35A8DACB-6A4D-41AF-8D67-22D47DAA7EE7}.Release|x86.ActiveCfg = Release|Any CPU
 		{35A8DACB-6A4D-41AF-8D67-22D47DAA7EE7}.Release|x86.Build.0 = Release|Any CPU
+		{F964D2A9-2469-4D13-B5BB-1E0E478FE13C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F964D2A9-2469-4D13-B5BB-1E0E478FE13C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F964D2A9-2469-4D13-B5BB-1E0E478FE13C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F964D2A9-2469-4D13-B5BB-1E0E478FE13C}.Debug|x64.Build.0 = Debug|Any CPU
+		{F964D2A9-2469-4D13-B5BB-1E0E478FE13C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F964D2A9-2469-4D13-B5BB-1E0E478FE13C}.Debug|x86.Build.0 = Debug|Any CPU
+		{F964D2A9-2469-4D13-B5BB-1E0E478FE13C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F964D2A9-2469-4D13-B5BB-1E0E478FE13C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F964D2A9-2469-4D13-B5BB-1E0E478FE13C}.Release|x64.ActiveCfg = Release|Any CPU
+		{F964D2A9-2469-4D13-B5BB-1E0E478FE13C}.Release|x64.Build.0 = Release|Any CPU
+		{F964D2A9-2469-4D13-B5BB-1E0E478FE13C}.Release|x86.ActiveCfg = Release|Any CPU
+		{F964D2A9-2469-4D13-B5BB-1E0E478FE13C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -451,5 +465,6 @@ Global
 		{BE9C2CA0-E4B2-424D-8D95-03AC775234DB} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{6DC3B899-A1BB-46DE-A291-1B3E132328CD} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{35A8DACB-6A4D-41AF-8D67-22D47DAA7EE7} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{F964D2A9-2469-4D13-B5BB-1E0E478FE13C} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
