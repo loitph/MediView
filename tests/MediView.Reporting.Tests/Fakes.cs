@@ -34,8 +34,6 @@ internal sealed class InMemoryReportRepository : IReportRepository
 {
     private readonly List<Report> _reports = [];
 
-    public int SaveCount { get; private set; }
-
     public IReadOnlyList<Report> All => _reports;
 
     public Task<Report?> FindAsync(Guid id, CancellationToken cancellationToken) =>
@@ -65,9 +63,5 @@ internal sealed class InMemoryReportRepository : IReportRepository
 
     public void Add(Report report) => _reports.Add(report);
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken)
-    {
-        SaveCount++;
-        return Task.CompletedTask;
-    }
+    public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

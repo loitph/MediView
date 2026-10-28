@@ -1,5 +1,4 @@
 using MediView.BuildingBlocks.Application;
-using MediView.Identity.Domain.Doctors;
 
 namespace MediView.Identity.Application.Doctors;
 

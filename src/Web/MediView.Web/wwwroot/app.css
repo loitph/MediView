@@ -674,15 +674,3 @@ button, input, select, textarea {
     font-size: 18px;
     cursor: pointer;
 }
-
-.blazor-error-boundary {
-    padding: 16px 18px;
-    background: var(--mv-danger-bg);
-    border: 1px solid var(--mv-danger-border);
-    border-radius: var(--mv-radius-card);
-    color: var(--mv-danger-text);
-}
-
-.blazor-error-boundary::after {
-    content: "An error has occurred.";
-}

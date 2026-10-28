@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using MediView.BuildingBlocks.Api.Auth;
 using Microsoft.AspNetCore.Http;
 using Serilog.Core;
 using Serilog.Events;
@@ -15,7 +16,7 @@ public sealed class UserIdEnricher(IHttpContextAccessor accessor) : ILogEventEnr
             return;
         }
 
-        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub");
+        var userId = user.FindFirstValue(MediViewClaims.Subject);
         if (!string.IsNullOrWhiteSpace(userId))
         {
             logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("UserId", userId));

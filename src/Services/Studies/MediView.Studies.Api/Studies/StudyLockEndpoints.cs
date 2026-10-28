@@ -2,7 +2,6 @@ using System.Security.Claims;
 using MediView.BuildingBlocks.Api.Auth;
 using MediView.BuildingBlocks.Application;
 using MediView.Studies.Application.Locking;
-using MediView.Studies.Application.Studies;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace MediView.Studies.Api.Studies;
