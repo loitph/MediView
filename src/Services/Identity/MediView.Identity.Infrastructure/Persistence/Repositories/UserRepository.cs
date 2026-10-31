@@ -6,6 +6,9 @@ namespace MediView.Identity.Infrastructure.Persistence.Repositories;
 
 internal sealed class UserRepository(IdentityDbContext db) : IUserRepository
 {
+    public Task<User?> FindByIdAsync(Guid userId, CancellationToken cancellationToken) =>
+        db.Users.SingleOrDefaultAsync(user => user.Id == userId, cancellationToken);
+
     public Task<User?> FindByEmailAsync(string email, CancellationToken cancellationToken)
     {
         var normalized = User.NormalizeEmail(email);

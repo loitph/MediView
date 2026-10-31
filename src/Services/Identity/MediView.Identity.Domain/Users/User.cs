@@ -29,5 +29,15 @@ public sealed class User : AggregateRoot<Guid>
         return user;
     }
 
+    public void Rename(string fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            throw new DomainException("Full name is required. Enter your full name.");
+        }
+
+        FullName = fullName.Trim();
+    }
+
     public static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 }

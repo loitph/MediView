@@ -58,6 +58,17 @@ Content-Type: application/json
 
 ###
 
+PUT {{host}}/me/name
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "fullName": "New Name"
+}
+
+
+###
+
 POST {{host}}/auth/register
 Content-Type: application/json
 
