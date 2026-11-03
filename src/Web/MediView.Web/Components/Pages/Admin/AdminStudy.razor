@@ -46,8 +46,7 @@
                     }
 
                     <p class="mv-card__footer mv-small-print">
-                        History rows are the audit trail: every override and forced release keeps the administrator
-                        and the reason.
+                        History rows are the audit trail: every override keeps the administrator and the reason.
                     </p>
                 </div>
             </section>
@@ -73,19 +72,6 @@
                                 <div class="mv-facts__row">
                                     <dt>X-rays</dt>
                                     <dd>@(detail.Study.ImagesImported ? "Imported" : "Awaiting images")</dd>
-                                </div>
-                                <div class="mv-facts__row">
-                                    <dt>Lock</dt>
-                                    <dd>
-                                        @if (lockOwner is null)
-                                        {
-                                            <span class="mv-facts__pending">Free</span>
-                                        }
-                                        else
-                                        {
-                                            @lockOwner.DoctorName
-                                        }
-                                    </dd>
                                 </div>
                             </dl>
                         </div>
@@ -122,13 +108,11 @@
                             }
 
                             <button type="button" class="mv-button mv-button--primary mv-button--block" disabled="@(busy || !HasReason)" @onclick="OverrideAsync">Override status</button>
-                            <button type="button" class="mv-button mv-button--secondary mv-button--block" disabled="@(busy || !HasReason || lockOwner is null)" @onclick="ForceReleaseAsync">Force release lock</button>
                         </div>
                     </div>
 
                     <p class="mv-callout mv-callout--warning">
-                        Use these only when the normal flow is stuck. An override skips the transition rules; a forced
-                        release lets another doctor open the study while the first still has it on screen.
+                        Use this only when the normal flow is stuck. An override skips the transition rules.
                     </p>
                 </section>
             }
@@ -147,7 +131,6 @@
         [StudyStatus.ToDo, StudyStatus.InProgress, StudyStatus.ReDiagnosis, StudyStatus.Done];
 
     private StudyDetail? detail;
-    private LockOwner? lockOwner;
     private StudyStatus target;
     private string reason = string.Empty;
     private string? failure;
@@ -175,14 +158,12 @@
     {
         detail = await Api.GetStudyAsync(StudyId);
         missing = detail is null;
-        lockOwner = detail is null ? null : await Api.GetLockOwnerAsync(StudyId);
         target = Statuses.FirstOrDefault(status => status != detail?.Study.Status);
     }
 
     private string Describe(StatusChange change) => change switch
     {
         { From: null } => $"Booked · {change.To.Label()}",
-        _ when change.From == change.To => "Lock force-released",
         _ => $"{change.From!.Value.Label()} → {change.To.Label()}",
     };
 
@@ -193,13 +174,7 @@
         _ => "Admin",
     };
 
-    private Task OverrideAsync() =>
-        RunAsync(() => Api.OverrideStudyAsync(StudyId, target, reason), $"Moved to {target.Label()}.");
-
-    private Task ForceReleaseAsync() =>
-        RunAsync(() => Api.ForceReleaseLockAsync(StudyId, reason), "Lock released. Another doctor can open the study now.");
-
-    private async Task RunAsync(Func<Task<ApiOutcome>> action, string success)
+    private async Task OverrideAsync()
     {
         busy = true;
         failure = null;
@@ -207,14 +182,14 @@
 
         try
         {
-            var outcome = await action();
+            var outcome = await Api.OverrideStudyAsync(StudyId, target, reason);
             if (!outcome.Succeeded)
             {
                 failure = outcome.Problem;
                 return;
             }
 
-            confirmation = success;
+            confirmation = $"Moved to {target.Label()}.";
             reason = string.Empty;
             await LoadAsync();
         }

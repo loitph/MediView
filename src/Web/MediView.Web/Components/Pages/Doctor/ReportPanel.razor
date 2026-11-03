@@ -98,7 +98,7 @@
             </div>
 
             <button type="button" class="report__primary" disabled="@(busy || !CanFinalize)" @onclick="FinalizeAsync">
-                @(finalizePending ? "Retry finalize" : "Finalize & release lock")
+                @(finalizePending ? "Retry finalize" : "Finalize")
             </button>
         </div>
     }

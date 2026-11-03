@@ -107,27 +107,8 @@ public sealed class MediViewApi(HttpClient http)
     public Task<ApiOutcome> OpenStudyAsync(Guid studyId, CancellationToken cancellationToken = default) =>
         PostAsync($"api/studies/studies/{studyId}/open", cancellationToken);
 
-    public Task<ApiOutcome> RenewLockAsync(Guid studyId, CancellationToken cancellationToken = default) =>
-        PostAsync($"api/studies/studies/{studyId}/lock/heartbeat", cancellationToken);
-
-    public Task<ApiOutcome> ReleaseLockAsync(Guid studyId, CancellationToken cancellationToken = default) =>
-        PostAsync($"api/studies/studies/{studyId}/lock/release", cancellationToken);
-
-    public async Task<LockOwner?> GetLockOwnerAsync(Guid studyId, CancellationToken cancellationToken = default)
-    {
-        using var response = await http.GetAsync($"api/studies/studies/{studyId}/lock", cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        return response.StatusCode == HttpStatusCode.NoContent
-            ? null
-            : await response.Content.ReadFromJsonAsync<LockOwner>(cancellationToken);
-    }
-
     public async Task<ApiOutcome> OverrideStudyAsync(Guid studyId, StudyStatus to, string reason, CancellationToken cancellationToken = default) =>
         await PostJsonAsync($"api/studies/studies/{studyId}/override", new { To = to, Reason = reason }, cancellationToken);
-
-    public async Task<ApiOutcome> ForceReleaseLockAsync(Guid studyId, string reason, CancellationToken cancellationToken = default) =>
-        await PostJsonAsync($"api/studies/studies/{studyId}/lock/force-release", new { Reason = reason }, cancellationToken);
 
     public async Task<IReadOnlyList<ReportView>> ListReportsAsync(Guid studyId, CancellationToken cancellationToken = default) =>
         await http.GetFromJsonAsync<IReadOnlyList<ReportView>>($"api/reporting/reports?studyId={studyId}", cancellationToken) ?? [];

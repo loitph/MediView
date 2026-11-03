@@ -13,8 +13,8 @@ public static class ReportErrors
 
     public static Error StudyNotFound(Guid studyId) => new("report.study_not_found", $"Study {studyId} does not exist.");
 
-    public static ConflictException NotLockOwner(Guid studyId) =>
-        new($"You do not hold the lock on study {studyId}. Open the study to write its report.");
+    public static ConflictException NotReader(Guid studyId) =>
+        new($"You are not reading study {studyId}. Open the study to write its report.");
 
     public static ConflictException ChangedConcurrently() =>
         new("The report was saved by another request at the same moment. Save again.");

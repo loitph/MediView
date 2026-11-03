@@ -5,11 +5,11 @@ namespace MediView.Reporting.Application.Reports;
 
 internal sealed class ReportWriter(IReportRepository reports, IStudiesClient studies)
 {
-    public async Task EnsureLockOwnerAsync(Guid studyId, Guid doctorId, CancellationToken cancellationToken)
+    public async Task EnsureReaderAsync(Guid studyId, Guid doctorId, CancellationToken cancellationToken)
     {
-        if (await studies.FindLockOwnerAsync(studyId, cancellationToken) != doctorId)
+        if (await studies.FindReaderAsync(studyId, cancellationToken) != doctorId)
         {
-            throw ReportErrors.NotLockOwner(studyId);
+            throw ReportErrors.NotReader(studyId);
         }
     }
 
@@ -26,7 +26,7 @@ internal sealed class ReportWriter(IReportRepository reports, IStudiesClient stu
             throw ReportErrors.NotAuthor(reportId);
         }
 
-        await EnsureLockOwnerAsync(report.StudyId, doctorId, cancellationToken);
+        await EnsureReaderAsync(report.StudyId, doctorId, cancellationToken);
         return report;
     }
 }

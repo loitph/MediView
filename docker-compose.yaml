@@ -21,22 +21,6 @@ services:
       retries: 10
     networks: [mediview]
 
-  redis:
-    image: redis:7
-    container_name: mediview-redis
-    restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "${REDIS_PORT}:6379"
-    volumes:
-      - redisdata:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks: [mediview]
-
   seq:
     image: datalust/seq:2024.3
     container_name: mediview-seq
@@ -51,7 +35,6 @@ services:
 
 volumes:
   pgdata:
-  redisdata:
   seqdata:
 
 networks:

@@ -29,7 +29,6 @@
                     {
                         <StatusBadge Status="study.Status" />
                     }
-                    <span class="lock lock--@LockModifier"><span class="lock__dot" aria-hidden="true"></span>@LockLabel</span>
                     <span class="mv-avatar mv-avatar--doctor" aria-hidden="true">@Initials.Of(doctor.User.DisplayName())</span>
                 </div>
             </header>
@@ -82,42 +81,24 @@
                 <aside class="viewport__panel" aria-label="Report">
                     @switch (access)
                     {
-                        case Access.Owner:
-                            <ReportPanel StudyId="StudyId" Editable="true" OnFinalized="FinishedAsync" />
-                            break;
-                        case Access.LockedByOther:
-                            <div class="viewport__lock">
-                                <span class="viewport__eyebrow">Lock</span>
-                                <h2 class="viewport__panel-title viewport__panel-title--other">Locked by @OwnerName</h2>
-                                <p class="viewport__panel-text">
-                                    @OwnerName opened this study first. You can look at the images; the report stays
-                                    with them until they finish or leave.
-                                </p>
-                            </div>
-                            <ReportPanel StudyId="StudyId" />
-                            break;
-                        case Access.LockLost:
-                            <div class="viewport__lock">
-                                <span class="viewport__eyebrow">Lock</span>
-                                <h2 class="viewport__panel-title viewport__panel-title--other">Lock lost</h2>
-                                <p class="viewport__panel-text">The lock could not be renewed. Your draft is kept; go back to the worklist and open the study again.</p>
-                            </div>
+                        case Access.Reading:
+                            <ReportPanel StudyId="StudyId" Editable="true" OnFinalized="Finished" />
                             break;
                         case Access.Refused:
-                            <div class="viewport__lock">
+                            <div class="viewport__notice">
                                 <span class="viewport__eyebrow">Read-only</span>
                                 <p class="viewport__panel-text">@refusal</p>
                             </div>
                             <ReportPanel StudyId="StudyId" />
                             break;
                         case Access.NotFound:
-                            <div class="viewport__lock">
+                            <div class="viewport__notice">
                                 <h2 class="viewport__panel-title">Study not found</h2>
                                 <p class="viewport__panel-text">It may have been removed. Go back to the worklist.</p>
                             </div>
                             break;
                         default:
-                            <div class="viewport__lock">
+                            <div class="viewport__notice">
                                 <p class="viewport__panel-text">@(access == Access.Finished ? "Report finalized." : "Opening the study…")</p>
                             </div>
                             break;
@@ -134,8 +115,6 @@
 </AuthorizeView>
 
 @code {
-    private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(60);
-
     private static readonly ViewerTool[] Tools =
     [
         new("windowLevel", "W/L", "◐"),
@@ -143,10 +122,7 @@
         new("zoom", "Zoom", "⌕"),
     ];
 
-    private readonly CancellationTokenSource heartbeatStop = new();
-    private Task? heartbeat;
     private Access access = Access.Opening;
-    private string? lockOwner;
     private string? refusal;
     private StudySummary? study;
     private IReadOnlyList<InstanceSummary> instances = [];
@@ -162,9 +138,7 @@
     private enum Access
     {
         Opening,
-        Owner,
-        LockedByOther,
-        LockLost,
+        Reading,
         Finished,
         Refused,
         NotFound,
@@ -176,32 +150,12 @@
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationState { get; set; } = null!;
 
-    private bool IsReadOnly => access is not (Access.Owner or Access.Finished);
-
-    private string OwnerName => lockOwner ?? "another doctor";
+    private bool IsReadOnly => access is not (Access.Reading or Access.Finished);
 
     private string ReadOnlyReason => access switch
     {
-        Access.LockedByOther => $"· {OwnerName} holds the lock on this study.",
-        Access.LockLost => "· your lock expired.",
         Access.NotFound => "· this study does not exist.",
         _ => $"· {refusal}",
-    };
-
-    private string LockModifier => access switch
-    {
-        Access.Owner => "mine",
-        Access.LockedByOther or Access.LockLost => "other",
-        _ => "free",
-    };
-
-    private string LockLabel => access switch
-    {
-        Access.Owner => "You",
-        Access.LockedByOther => OwnerName,
-        Access.LockLost => "Lock lost",
-        Access.Opening => "Opening…",
-        _ => "Free",
     };
 
     private string ActiveToolLabel => Tools.Single(tool => tool.Name == activeTool).Label;
@@ -233,11 +187,6 @@
 
         study = (await Api.GetStudyAsync(StudyId))?.Study;
         instances = study is null ? [] : await Api.ListInstancesAsync(StudyId);
-
-        if (access == Access.Owner)
-        {
-            heartbeat = KeepLockAsync(heartbeatStop.Token);
-        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -276,44 +225,16 @@
         var opening = await Api.OpenStudyAsync(StudyId);
         access = opening switch
         {
-            { Succeeded: true } => Access.Owner,
-            { StatusCode: HttpStatusCode.Conflict } => Access.LockedByOther,
+            { Succeeded: true } => Access.Reading,
             { StatusCode: HttpStatusCode.NotFound } => Access.NotFound,
             _ => Access.Refused,
         };
         refusal = opening.Problem;
-        lockOwner = access == Access.LockedByOther ? (await Api.GetLockOwnerAsync(StudyId))?.DoctorName : null;
     }
 
-    private async Task KeepLockAsync(CancellationToken stop)
-    {
-        using var timer = new PeriodicTimer(HeartbeatInterval);
-        try
-        {
-            while (await timer.WaitForNextTickAsync(stop))
-            {
-                if ((await Api.RenewLockAsync(StudyId, stop)).Succeeded || (await Api.OpenStudyAsync(StudyId, stop)).Succeeded)
-                {
-                    continue;
-                }
-
-                await InvokeAsync(() =>
-                {
-                    access = Access.LockLost;
-                    StateHasChanged();
-                });
-                return;
-            }
-        }
-        catch (OperationCanceledException) when (stop.IsCancellationRequested)
-        {
-        }
-    }
-
-    private async Task FinishedAsync()
+    private void Finished()
     {
         access = Access.Finished;
-        await heartbeatStop.CancelAsync();
         Navigation.NavigateTo(LandingPage.Worklist);
     }
 
@@ -338,32 +259,8 @@
 
     public async ValueTask DisposeAsync()
     {
-        await heartbeatStop.CancelAsync();
-        if (heartbeat is not null)
-        {
-            await heartbeat;
-        }
-
-        heartbeatStop.Dispose();
-
-        if (access == Access.Owner)
-        {
-            await ReleaseLockAsync();
-        }
-
         await DisposeViewerAsync();
         listener?.Dispose();
-    }
-
-    private async Task ReleaseLockAsync()
-    {
-        try
-        {
-            await Api.ReleaseLockAsync(StudyId);
-        }
-        catch (HttpRequestException)
-        {
-        }
     }
 
     private async Task DisposeViewerAsync()

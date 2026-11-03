@@ -10,7 +10,7 @@ internal sealed class StartReportCommandHandler(IReportRepository reports, Repor
 {
     public async Task<Guid> Handle(StartReportCommand request, CancellationToken cancellationToken)
     {
-        await writer.EnsureLockOwnerAsync(request.StudyId, request.DoctorId, cancellationToken);
+        await writer.EnsureReaderAsync(request.StudyId, request.DoctorId, cancellationToken);
 
         if (await reports.FindDraftAsync(request.StudyId, request.DoctorId, cancellationToken) is { } draft)
         {

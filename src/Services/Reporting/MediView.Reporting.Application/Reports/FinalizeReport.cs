@@ -27,7 +27,7 @@ internal sealed class FinalizeReportCommandHandler(
 
         if (report.Status == ReportStatus.Draft)
         {
-            await writer.EnsureLockOwnerAsync(report.StudyId, request.DoctorId, cancellationToken);
+            await writer.EnsureReaderAsync(report.StudyId, request.DoctorId, cancellationToken);
             report.Finalize(request.Decision, timeProvider.GetUtcNow());
             await reports.SaveChangesAsync(cancellationToken);
         }

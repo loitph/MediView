@@ -3,15 +3,15 @@
 MediView is a small radiology workflow. A patient books a checkup, the clinic uploads the x-rays,
 a doctor reads them and writes a report, and the patient sees the result.
 
-One rule shapes everything: **only one doctor can work on a study at a time.** While a doctor is
-reading, everyone else sees the study as locked and read-only.
+One rule shapes everything: **a study belongs to the doctor it was booked with.** Only that doctor
+can open it and write its report; everyone else sees it read-only.
 
 ## How it works at a glance
 
 ```mermaid
 flowchart LR
     P1["🧑 Patient<br/>books a checkup"] --> A["🛠️ Admin<br/>uploads the x-rays"]
-    A --> D1["🩺 Doctor<br/>opens the study<br/>(study is locked)"]
+    A --> D1["🩺 Doctor<br/>opens the study"]
     D1 --> D2["🩺 Doctor<br/>writes the report<br/>and finalizes"]
     D2 --> P2["🧑 Patient<br/>sees the result"]
 ```
@@ -24,7 +24,7 @@ Every booking creates a **study**: one patient, one doctor, one time slot, and t
 | --- | --- |
 | **Patient** | Register, book a slot with a doctor, follow their studies and read finalized reports |
 | **Doctor** | See their worklist, open a study in the x-ray viewer, write findings, add medications, finalize |
-| **Admin** | Add doctors and their weekly hours, upload x-rays to a study, override a status or free a stuck lock |
+| **Admin** | Add doctors and their weekly hours, upload x-rays to a study, override a status |
 
 ### The life of a study
 
@@ -49,31 +49,6 @@ stateDiagram-v2
   stays visible underneath it.
 - Every status change is recorded with who made it and when. An admin can override a status, but
   must give a reason, and that reason is saved in the history.
-
-### One doctor at a time: the study lock
-
-```mermaid
-sequenceDiagram
-    actor A as Dr. A
-    participant S as MediView
-    actor B as Dr. B
-
-    A->>S: Open study
-    S-->>A: Lock granted (you can edit)
-    B->>S: Open the same study
-    S-->>B: Read-only, "locked by Dr. A"
-    loop every minute while the viewer is open
-        A->>S: Still here
-    end
-    A->>S: Finalize report
-    S-->>A: Done, lock released
-```
-
-- The lock is released when the doctor finalizes.
-- If a doctor closes the tab without finalizing, the lock expires on its own **15 minutes** after
-  the last "still here" signal.
-- An admin can **force-release** a lock straight away, with a reason that goes into the study
-  history.
 
 ## Run it locally
 
@@ -112,7 +87,7 @@ done
 ./run.sh
 ```
 
-This starts the database, Redis and the log viewer in Docker, builds the solution, creates the
+This starts the database and the log viewer in Docker, builds the solution, creates the
 databases, loads the demo accounts, and starts the app. Wait until the output stops scrolling,
 then open:
 
@@ -150,7 +125,7 @@ flowchart TD
     S1["1 · Patient books a slot"] --> S2["2 · Admin adds a second doctor"]
     S2 --> S3["3 · Admin uploads the x-rays"]
     S3 --> S4["4 · Doctor opens the study"]
-    S4 --> S5["5 · Second doctor sees it locked"]
+    S4 --> S5["5 · Second doctor sees it read-only"]
     S5 --> S6["6 · Doctor writes and finalizes"]
     S6 --> S7["7 · Patient reads the report"]
 ```
@@ -165,15 +140,14 @@ flowchart TD
    study, drop in the 12 files from `samples/chest-phantom/` and click **Import x-rays**. The
    study shows *Imported* and is still *To do*.
 4. **Doctor opens the study.** In a new tab, sign in as `doctor@mediview.local` and click
-   **Open** on the study in the worklist. The status changes to *In progress* and the lock badge
-   says *You*. Scroll to move through the slices, drag to change brightness and contrast, and try
-   Pan, Zoom and Reset.
-5. **Second doctor sees the lock.** Copy the viewer's address. In another tab, sign in as
+   **Open** on the study in the worklist. The status changes to *In progress*. Scroll to move
+   through the slices, drag to change brightness and contrast, and try Pan, Zoom and Reset.
+5. **Second doctor is read-only.** Copy the viewer's address. In another tab, sign in as
    `dr.b@mediview.local` and paste it. Dr. B sees the same images under a red **READ-ONLY**
-   banner that names Dan Doctor, and no report editor.
+   banner that says the study is booked with Dan Doctor, and no report editor.
 6. **Doctor finalizes.** Back as Dan Doctor, type findings and an impression (each saves when you
-   leave the field), add a medication, leave **Complete** selected and click
-   **Finalize & release lock**. The study is *Done* and the lock is free.
+   leave the field), add a medication, leave **Complete** selected and click **Finalize**. The
+   study is *Done*.
 7. **Patient reads the result.** As the patient, refresh **My studies**. The study is *Done*,
    with its timeline and the finalized report and medications.
 
@@ -183,16 +157,15 @@ Two optional extras:
   *Re-diagnosis*. When the doctor opens it again, a new draft starts and the first report stays
   underneath it.
 - **Admin override.** As the admin, open **Import x-rays** and click the study number. The page
-  lists every status change and who made it. Enter a reason, then click **Override status** or
-  **Force release lock**. Both buttons refuse an empty reason.
+  lists every status change and who made it. Enter a reason, then click **Override status**. It
+  refuses an empty reason.
 
 ## If something goes wrong
 
 | What you see | What to do |
 | --- | --- |
 | A service stops with `Connection string 'Postgres' is not configured` or `Jwt:SigningKey must be at least 32 bytes` | Run the commands in [step 2](#2-configure-once). |
-| Docker says a port is already allocated | Change `POSTGRES_PORT`, `REDIS_PORT` or `SEQ_PORT` in `.env`. If you change the Postgres port, use the new port in the step 2 connection strings. |
+| Docker says a port is already allocated | Change `POSTGRES_PORT` or `SEQ_PORT` in `.env`. If you change the Postgres port, use the new port in the step 2 connection strings. |
 | `address already in use` on port 5217 or 5062 | Another copy of MediView is still running. Press Ctrl+C in its terminal. |
 | Booking shows no free slots | Dan Doctor only works Monday to Friday, 08:00-16:00. Click **Later** to see the following days. |
-| A study is still locked after the doctor closed the tab | The lock expires 15 minutes after the doctor's last activity, or an admin can use **Force release lock**. |
 | You want to start over with fresh demo data | Run `docker compose down -v && rm -rf .data`, then `./run.sh`. |

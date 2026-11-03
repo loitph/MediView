@@ -63,46 +63,6 @@
     gap: 12px;
 }
 
-.lock {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 5px 12px;
-    border: 1px solid;
-    border-radius: var(--mv-radius-pill);
-    font-size: 12.5px;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.lock__dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: currentColor;
-}
-
-.lock--mine {
-    color: var(--mv-dark-lock-mine-text);
-    background: color-mix(in srgb, var(--mv-lock-mine) 15%, transparent);
-    border-color: color-mix(in srgb, var(--mv-lock-mine) 40%, transparent);
-}
-
-.lock--other {
-    color: var(--mv-dark-lock-other-text);
-    background: color-mix(in srgb, var(--mv-lock-other) 15%, transparent);
-    border-color: color-mix(in srgb, var(--mv-lock-other) 40%, transparent);
-}
-
-.lock--free {
-    color: var(--mv-dark-text-secondary);
-    border-color: var(--mv-dark-control-border);
-}
-
-.lock--free .lock__dot {
-    background: var(--mv-lock-free);
-}
-
 .viewport__banner {
     flex: none;
     height: 52px;
@@ -110,10 +70,10 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    background: color-mix(in srgb, var(--mv-lock-other) 16%, var(--mv-dark-bg));
-    border-bottom: 1px solid color-mix(in srgb, var(--mv-lock-other) 40%, transparent);
+    background: color-mix(in srgb, var(--mv-danger) 16%, var(--mv-dark-bg));
+    border-bottom: 1px solid color-mix(in srgb, var(--mv-danger) 40%, transparent);
     font-size: 13px;
-    color: var(--mv-dark-lock-other-text);
+    color: var(--mv-dark-danger-text);
 }
 
 .viewport__banner strong {
@@ -262,7 +222,7 @@
     border-left: 1px solid var(--mv-dark-border);
 }
 
-.viewport__lock {
+.viewport__notice {
     flex: none;
     padding: 22px 24px 18px;
     display: flex;
@@ -281,11 +241,7 @@
 .viewport__panel-title {
     font-size: 15px;
     font-weight: 600;
-    color: var(--mv-dark-lock-mine-text);
-}
-
-.viewport__panel-title--other {
-    color: var(--mv-dark-lock-other-text);
+    color: var(--mv-dark-success-text);
 }
 
 .viewport__panel-text {

@@ -7,18 +7,20 @@ namespace MediView.Reporting.Infrastructure.Studies;
 
 internal sealed class StudiesClient(HttpClient http) : IStudiesClient
 {
-    public async Task<Guid?> FindLockOwnerAsync(Guid studyId, CancellationToken cancellationToken)
-    {
-        using var response = await http.GetAsync(new Uri($"studies/{studyId}/lock", UriKind.Relative), cancellationToken);
-        response.EnsureSuccessStatusCode();
+    private const string InProgress = "InProgress";
 
-        if (response.StatusCode == HttpStatusCode.NoContent)
+    public async Task<Guid?> FindReaderAsync(Guid studyId, CancellationToken cancellationToken)
+    {
+        using var response = await http.GetAsync(new Uri($"studies/{studyId}", UriKind.Relative), cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
         {
             return null;
         }
 
-        var owner = await response.Content.ReadFromJsonAsync<LockOwner>(cancellationToken);
-        return owner?.DoctorId;
+        response.EnsureSuccessStatusCode();
+
+        var detail = await response.Content.ReadFromJsonAsync<StudyDetail>(cancellationToken);
+        return detail?.Study is { Status: InProgress } study ? study.DoctorId : null;
     }
 
     public async Task<bool> CanReadAsync(Guid studyId, CancellationToken cancellationToken)
@@ -49,7 +51,9 @@ internal sealed class StudiesClient(HttpClient http) : IStudiesClient
         }
     }
 
-    private sealed record LockOwner(Guid DoctorId, string DoctorName);
+    private sealed record StudyDetail(StudySnapshot Study);
+
+    private sealed record StudySnapshot(Guid DoctorId, string Status);
 
     private sealed record FinishReadRequest(string Decision);
 }

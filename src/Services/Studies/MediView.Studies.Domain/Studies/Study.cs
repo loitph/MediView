@@ -69,7 +69,7 @@ public sealed class Study : AggregateRoot<Guid>
 
         if (doctorId != DoctorId)
         {
-            throw new DomainException($"Doctor {doctorId} is not assigned to study {Id}.");
+            throw new DomainException($"Study {StudyNumber} is booked with {DoctorName}.");
         }
 
         TransitionTo(StudyStatus.InProgress, doctorId, now);
@@ -90,9 +90,6 @@ public sealed class Study : AggregateRoot<Guid>
 
         Apply(to, adminId, justification, now);
     }
-
-    public void NoteLockForceRelease(Guid adminId, string reason, DateTimeOffset now) =>
-        _history.Add(StudyStatusHistory.Record(Status, Status, adminId, RequireReason(reason, "A forced lock release"), now));
 
     private string RequireReason(string? reason, string action)
     {

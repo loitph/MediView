@@ -60,10 +60,6 @@
     --mv-priority-stat-bg: #fbe7e1;
     --mv-priority-stat-fg: #b0402c;
 
-    --mv-lock-mine: #1d7f4e;
-    --mv-lock-other: #b0402c;
-    --mv-lock-free: #c3ccd8;
-
     --mv-success: #1d7f4e;
     --mv-danger: #b0402c;
     --mv-warning: #a1660a;
@@ -113,8 +109,8 @@
     --mv-dark-overlay: rgba(255, 255, 255, .55);
     --mv-dark-stripe-a: #20262f;
     --mv-dark-stripe-b: #252c36;
-    --mv-dark-lock-mine-text: #5fd39c;
-    --mv-dark-lock-other-text: #eb9280;
+    --mv-dark-success-text: #5fd39c;
+    --mv-dark-danger-text: #eb9280;
 }
 
 *, *::before, *::after {

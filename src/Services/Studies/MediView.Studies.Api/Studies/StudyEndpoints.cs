@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using MediView.BuildingBlocks.Api.Auth;
 using MediView.BuildingBlocks.Application;
-using MediView.Studies.Application.Locking;
 using MediView.Studies.Application.Studies;
 using MediView.Studies.Domain.Studies;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -58,8 +57,7 @@ internal static class StudyEndpoints
         ISender sender,
         CancellationToken cancellationToken)
     {
-        var doctor = new LockOwner(user.DoctorId(), user.DisplayName());
-        var result = await sender.Send(new OpenStudyCommand(id, doctor), cancellationToken);
+        var result = await sender.Send(new OpenStudyCommand(id, user.DoctorId()), cancellationToken);
 
         return result.IsSuccess
             ? TypedResults.NoContent()

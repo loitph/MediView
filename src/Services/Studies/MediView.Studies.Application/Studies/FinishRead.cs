@@ -1,6 +1,5 @@
 using MediView.BuildingBlocks.Application;
 using MediView.BuildingBlocks.Domain;
-using MediView.Studies.Application.Locking;
 using MediView.Studies.Domain.Studies;
 
 namespace MediView.Studies.Application.Studies;
@@ -15,7 +14,6 @@ public sealed record FinishReadCommand(Guid StudyId, Guid DoctorId, ReadDecision
 
 internal sealed class FinishReadCommandHandler(
     IStudyRepository studies,
-    IStudyLock studyLock,
     TimeProvider timeProvider) : ICommandHandler<FinishReadCommand, Result>
 {
     public async Task<Result> Handle(FinishReadCommand request, CancellationToken cancellationToken)
@@ -39,7 +37,6 @@ internal sealed class FinishReadCommandHandler(
             await studies.SaveChangesAsync(cancellationToken);
         }
 
-        await studyLock.Release(studyId, doctorId);
         return Result.Success();
     }
 
