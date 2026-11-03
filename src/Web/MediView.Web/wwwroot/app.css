@@ -51,14 +51,6 @@
     --mv-status-done-bg: #e2f2e8;
     --mv-status-done-fg: #17724a;
     --mv-status-done-dot: #1d7f4e;
-    --mv-status-done-border: #bfe0cc;
-
-    --mv-priority-routine-bg: #eef1f5;
-    --mv-priority-routine-fg: #6b7c93;
-    --mv-priority-urgent-bg: #fdf3dc;
-    --mv-priority-urgent-fg: #a1660a;
-    --mv-priority-stat-bg: #fbe7e1;
-    --mv-priority-stat-fg: #b0402c;
 
     --mv-success: #1d7f4e;
     --mv-danger: #b0402c;
@@ -78,7 +70,6 @@
     --mv-segment-inactive: #6b7c93;
     --mv-segment-shadow: 0 1px 2px rgba(20, 40, 74, .1);
 
-    --mv-radius-frame: 10px;
     --mv-radius-card: 9px;
     --mv-radius-control: 7px;
     --mv-radius-small: 6px;
@@ -95,7 +86,6 @@
 .mv-viewport {
     --mv-dark-bg: #0f1319;
     --mv-dark-chrome: #171c24;
-    --mv-dark-rail: #131820;
     --mv-dark-border: #262d38;
     --mv-dark-input: #0f141b;
     --mv-dark-input-border: #2b3340;

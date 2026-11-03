@@ -169,10 +169,6 @@
                                     <dd class="mv-mono">@Clinic.WeekdayAndTime(detail.Study.ScheduledStart)</dd>
                                 </div>
                                 <div class="mv-facts__row">
-                                    <dt>Priority</dt>
-                                    <dd><PriorityTag Priority="detail.Study.Priority" /></dd>
-                                </div>
-                                <div class="mv-facts__row">
                                     <dt>X-rays</dt>
                                     <dd>
                                         @if (detail.Study.ImagesImported)
@@ -234,7 +230,7 @@
     {
         List<(StudyStatus Status, string? When)> milestones =
         [
-            .. study.History.Where(change => change.From != change.To).Select(change => (change.To, (string?)WhenAndWho(change, study.Study))),
+            .. study.History.Select(change => (change.To, (string?)WhenAndWho(change, study.Study))),
             .. StillAhead(study.Study.Status).Select(status => (status, (string?)null)),
         ];
 

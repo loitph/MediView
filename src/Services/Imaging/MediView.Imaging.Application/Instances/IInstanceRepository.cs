@@ -15,4 +15,4 @@ public interface IInstanceRepository
     public Task SaveChangesAsync(CancellationToken cancellationToken);
 }
 
-public sealed record InstanceSummary(Guid Id, string SeriesInstanceUid, int InstanceNumber);
+public sealed record InstanceSummary(Guid Id, string SeriesInstanceUid);

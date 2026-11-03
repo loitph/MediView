@@ -18,7 +18,6 @@ internal sealed class StudyConfiguration : IEntityTypeConfiguration<Study>
         builder.Property(study => study.PatientName).HasMaxLength(200);
         builder.Property(study => study.PatientMrn).HasMaxLength(16);
         builder.Property(study => study.DoctorName).HasMaxLength(200);
-        builder.Property(study => study.Priority).HasConversion<string>().HasMaxLength(16);
         builder.Property(study => study.Status).HasConversion<string>().HasMaxLength(16);
         builder.Property<uint>("Version").IsRowVersion();
 

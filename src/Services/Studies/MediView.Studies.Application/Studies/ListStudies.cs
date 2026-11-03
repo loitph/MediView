@@ -10,7 +10,7 @@ internal sealed class ListStudiesQueryHandler(IStudyReadStore store)
 {
     public async Task<IReadOnlyList<StudySummary>> Handle(ListStudiesQuery request, CancellationToken cancellationToken) =>
         await request.Viewer.Listed(store.Studies.AsNoTracking())
-            .InWorklistOrder()
+            .OrderBy(study => study.ScheduledStart)
             .Select(StudySummary.FromStudy)
             .ToListAsync(cancellationToken);
 }

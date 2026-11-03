@@ -63,12 +63,6 @@ namespace MediView.Studies.Infrastructure.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("patient_name");
 
-                    b.Property<string>("Priority")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)")
-                        .HasColumnName("priority");
-
                     b.Property<DateTimeOffset>("ScheduledStart")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("scheduled_start");

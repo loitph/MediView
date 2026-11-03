@@ -87,7 +87,7 @@ done
 ./run.sh
 ```
 
-This starts the database and the log viewer in Docker, builds the solution, creates the
+This starts the database in Docker, builds the solution, creates the
 databases, loads the demo accounts, and starts the app. Wait until the output stops scrolling,
 then open:
 
@@ -165,7 +165,7 @@ Two optional extras:
 | What you see | What to do |
 | --- | --- |
 | A service stops with `Connection string 'Postgres' is not configured` or `Jwt:SigningKey must be at least 32 bytes` | Run the commands in [step 2](#2-configure-once). |
-| Docker says a port is already allocated | Change `POSTGRES_PORT` or `SEQ_PORT` in `.env`. If you change the Postgres port, use the new port in the step 2 connection strings. |
+| Docker says a port is already allocated | Change `POSTGRES_PORT` in `.env`. If you change the Postgres port, use the new port in the step 2 connection strings. |
 | `address already in use` on port 5217 or 5062 | Another copy of MediView is still running. Press Ctrl+C in its terminal. |
 | Booking shows no free slots | Dan Doctor only works Monday to Friday, 08:00-16:00. Click **Later** to see the following days. |
 | You want to start over with fresh demo data | Run `docker compose down -v && rm -rf .data`, then `./run.sh`. |

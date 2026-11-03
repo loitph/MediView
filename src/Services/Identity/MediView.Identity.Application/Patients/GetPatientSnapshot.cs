@@ -8,7 +8,7 @@ public sealed record GetPatientSnapshotQuery(Guid UserId) : IQuery<Result<Patien
 
 public static class PatientErrors
 {
-    public static Error NotFound(Guid userId) => new("patient.not_found", $"User {userId} is not a patient.");
+    public static Error NotFound(Guid userId) => new($"User {userId} is not a patient.");
 }
 
 internal sealed class GetPatientSnapshotQueryHandler(IPatientRepository patients)

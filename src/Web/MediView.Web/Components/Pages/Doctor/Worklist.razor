@@ -25,7 +25,6 @@
                                 <th scope="col">Patient</th>
                                 <th scope="col">Study</th>
                                 <th scope="col">Scheduled</th>
-                                <th scope="col">Priority</th>
                                 <th scope="col">Status</th>
                                 <th scope="col" class="mv-table__action"><span class="mv-visually-hidden">Action</span></th>
                             </tr>
@@ -45,7 +44,6 @@
                                     </td>
                                     <td class="mv-mono">@study.StudyNumber</td>
                                     <td class="mv-mono">@Clinic.WeekdayAndTime(study.ScheduledStart)</td>
-                                    <td><PriorityTag Priority="study.Priority" /></td>
                                     <td><StatusBadge Status="study.Status" /></td>
                                     <td class="mv-table__action">
                                         @if (study.ImagesImported)
@@ -72,8 +70,7 @@
                     }
 
                     <p class="mv-card__footer mv-small-print">
-                        Stat first, then urgent, then routine; each group by scheduled time. A study opens once an
-                        administrator has imported its x-rays.
+                        Sorted by scheduled time. A study opens once an administrator has imported its x-rays.
                     </p>
                 </div>
             </section>

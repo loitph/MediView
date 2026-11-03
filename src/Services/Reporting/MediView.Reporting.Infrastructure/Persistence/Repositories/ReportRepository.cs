@@ -22,7 +22,6 @@ internal sealed class ReportRepository(ReportingDbContext db) : IReportRepositor
             .OrderByDescending(report => report.Id)
             .Select(report => new ReportView(
                 report.Id,
-                report.StudyId,
                 report.DoctorName,
                 report.Status,
                 report.Findings,

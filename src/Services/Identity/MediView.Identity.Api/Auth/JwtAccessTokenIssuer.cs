@@ -28,7 +28,7 @@ internal sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> options, TimePro
             SigningCredentials = new SigningCredentials(jwt.CreateSigningKey(), SecurityAlgorithms.HmacSha256),
         });
 
-        return new AccessToken(token, expiresAt);
+        return new AccessToken(token);
     }
 
     private static Dictionary<string, object> ClaimsFor(User user, Guid? doctorId)
@@ -36,7 +36,6 @@ internal sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> options, TimePro
         var claims = new Dictionary<string, object>
         {
             [MediViewClaims.Subject] = user.Id.ToString(),
-            [MediViewClaims.Email] = user.Email,
             [MediViewClaims.Name] = user.FullName,
             [MediViewClaims.Role] = user.Role.ToString(),
         };

@@ -19,7 +19,7 @@ internal sealed class InstanceRepository(ImagingDbContext db) : IInstanceReposit
             .Where(instance => instance.StudyId == studyId)
             .OrderBy(instance => instance.SeriesInstanceUid)
             .ThenBy(instance => instance.InstanceNumber)
-            .Select(instance => new InstanceSummary(instance.Id, instance.SeriesInstanceUid, instance.InstanceNumber))
+            .Select(instance => new InstanceSummary(instance.Id, instance.SeriesInstanceUid))
             .ToListAsync(cancellationToken);
 
     public Task<string?> FindStoragePathAsync(Guid instanceId, CancellationToken cancellationToken) =>

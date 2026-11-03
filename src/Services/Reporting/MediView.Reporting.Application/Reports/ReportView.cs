@@ -4,7 +4,6 @@ namespace MediView.Reporting.Application.Reports;
 
 public sealed record ReportView(
     Guid Id,
-    Guid StudyId,
     string DoctorName,
     ReportStatus Status,
     string? Findings,

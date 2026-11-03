@@ -11,9 +11,6 @@ internal sealed class StudyRepository(StudiesDbContext db) : IStudyRepository
     public async Task<Study?> FindAsync(Guid id, CancellationToken cancellationToken) =>
         await db.Studies.FindAsync([id], cancellationToken);
 
-    public Task<bool> IsSlotTakenAsync(Guid doctorId, DateTimeOffset scheduledStart, CancellationToken cancellationToken) =>
-        db.Studies.AnyAsync(study => study.DoctorId == doctorId && study.ScheduledStart == scheduledStart, cancellationToken);
-
     public void Add(Study study) => db.Studies.Add(study);
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken)

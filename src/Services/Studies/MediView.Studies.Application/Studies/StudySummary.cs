@@ -11,7 +11,6 @@ public sealed record StudySummary(
     Guid DoctorId,
     string DoctorName,
     DateTimeOffset ScheduledStart,
-    StudyPriority Priority,
     StudyStatus Status,
     bool ImagesImported)
 {
@@ -23,15 +22,6 @@ public sealed record StudySummary(
         study.DoctorId,
         study.DoctorName,
         study.ScheduledStart,
-        study.Priority,
         study.Status,
         study.ImagesImportedAt != null);
-}
-
-public static class WorklistOrdering
-{
-    public static IOrderedQueryable<Study> InWorklistOrder(this IQueryable<Study> studies) =>
-        studies
-            .OrderBy(study => study.Priority == StudyPriority.Stat ? 0 : study.Priority == StudyPriority.Urgent ? 1 : 2)
-            .ThenBy(study => study.ScheduledStart);
 }

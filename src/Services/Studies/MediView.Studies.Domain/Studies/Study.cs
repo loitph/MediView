@@ -27,7 +27,6 @@ public sealed class Study : AggregateRoot<Guid>
     public Guid DoctorId { get; private set; }
     public string DoctorName { get; private set; } = null!;
     public DateTimeOffset ScheduledStart { get; private set; }
-    public StudyPriority Priority { get; private set; }
     public StudyStatus Status { get; private set; }
     public DateTimeOffset? ImagesImportedAt { get; private set; }
     public IReadOnlyCollection<StudyStatusHistory> History => _history.AsReadOnly();
@@ -39,7 +38,6 @@ public sealed class Study : AggregateRoot<Guid>
         Guid doctorId,
         string doctorName,
         DateTimeOffset scheduledStart,
-        StudyPriority priority,
         DateTimeOffset now)
     {
         var study = new Study
@@ -51,7 +49,6 @@ public sealed class Study : AggregateRoot<Guid>
             DoctorId = doctorId,
             DoctorName = doctorName,
             ScheduledStart = scheduledStart,
-            Priority = priority,
             Status = StudyStatus.ToDo,
         };
         study._history.Add(StudyStatusHistory.Record(null, StudyStatus.ToDo, patientId, null, now));
@@ -81,7 +78,7 @@ public sealed class Study : AggregateRoot<Guid>
 
     public void AdminOverride(StudyStatus to, Guid adminId, string reason, DateTimeOffset now)
     {
-        var justification = RequireReason(reason, "An override");
+        var justification = RequireReason(reason);
 
         if (to == Status)
         {
@@ -91,11 +88,11 @@ public sealed class Study : AggregateRoot<Guid>
         Apply(to, adminId, justification, now);
     }
 
-    private string RequireReason(string? reason, string action)
+    private string RequireReason(string? reason)
     {
         if (string.IsNullOrWhiteSpace(reason))
         {
-            throw new DomainException($"{action} of study {Id} requires a reason.");
+            throw new DomainException($"An override of study {Id} requires a reason.");
         }
 
         var trimmed = reason.Trim();

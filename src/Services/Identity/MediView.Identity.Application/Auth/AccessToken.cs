@@ -1,3 +1,3 @@
 namespace MediView.Identity.Application.Auth;
 
-public sealed record AccessToken(string Token, DateTimeOffset ExpiresAt);
+public sealed record AccessToken(string Token);

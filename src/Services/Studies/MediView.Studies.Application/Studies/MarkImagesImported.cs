@@ -15,12 +15,8 @@ internal sealed class MarkImagesImportedCommandHandler(IStudyRepository studies,
             return Result.Failure(StudyErrors.NotFound(request.StudyId));
         }
 
-        if (study.ImagesImportedAt is null)
-        {
-            study.MarkImagesImported(timeProvider.GetUtcNow());
-            await studies.SaveChangesAsync(cancellationToken);
-        }
-
+        study.MarkImagesImported(timeProvider.GetUtcNow());
+        await studies.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
 }

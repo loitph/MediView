@@ -6,12 +6,11 @@ namespace MediView.Reporting.Application.Reports;
 public static class ReportErrors
 {
     public static readonly Error StudyNotUpdated = new(
-        "report.study_not_updated",
         "The report is finalized, but the study could not be moved. Finalize again to retry.");
 
-    public static Error NotFound(Guid reportId) => new("report.not_found", $"Report {reportId} does not exist.");
+    public static Error NotFound(Guid reportId) => new($"Report {reportId} does not exist.");
 
-    public static Error StudyNotFound(Guid studyId) => new("report.study_not_found", $"Study {studyId} does not exist.");
+    public static Error StudyNotFound(Guid studyId) => new($"Study {studyId} does not exist.");
 
     public static ConflictException NotReader(Guid studyId) =>
         new($"You are not reading study {studyId}. Open the study to write its report.");

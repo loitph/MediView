@@ -35,11 +35,6 @@ internal sealed class BookCheckupCommandHandler(
             return Result.Failure<BookedStudy>(BookingErrors.OutsideSchedule);
         }
 
-        if (await studies.IsSlotTakenAsync(doctor.Id, start, cancellationToken))
-        {
-            throw BookingErrors.SlotTaken();
-        }
-
         var study = Study.Book(
             patient.UserId,
             patient.FullName,
@@ -47,7 +42,6 @@ internal sealed class BookCheckupCommandHandler(
             doctor.Id,
             doctor.FullName,
             start,
-            StudyPriority.Routine,
             timeProvider.GetUtcNow());
 
         studies.Add(study);

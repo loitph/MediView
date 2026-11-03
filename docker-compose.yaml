@@ -19,24 +19,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-    networks: [mediview]
-
-  seq:
-    image: datalust/seq:2024.3
-    container_name: mediview-seq
-    restart: unless-stopped
-    environment:
-      ACCEPT_EULA: "Y"
-    ports:
-      - "${SEQ_PORT}:80"
-    volumes:
-      - seqdata:/data
-    networks: [mediview]
 
 volumes:
   pgdata:
-  seqdata:
-
-networks:
-  mediview:
-    driver: bridge

@@ -1,8 +1,8 @@
 namespace MediView.BuildingBlocks.Application;
 
-public sealed record Error(string Code, string Message)
+public sealed record Error(string Message)
 {
-    public static readonly Error None = new(string.Empty, string.Empty);
+    public static readonly Error None = new(string.Empty);
 }
 
 public class Result

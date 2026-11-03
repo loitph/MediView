@@ -3,7 +3,6 @@ using MediView.BuildingBlocks.Api;
 using MediView.Identity.Api.Auth;
 using MediView.Identity.Api.Doctors;
 using MediView.Identity.Api.Internal;
-using MediView.Identity.Api.Users;
 using MediView.Identity.Application;
 using MediView.Identity.Application.Auth;
 using MediView.Identity.Infrastructure;
@@ -22,7 +21,6 @@ app.UseApiDefaults();
 app.MapAuthEndpoints();
 app.MapDoctorEndpoints();
 app.MapInternalEndpoints();
-app.MapUserEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

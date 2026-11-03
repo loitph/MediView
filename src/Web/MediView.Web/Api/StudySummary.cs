@@ -7,6 +7,5 @@ public sealed record StudySummary(
     string PatientMrn,
     string DoctorName,
     DateTimeOffset ScheduledStart,
-    StudyPriority Priority,
     StudyStatus Status,
     bool ImagesImported);

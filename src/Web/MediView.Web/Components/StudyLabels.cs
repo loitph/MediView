@@ -21,12 +21,4 @@ public static class StudyLabels
         StudyStatus.Done => "done",
         _ => throw new ArgumentOutOfRangeException(nameof(status), status, null),
     };
-
-    public static string CssModifier(this StudyPriority priority) => priority switch
-    {
-        StudyPriority.Routine => "routine",
-        StudyPriority.Urgent => "urgent",
-        StudyPriority.Stat => "stat",
-        _ => throw new ArgumentOutOfRangeException(nameof(priority), priority, null),
-    };
 }
