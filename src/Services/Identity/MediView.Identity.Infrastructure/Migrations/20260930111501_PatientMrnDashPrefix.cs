@@ -4,10 +4,8 @@
 
 namespace MediView.Identity.Infrastructure.Migrations
 {
-    /// <inheritdoc />
     public partial class PatientMrnDashPrefix : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterColumn<string>(
@@ -24,7 +22,6 @@ namespace MediView.Identity.Infrastructure.Migrations
                 oldDefaultValueSql: "'MRN' || nextval('identity.patient_mrn_seq')");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterColumn<string>(

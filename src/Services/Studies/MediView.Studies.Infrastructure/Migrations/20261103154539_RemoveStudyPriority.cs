@@ -4,10 +4,8 @@
 
 namespace MediView.Studies.Infrastructure.Migrations
 {
-    /// <inheritdoc />
     public partial class RemoveStudyPriority : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
@@ -16,7 +14,6 @@ namespace MediView.Studies.Infrastructure.Migrations
                 table: "studies");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(

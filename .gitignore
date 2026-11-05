@@ -484,10 +484,3 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
-
-# Agent
-/static-graph
-/plan
-CLAUDE.md
-static-graph/
-.claude/
