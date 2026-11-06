@@ -1,26 +1,24 @@
 @page "/studies/{StudyId:guid}/read"
 @layout ViewportLayout
-@using System.Net
 @implements IAsyncDisposable
 @inject MediViewApi Api
 @inject TokenStore Tokens
 @inject IJSRuntime JS
-@inject ClinicTime Clinic
 @inject NavigationManager Navigation
 
 <PageTitle>@(study is null ? "Read" : $"Read {study.StudyNumber}") · MediView</PageTitle>
 
-<AuthorizeView Roles="@MediViewRoles.Doctor" Context="doctor">
+<AuthorizeView Roles="@Roles.Doctor" Context="doctor">
     <Authorized>
         <div class="mv-viewport viewport @(IsReadOnly ? "viewport--read-only" : null)">
             <header class="viewport__bar">
-                <a class="viewport__back" href="@LandingPage.Worklist">← Worklist</a>
+                <a class="viewport__back" href="worklist">← Worklist</a>
 
                 <div class="viewport__study">
                     @if (study is not null)
                     {
                         <h1 class="viewport__patient">@study.PatientName</h1>
-                        <span class="viewport__meta">@study.PatientMrn · @study.StudyNumber · @Clinic.WeekdayAndTime(study.ScheduledStart)</span>
+                        <span class="viewport__meta">@study.PatientMrn · @study.StudyNumber · @ClinicTime.WeekdayAndTime(study.ScheduledStart)</span>
                     }
                 </div>
 
@@ -29,13 +27,13 @@
                     {
                         <StatusBadge Status="study.Status" />
                     }
-                    <span class="mv-avatar mv-avatar--doctor" aria-hidden="true">@Initials.Of(doctor.User.DisplayName())</span>
+                    <span class="mv-avatar mv-avatar--doctor" aria-hidden="true">@Initials.Of(doctor.User.GetName())</span>
                 </div>
             </header>
 
-            @if (IsReadOnly && access != Access.Opening)
+            @if (access == Access.ReadOnly)
             {
-                <p class="viewport__banner" role="status"><strong>Read-only</strong> @ReadOnlyReason</p>
+                <p class="viewport__banner" role="status"><strong>Read-only</strong> · @refusal</p>
             }
 
             <div class="viewport__body">
@@ -61,47 +59,41 @@
                         @if (study is not null && imageCount > 0)
                         {
                             <span class="overlay overlay--top-left">@study.PatientName<br />@study.PatientMrn</span>
-                            <span class="overlay overlay--top-right">@study.StudyNumber<br />@Clinic.DayAndTime(study.ScheduledStart)</span>
+                            <span class="overlay overlay--top-right">@study.StudyNumber<br />@ClinicTime.DayAndTime(study.ScheduledStart)</span>
                             <span class="overlay overlay--bottom-left">Image @(imageIndex + 1) / @imageCount</span>
-                            <span class="overlay overlay--bottom-right">@ActiveToolLabel · drag<br />Scroll · wheel</span>
+                            <span class="overlay overlay--bottom-right">@ActiveToolLabel() · drag<br />Scroll · wheel</span>
                         }
 
-                        @if (StageMessage is { } message)
+                        @if (StageMessage() is { } message)
                         {
                             <p class="viewport__placeholder">@message</p>
                         }
                     </div>
 
                     <footer class="viewport__footer">
-                        <span>@(imageCount > 0 ? $"{imageCount} images · {SeriesCount} series" : "No images")</span>
-                        <span>Left drag · @ActiveToolLabel — wheel · scroll — Reset restores the view</span>
+                        <span>@(imageCount > 0 ? $"{imageCount} images · {SeriesCount()} series" : "No images")</span>
+                        <span>Left drag · @ActiveToolLabel() — wheel · scroll — Reset restores the view</span>
                     </footer>
                 </section>
 
                 <aside class="viewport__panel" aria-label="Report">
-                    @switch (access)
+                    @if (access == Access.Reading)
                     {
-                        case Access.Reading:
-                            <ReportPanel StudyId="StudyId" Editable="true" OnFinalized="Finished" />
-                            break;
-                        case Access.Refused:
-                            <div class="viewport__notice">
-                                <span class="viewport__eyebrow">Read-only</span>
-                                <p class="viewport__panel-text">@refusal</p>
-                            </div>
-                            <ReportPanel StudyId="StudyId" />
-                            break;
-                        case Access.NotFound:
-                            <div class="viewport__notice">
-                                <h2 class="viewport__panel-title">Study not found</h2>
-                                <p class="viewport__panel-text">It may have been removed. Go back to the worklist.</p>
-                            </div>
-                            break;
-                        default:
-                            <div class="viewport__notice">
-                                <p class="viewport__panel-text">@(access == Access.Finished ? "Report finalized." : "Opening the study…")</p>
-                            </div>
-                            break;
+                        <ReportPanel StudyId="StudyId" Editable="true" OnFinalized="Finished" />
+                    }
+                    else if (access == Access.ReadOnly)
+                    {
+                        <div class="viewport__notice">
+                            <span class="viewport__eyebrow">Read-only</span>
+                            <p class="viewport__panel-text">@refusal</p>
+                        </div>
+                        <ReportPanel StudyId="StudyId" />
+                    }
+                    else
+                    {
+                        <div class="viewport__notice">
+                            <p class="viewport__panel-text">@(access == Access.Finished ? "Report finalized." : "Opening the study…")</p>
+                        </div>
                     }
                 </aside>
             </div>
@@ -115,7 +107,7 @@
 </AuthorizeView>
 
 @code {
-    private static readonly ViewerTool[] Tools =
+    private static readonly List<ViewerTool> Tools =
     [
         new("windowLevel", "W/L", "◐"),
         new("pan", "Pan", "✥"),
@@ -125,11 +117,11 @@
     private Access access = Access.Opening;
     private string? refusal;
     private StudySummary? study;
-    private IReadOnlyList<InstanceSummary> instances = [];
+    private List<InstanceSummary> instances = [];
     private ElementReference canvas;
     private IJSObjectReference? viewer;
     private DotNetObjectReference<Read>? listener;
-    private bool viewerRequested;
+    private bool viewerStarted;
     private bool viewerFailed;
     private int imageIndex;
     private int imageCount;
@@ -139,9 +131,8 @@
     {
         Opening,
         Reading,
+        ReadOnly,
         Finished,
-        Refused,
-        NotFound,
     }
 
     [Parameter]
@@ -150,59 +141,76 @@
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationState { get; set; } = null!;
 
-    private bool IsReadOnly => access is not (Access.Reading or Access.Finished);
+    private bool IsReadOnly => access == Access.Opening || access == Access.ReadOnly;
 
-    private string ReadOnlyReason => access switch
+    private string ActiveToolLabel() => Tools.First(tool => tool.Name == activeTool).Label;
+
+    private int SeriesCount() => instances.Select(instance => instance.SeriesInstanceUid).Distinct().Count();
+
+    private string? StageMessage()
     {
-        Access.NotFound => "· this study does not exist.",
-        _ => $"· {refusal}",
-    };
+        if (access == Access.Opening)
+        {
+            return "Opening the study…";
+        }
 
-    private string ActiveToolLabel => Tools.Single(tool => tool.Name == activeTool).Label;
+        if (study is null)
+        {
+            return "Study not found";
+        }
 
-    private int SeriesCount => instances.Select(instance => instance.SeriesInstanceUid).Distinct().Count();
+        if (instances.Count == 0)
+        {
+            return "Awaiting images";
+        }
 
-    private string? StageMessage => (access, instances.Count, viewerFailed, imageCount) switch
-    {
-        (Access.Opening, _, _, _) => "Opening the study…",
-        (Access.NotFound, _, _, _) => "Study not found",
-        (_, 0, _, _) => "Awaiting images",
-        (_, _, true, _) => "The images could not be displayed.",
-        (_, _, _, 0) => "Loading images…",
-        _ => null,
-    };
+        if (viewerFailed)
+        {
+            return "The images could not be displayed.";
+        }
+
+        if (imageCount == 0)
+        {
+            return "Loading images…";
+        }
+
+        return null;
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        if (!(await AuthenticationState).User.IsInRole(MediViewRoles.Doctor))
+        var auth = await AuthenticationState;
+        if (!auth.User.IsInRole(Roles.Doctor))
         {
             return;
         }
 
-        await OpenAsync();
-        if (access == Access.NotFound)
-        {
-            return;
-        }
+        refusal = await Api.OpenStudyAsync(StudyId);
+        access = refusal is null ? Access.Reading : Access.ReadOnly;
 
-        study = (await Api.GetStudyAsync(StudyId))?.Study;
-        instances = study is null ? [] : await Api.ListInstancesAsync(StudyId);
+        var detail = await Api.GetStudyAsync(StudyId);
+        study = detail?.Study;
+        if (study is not null)
+        {
+            instances = await Api.ListInstancesAsync(StudyId);
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (viewerRequested || instances.Count == 0 || string.IsNullOrEmpty(canvas.Id))
+        if (viewerStarted || instances.Count == 0 || string.IsNullOrEmpty(canvas.Id))
         {
             return;
         }
 
-        viewerRequested = true;
+        viewerStarted = true;
         try
         {
             viewer = await JS.InvokeAsync<IJSObjectReference>("import", "./js/viewport.js");
             listener = DotNetObjectReference.Create(this);
             await viewer.InvokeVoidAsync("init", canvas, await Tokens.GetAsync(), listener);
-            var fileUrls = instances.Select(instance => instance.FileUrl).ToList();
+
+            var fileUrls = instances.Select(instance => $"api/imaging/instances/{instance.Id}/file").ToList();
             imageCount = await viewer.InvokeAsync<int>("loadStack", fileUrls);
         }
         catch (JSException)
@@ -220,22 +228,10 @@
         StateHasChanged();
     }
 
-    private async Task OpenAsync()
-    {
-        var opening = await Api.OpenStudyAsync(StudyId);
-        access = opening switch
-        {
-            { Succeeded: true } => Access.Reading,
-            { StatusCode: HttpStatusCode.NotFound } => Access.NotFound,
-            _ => Access.Refused,
-        };
-        refusal = opening.Problem;
-    }
-
     private void Finished()
     {
         access = Access.Finished;
-        Navigation.NavigateTo(LandingPage.Worklist);
+        Navigation.NavigateTo("worklist");
     }
 
     private async Task SetToolAsync(string name)
@@ -259,26 +255,20 @@
 
     public async ValueTask DisposeAsync()
     {
-        await DisposeViewerAsync();
+        if (viewer is not null)
+        {
+            try
+            {
+                await viewer.InvokeVoidAsync("dispose");
+                await viewer.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
         listener?.Dispose();
     }
 
-    private async Task DisposeViewerAsync()
-    {
-        if (viewer is null)
-        {
-            return;
-        }
-
-        try
-        {
-            await viewer.InvokeVoidAsync("dispose");
-            await viewer.DisposeAsync();
-        }
-        catch (JSDisconnectedException)
-        {
-        }
-    }
-
-    private sealed record ViewerTool(string Name, string Label, string Glyph);
+    private record ViewerTool(string Name, string Label, string Glyph);
 }

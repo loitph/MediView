@@ -1,26 +1,29 @@
-using System.Text.Json.Serialization;
-using MediView.BuildingBlocks.Api;
-using MediView.Studies.Api.Booking;
-using MediView.Studies.Api.Studies;
-using MediView.Studies.Application;
-using MediView.Studies.Infrastructure;
+using MediView.Shared;
+using MediView.Studies.Api;
+using MediView.Studies.Api.Data;
+using MediView.Studies.Api.Endpoints;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.AddApiDefaults();
-builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-builder.Services.AddStudiesApplication();
-builder.Services.AddStudiesInfrastructure(builder.Configuration);
-builder.Services.AddSingleton(TimeProvider.System);
+builder.AddServiceDefaults();
+builder.Services.AddDbContext<StudiesDbContext>(options => options
+    .UseNpgsql(
+        builder.Configuration.GetConnectionString("Postgres"),
+        npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", "studies"))
+    .UseSnakeCaseNamingConvention());
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<IdentityClient>(client =>
+    client.BaseAddress = new Uri(builder.Configuration["Identity:BaseAddress"]!));
 
 var app = builder.Build();
-app.UseApiDefaults();
+app.UseServiceDefaults();
 app.MapAppointmentEndpoints();
 app.MapStudyEndpoints();
-app.MapInternalStudyEndpoints();
 
 if (app.Environment.IsDevelopment())
 {
-    app.Services.MigrateStudiesDatabase();
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<StudiesDbContext>().Database.Migrate();
 }
 
 app.Run();

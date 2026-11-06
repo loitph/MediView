@@ -1,20 +1,27 @@
 using System.Security.Claims;
-using MediView.BuildingBlocks.Api.Auth;
+using MediView.Shared;
 
 namespace MediView.Web.Auth;
 
 public static class LandingPage
 {
-    public const string Home = "";
-    public const string AdminDoctors = "admin/doctors";
-    public const string Worklist = "worklist";
-    public const string MyStudies = "my-studies";
-
-    public static string For(ClaimsPrincipal user) => user switch
+    public static string For(ClaimsPrincipal user)
     {
-        _ when user.IsInRole(MediViewRoles.Admin) => AdminDoctors,
-        _ when user.IsInRole(MediViewRoles.Doctor) => Worklist,
-        _ when user.IsInRole(MediViewRoles.Patient) => MyStudies,
-        _ => Home,
-    };
+        if (user.IsInRole(Roles.Admin))
+        {
+            return "admin/doctors";
+        }
+
+        if (user.IsInRole(Roles.Doctor))
+        {
+            return "worklist";
+        }
+
+        if (user.IsInRole(Roles.Patient))
+        {
+            return "my-studies";
+        }
+
+        return "";
+    }
 }

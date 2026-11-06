@@ -1,31 +1,33 @@
-using System.Text.Json.Serialization;
-using MediView.BuildingBlocks.Api;
-using MediView.Identity.Api.Auth;
-using MediView.Identity.Api.Doctors;
-using MediView.Identity.Api.Internal;
-using MediView.Identity.Application;
-using MediView.Identity.Application.Auth;
-using MediView.Identity.Infrastructure;
+using MediView.Identity.Api;
+using MediView.Identity.Api.Data;
+using MediView.Identity.Api.Endpoints;
+using MediView.Identity.Api.Entities;
+using MediView.Shared;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.AddApiDefaults();
-builder.Services.AddValidation();
-builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-builder.Services.AddIdentityApplication();
-builder.Services.AddIdentityInfrastructure(builder.Configuration);
-builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
+builder.AddServiceDefaults();
+builder.Services.AddDbContext<IdentityDbContext>(options => options
+    .UseNpgsql(
+        builder.Configuration.GetConnectionString("Postgres"),
+        npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", "identity"))
+    .UseSnakeCaseNamingConvention());
+builder.Services.AddSingleton<PasswordHasher<User>>();
+builder.Services.AddSingleton<TokenService>();
 
 var app = builder.Build();
-app.UseApiDefaults();
+app.UseServiceDefaults();
 app.MapAuthEndpoints();
 app.MapDoctorEndpoints();
-app.MapInternalEndpoints();
+app.MapPatientEndpoints();
 
 if (app.Environment.IsDevelopment())
 {
-    app.Services.MigrateIdentityDatabase();
-    app.Services.SeedIdentityDatabase();
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+    db.Database.Migrate();
+    SeedData.AddDemoAccounts(db, app.Services.GetRequiredService<PasswordHasher<User>>());
 }
 
 app.Run();

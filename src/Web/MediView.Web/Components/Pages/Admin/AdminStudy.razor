@@ -1,10 +1,9 @@
 @page "/admin/studies/{StudyId:guid}"
 @inject MediViewApi Api
-@inject ClinicTime Clinic
 
-<AuthorizeView Roles="@MediViewRoles.Admin" Context="admin">
+<AuthorizeView Roles="@Roles.Admin" Context="admin">
     <Authorized>
-        <TopBar Title="@(detail?.Study.StudyNumber ?? "Study")" Meta="@(detail is null ? null : $"{detail.Study.DoctorName} · {Clinic.WeekdayAndTime(detail.Study.ScheduledStart)}")">
+        <TopBar Title="@(detail?.Study.StudyNumber ?? "Study")" Meta="@(detail is null ? null : $"{detail.Study.DoctorName} · {ClinicTime.WeekdayAndTime(detail.Study.ScheduledStart)}")">
             @if (detail is not null)
             {
                 <StatusBadge Status="detail.Study.Status" />
@@ -31,7 +30,7 @@
                             @foreach (var change in detail?.History ?? [])
                             {
                                 <tr>
-                                    <td class="mv-mono">@Clinic.DayAndTime(change.ChangedAt)</td>
+                                    <td class="mv-mono">@ClinicTime.DayAndTime(change.ChangedAt)</td>
                                     <td>@Describe(change)</td>
                                     <td>@ActorName(change.ChangedBy)</td>
                                     <td class="reason">@change.Reason</td>
@@ -107,7 +106,7 @@
                                 <p class="mv-callout mv-callout--info" role="status">@confirmation</p>
                             }
 
-                            <button type="button" class="mv-button mv-button--primary mv-button--block" disabled="@(busy || !HasReason)" @onclick="OverrideAsync">Override status</button>
+                            <button type="button" class="mv-button mv-button--primary mv-button--block" disabled="@(busy || string.IsNullOrWhiteSpace(reason))" @onclick="OverrideAsync">Override status</button>
                         </div>
                     </div>
 
@@ -127,12 +126,12 @@
 </AuthorizeView>
 
 @code {
-    private static readonly StudyStatus[] Statuses =
+    private static readonly List<StudyStatus> Statuses =
         [StudyStatus.ToDo, StudyStatus.InProgress, StudyStatus.ReDiagnosis, StudyStatus.Done];
 
     private StudyDetail? detail;
     private StudyStatus target;
-    private string reason = string.Empty;
+    private string reason = "";
     private string? failure;
     private string? confirmation;
     private bool missing;
@@ -144,11 +143,10 @@
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationState { get; set; } = null!;
 
-    private bool HasReason => !string.IsNullOrWhiteSpace(reason);
-
     protected override async Task OnInitializedAsync()
     {
-        if ((await AuthenticationState).User.IsInRole(MediViewRoles.Admin))
+        var auth = await AuthenticationState;
+        if (auth.User.IsInRole(Roles.Admin))
         {
             await LoadAsync();
         }
@@ -161,41 +159,39 @@
         target = Statuses.FirstOrDefault(status => status != detail?.Study.Status);
     }
 
-    private string Describe(StatusChange change) => change switch
+    private static string Describe(StatusChange change)
     {
-        { From: null } => $"Booked · {change.To.Label()}",
-        _ => $"{change.From!.Value.Label()} → {change.To.Label()}",
-    };
+        if (change.From is null)
+        {
+            return $"Booked · {change.To.Label()}";
+        }
 
-    private string ActorName(StudyActor actor) => actor switch
+        return $"{change.From.Value.Label()} → {change.To.Label()}";
+    }
+
+    private string ActorName(StudyActor actor)
     {
-        StudyActor.Patient => detail?.Study.PatientName ?? "Patient",
-        StudyActor.Doctor => detail?.Study.DoctorName ?? "Doctor",
-        _ => "Admin",
-    };
+        return actor switch
+        {
+            StudyActor.Patient => detail?.Study.PatientName ?? "Patient",
+            StudyActor.Doctor => detail?.Study.DoctorName ?? "Doctor",
+            _ => "Admin",
+        };
+    }
 
     private async Task OverrideAsync()
     {
         busy = true;
-        failure = null;
         confirmation = null;
 
-        try
+        failure = await Api.OverrideStudyAsync(StudyId, target, reason);
+        if (failure is null)
         {
-            var outcome = await Api.OverrideStudyAsync(StudyId, target, reason);
-            if (!outcome.Succeeded)
-            {
-                failure = outcome.Problem;
-                return;
-            }
-
             confirmation = $"Moved to {target.Label()}.";
-            reason = string.Empty;
+            reason = "";
             await LoadAsync();
         }
-        finally
-        {
-            busy = false;
-        }
+
+        busy = false;
     }
 }

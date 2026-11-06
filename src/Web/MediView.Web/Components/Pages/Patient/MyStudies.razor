@@ -1,11 +1,9 @@
 @page "/my-studies"
 @inject MediViewApi Api
-@inject ClinicTime Clinic
-@inject TimeProvider TimeProvider
 
-<AuthorizeView Roles="@MediViewRoles.Patient" Context="patient">
+<AuthorizeView Roles="@Roles.Patient" Context="patient">
     <Authorized>
-        <TopBar Title="My studies" Meta="@Meta">
+        <TopBar Title="My studies" Meta="@(studies is null ? null : $"{studies.Count} booked")">
             <a href="book" class="mv-button mv-button--primary mv-button--compact">Book a checkup</a>
         </TopBar>
 
@@ -28,7 +26,7 @@
                                 var isSelected = study.Id == detail?.Study.Id;
                                 <tr @key="study.Id" class="@(isSelected ? "mv-table__row--selected" : null)">
                                     <td class="mv-mono">@study.StudyNumber</td>
-                                    <td class="mv-mono">@Clinic.WeekdayAndTime(study.ScheduledStart)</td>
+                                    <td class="mv-mono">@ClinicTime.WeekdayAndTime(study.ScheduledStart)</td>
                                     <td>@study.DoctorName</td>
                                     <td><StatusBadge Status="study.Status" /></td>
                                     <td class="mv-table__action">
@@ -58,14 +56,18 @@
                         </div>
                         <div class="mv-card__body">
                             <ol class="timeline">
-                                @foreach (var step in TimelineOf(detail))
+                                @{ var steps = TimelineSteps(); }
+                                @for (var i = 0; i < steps.Count; i++)
                                 {
-                                    <li class="timeline__step @(step.Reached ? "timeline__step--reached" : "timeline__step--upcoming")">
+                                    var step = steps[i];
+                                    var isLast = i == steps.Count - 1;
+                                    var nextReached = !isLast && steps[i + 1].When is not null;
+                                    <li class="timeline__step @(step.When is not null ? "timeline__step--reached" : "timeline__step--upcoming")">
                                         <span class="timeline__track" aria-hidden="true">
                                             <span class="timeline__dot"></span>
-                                            @if (!step.IsLast)
+                                            @if (!isLast)
                                             {
-                                                <span class="timeline__bar @(step.LeadsToReached ? "timeline__bar--reached" : null)"></span>
+                                                <span class="timeline__bar @(nextReached ? "timeline__bar--reached" : null)"></span>
                                             }
                                         </span>
                                         <span class="timeline__label">@step.Status.Label()</span>
@@ -93,7 +95,7 @@
                         <div @key="report.Id" class="mv-card">
                             <div class="mv-card__header">
                                 <h2 class="mv-card__title">Result</h2>
-                                <span class="mv-card__meta">@report.DoctorName · @(report.FinalizedAt is { } at ? Clinic.DayAndTime(at) : null)</span>
+                                <span class="mv-card__meta">@report.DoctorName · @(report.FinalizedAt is { } at ? ClinicTime.DayAndTime(at) : null)</span>
                             </div>
                             <div class="mv-card__body">
                                 @if (report.Decision == ReportDecision.ReDiagnosis)
@@ -166,7 +168,7 @@
                                 </div>
                                 <div class="mv-facts__row">
                                     <dt>Scheduled</dt>
-                                    <dd class="mv-mono">@Clinic.WeekdayAndTime(detail.Study.ScheduledStart)</dd>
+                                    <dd class="mv-mono">@ClinicTime.WeekdayAndTime(detail.Study.ScheduledStart)</dd>
                                 </div>
                                 <div class="mv-facts__row">
                                     <dt>X-rays</dt>
@@ -202,22 +204,20 @@
 </AuthorizeView>
 
 @code {
-    private IReadOnlyList<StudySummary>? studies;
+    private List<StudySummary>? studies;
     private StudyDetail? detail;
-    private IReadOnlyList<ReportView> reports = [];
-
-    private string? Meta => studies is null ? null : $"{studies.Count} booked";
+    private List<ReportView> reports = [];
 
     protected override async Task OnInitializedAsync()
     {
         studies = await Api.ListStudiesAsync();
-
-        if (studies.Count > 0)
+        if (studies.Count == 0)
         {
-            var now = TimeProvider.GetUtcNow();
-            var nextVisit = studies.FirstOrDefault(study => study.ScheduledStart >= now) ?? studies[^1];
-            await SelectAsync(nextVisit.Id);
+            return;
         }
+
+        var nextVisit = studies.FirstOrDefault(study => study.ScheduledStart >= DateTimeOffset.UtcNow) ?? studies[^1];
+        await SelectAsync(nextVisit.Id);
     }
 
     private async Task SelectAsync(Guid studyId)
@@ -226,44 +226,48 @@
         reports = await Api.ListReportsAsync(studyId);
     }
 
-    private List<TimelineStep> TimelineOf(StudyDetail study)
+    private List<TimelineStep> TimelineSteps()
     {
-        List<(StudyStatus Status, string? When)> milestones =
-        [
-            .. study.History.Select(change => (change.To, (string?)WhenAndWho(change, study.Study))),
-            .. StillAhead(study.Study.Status).Select(status => (status, (string?)null)),
-        ];
+        var steps = new List<TimelineStep>();
+        if (detail is null)
+        {
+            return steps;
+        }
 
-        return
-        [
-            .. milestones.Select((milestone, index) => new TimelineStep(
-                milestone.Status,
-                milestone.When,
-                LeadsToReached: index + 1 < milestones.Count && milestones[index + 1].When is not null,
-                IsLast: index == milestones.Count - 1)),
-        ];
+        foreach (var change in detail.History)
+        {
+            var who = WhoChanged(change.ChangedBy);
+            steps.Add(new TimelineStep(change.To, $"{ClinicTime.DayAndTime(change.ChangedAt)} · {who}"));
+        }
+
+        foreach (var status in StepsStillAhead(detail.Study.Status))
+        {
+            steps.Add(new TimelineStep(status, null));
+        }
+
+        return steps;
     }
 
-    private string WhenAndWho(StatusChange change, StudySummary study) =>
-        $"{Clinic.DayAndTime(change.ChangedAt)} · {ActorName(change.ChangedBy, study)}";
-
-    private static StudyStatus[] StillAhead(StudyStatus current) => current switch
+    private static List<StudyStatus> StepsStillAhead(StudyStatus current)
     {
-        StudyStatus.ToDo => [StudyStatus.InProgress, StudyStatus.Done],
-        StudyStatus.InProgress => [StudyStatus.Done],
-        StudyStatus.ReDiagnosis => [StudyStatus.InProgress, StudyStatus.Done],
-        _ => [],
-    };
-
-    private static string ActorName(StudyActor actor, StudySummary study) => actor switch
-    {
-        StudyActor.Patient => "You",
-        StudyActor.Doctor => study.DoctorName,
-        _ => "Admin",
-    };
-
-    private sealed record TimelineStep(StudyStatus Status, string? When, bool LeadsToReached, bool IsLast)
-    {
-        public bool Reached => When is not null;
+        return current switch
+        {
+            StudyStatus.ToDo => [StudyStatus.InProgress, StudyStatus.Done],
+            StudyStatus.InProgress => [StudyStatus.Done],
+            StudyStatus.ReDiagnosis => [StudyStatus.InProgress, StudyStatus.Done],
+            _ => [],
+        };
     }
+
+    private string WhoChanged(StudyActor actor)
+    {
+        return actor switch
+        {
+            StudyActor.Patient => "You",
+            StudyActor.Doctor => detail?.Study.DoctorName ?? "Doctor",
+            _ => "Admin",
+        };
+    }
+
+    private record TimelineStep(StudyStatus Status, string? When);
 }

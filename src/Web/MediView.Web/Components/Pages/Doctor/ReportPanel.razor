@@ -1,7 +1,4 @@
-@using System.Net
 @inject MediViewApi Api
-@inject ClinicTime Clinic
-@inject TimeProvider TimeProvider
 
 <div class="report">
     <div class="report__scroll">
@@ -49,21 +46,22 @@
                         <input class="report__input" placeholder="Dosage" aria-label="Dosage" @bind="newMedication.Dosage" disabled="@busy" />
                         <input class="report__input" placeholder="Frequency" aria-label="Frequency" @bind="newMedication.Frequency" disabled="@busy" />
                         <input class="report__input" placeholder="Duration" aria-label="Duration" @bind="newMedication.Duration" disabled="@busy" />
-                        <button type="button" class="report__secondary meds__add" disabled="@(busy || !newMedication.IsComplete)" @onclick="AddMedicationAsync">Add medication</button>
+                        <button type="button" class="report__secondary meds__add" disabled="@(busy || !newMedication.IsComplete())" @onclick="AddMedicationAsync">Add medication</button>
                     </div>
                 </div>
             }
         }
 
-        @if (Finalized.Count > 0)
+        @{ var finalizedReports = FinalizedReports(); }
+        @if (finalizedReports.Count > 0)
         {
             <div class="report__heading report__heading--history">
                 <span class="report__eyebrow">@(Editable ? "Earlier reports" : "Finalized reports")</span>
             </div>
-            @foreach (var report in Finalized)
+            @foreach (var report in finalizedReports)
             {
                 <article @key="report.Id" class="earlier">
-                    <span class="earlier__meta">@(report.FinalizedAt is { } at ? Clinic.DayAndTime(at) : null) · @report.DoctorName · @DecisionLabel(report.Decision)</span>
+                    <span class="earlier__meta">@(report.FinalizedAt is null ? null : ClinicTime.DayAndTime(report.FinalizedAt.Value)) · @report.DoctorName · @DecisionLabel(report.Decision)</span>
                     <p class="earlier__impression">@report.Impression</p>
                     <p class="earlier__findings">@report.Findings</p>
                     @foreach (var medication in report.Medications)
@@ -91,36 +89,33 @@
                 @foreach (var option in Decisions)
                 {
                     var isChosen = option == decision;
-                    <button type="button" role="radio" aria-checked="@(isChosen ? "true" : "false")" class="decision__option @(isChosen ? "decision__option--chosen" : null)" disabled="@(busy || finalizePending)" @onclick="() => decision = option">
+                    <button type="button" role="radio" aria-checked="@(isChosen ? "true" : "false")" class="decision__option @(isChosen ? "decision__option--chosen" : null)" disabled="@busy" @onclick="() => decision = option">
                         @DecisionLabel(option)
                     </button>
                 }
             </div>
 
-            <button type="button" class="report__primary" disabled="@(busy || !CanFinalize)" @onclick="FinalizeAsync">
-                @(finalizePending ? "Retry finalize" : "Finalize")
-            </button>
+            <button type="button" class="report__primary" disabled="@(busy || !CanFinalize())" @onclick="FinalizeAsync">Finalize</button>
         </div>
     }
 </div>
 
 @code {
-    private static readonly ReportDecision[] Decisions = [ReportDecision.Complete, ReportDecision.ReDiagnosis];
+    private static readonly List<ReportDecision> Decisions = [ReportDecision.Complete, ReportDecision.ReDiagnosis];
 
-    private Task saving = Task.CompletedTask;
-    private IReadOnlyList<ReportView>? reports;
+    private List<ReportView>? reports;
     private ReportView? draft;
     private string? findings;
     private string? impression;
     private string? savedFindings;
     private string? savedImpression;
+    private Task lastSave = Task.CompletedTask;
     private NewMedication newMedication = new();
     private ReportDecision decision = ReportDecision.Complete;
     private string? saveState;
     private string? problem;
     private string? loadFailure;
     private bool busy;
-    private bool finalizePending;
 
     [Parameter, EditorRequired]
     public Guid StudyId { get; set; }
@@ -131,63 +126,79 @@
     [Parameter]
     public EventCallback OnFinalized { get; set; }
 
-    private IReadOnlyList<ReportView> Finalized =>
-        [.. (reports ?? []).Where(report => report.Status == ReportStatus.Finalized)];
-
-    private bool CanFinalize =>
-        finalizePending || (!string.IsNullOrWhiteSpace(findings) && !string.IsNullOrWhiteSpace(impression));
-
-    private static string DecisionLabel(ReportDecision? decision) => decision switch
-    {
-        ReportDecision.Complete => "Complete",
-        ReportDecision.ReDiagnosis => "Re-diagnosis",
-        _ => string.Empty,
-    };
-
     protected override async Task OnInitializedAsync()
     {
         if (Editable)
         {
-            var started = await Api.StartReportAsync(StudyId);
-            loadFailure = started.Problem;
+            loadFailure = await Api.StartReportAsync(StudyId);
         }
 
-        await LoadAsync();
-        findings = savedFindings = draft?.Findings;
-        impression = savedImpression = draft?.Impression;
+        await LoadReportsAsync();
+
+        findings = draft?.Findings;
+        impression = draft?.Impression;
+        savedFindings = findings;
+        savedImpression = impression;
     }
 
-    private async Task LoadAsync()
+    private async Task LoadReportsAsync()
     {
         reports = await Api.ListReportsAsync(StudyId);
         draft = Editable ? reports.FirstOrDefault(report => report.Status == ReportStatus.Draft) : null;
     }
 
-    private Task SaveTextAsync() => saving = SaveTextAfterAsync(saving);
+    private List<ReportView> FinalizedReports()
+    {
+        if (reports is null)
+        {
+            return [];
+        }
 
-    private async Task SaveTextAfterAsync(Task previousSave)
+        return reports.Where(report => report.Status == ReportStatus.Finalized).ToList();
+    }
+
+    private bool CanFinalize() => !string.IsNullOrWhiteSpace(findings) && !string.IsNullOrWhiteSpace(impression);
+
+    private static string DecisionLabel(ReportDecision? decision)
+    {
+        return decision switch
+        {
+            ReportDecision.Complete => "Complete",
+            ReportDecision.ReDiagnosis => "Re-diagnosis",
+            _ => "",
+        };
+    }
+
+    private Task SaveTextAsync()
+    {
+        lastSave = SaveTextAfterPreviousSaveAsync(lastSave);
+        return lastSave;
+    }
+
+    private async Task SaveTextAfterPreviousSaveAsync(Task previousSave)
     {
         await previousSave;
 
-        if (draft is null || (findings == savedFindings && impression == savedImpression))
+        var nothingChanged = findings == savedFindings && impression == savedImpression;
+        if (draft is null || nothingChanged)
         {
             return;
         }
 
-        var (sentFindings, sentImpression) = (findings, impression);
+        var sentFindings = findings;
+        var sentImpression = impression;
         saveState = "Saving…";
-        var outcome = await Api.UpdateReportAsync(draft.Id, sentFindings, sentImpression);
-        if (!outcome.Succeeded)
+
+        problem = await Api.UpdateReportAsync(draft.Id, sentFindings, sentImpression);
+        if (problem is not null)
         {
             saveState = "Not saved";
-            problem = outcome.Problem;
             return;
         }
 
         savedFindings = sentFindings;
         savedImpression = sentImpression;
-        saveState = $"Saved {Clinic.Time(TimeProvider.GetUtcNow())}";
-        problem = null;
+        saveState = $"Saved {ClinicTime.Time(DateTimeOffset.UtcNow)}";
     }
 
     private async Task AddMedicationAsync()
@@ -197,24 +208,30 @@
             return;
         }
 
-        await RunAsync(async () =>
-        {
-            var outcome = await Api.AddMedicationAsync(draft.Id, newMedication.ToRequest());
-            if (outcome.Succeeded)
-            {
-                newMedication = new NewMedication();
-            }
+        busy = true;
 
-            return outcome;
-        });
+        var medication = new MedicationRequest(newMedication.DrugName, newMedication.Dosage, newMedication.Frequency, newMedication.Duration);
+        problem = await Api.AddMedicationAsync(draft.Id, medication);
+        if (problem is null)
+        {
+            newMedication = new NewMedication();
+        }
+
+        await LoadReportsAsync();
+        busy = false;
     }
 
     private async Task RemoveMedicationAsync(Guid medicationId)
     {
-        if (draft is not null)
+        if (draft is null)
         {
-            await RunAsync(() => Api.RemoveMedicationAsync(draft.Id, medicationId));
+            return;
         }
+
+        busy = true;
+        problem = await Api.RemoveMedicationAsync(draft.Id, medicationId);
+        await LoadReportsAsync();
+        busy = false;
     }
 
     private async Task FinalizeAsync()
@@ -227,57 +244,30 @@
         busy = true;
         problem = null;
 
-        try
+        await SaveTextAsync();
+        if (problem is null)
         {
-            await SaveTextAsync();
-            if (problem is not null)
-            {
-                return;
-            }
-
-            var outcome = await Api.FinalizeReportAsync(draft.Id, decision);
-            if (outcome.Succeeded)
+            problem = await Api.FinalizeReportAsync(draft.Id, decision);
+            if (problem is null)
             {
                 await OnFinalized.InvokeAsync();
-                return;
             }
+        }
 
-            finalizePending = outcome.StatusCode == HttpStatusCode.BadGateway;
-            problem = outcome.Problem;
-        }
-        finally
-        {
-            busy = false;
-        }
+        busy = false;
     }
 
-    private async Task RunAsync(Func<Task<ApiOutcome>> action)
+    private class NewMedication
     {
-        busy = true;
-        problem = null;
+        public string DrugName { get; set; } = "";
+        public string Dosage { get; set; } = "";
+        public string Frequency { get; set; } = "";
+        public string Duration { get; set; } = "";
 
-        try
-        {
-            var outcome = await action();
-            problem = outcome.Problem;
-            await LoadAsync();
-        }
-        finally
-        {
-            busy = false;
-        }
-    }
-
-    private sealed class NewMedication
-    {
-        public string DrugName { get; set; } = string.Empty;
-        public string Dosage { get; set; } = string.Empty;
-        public string Frequency { get; set; } = string.Empty;
-        public string Duration { get; set; } = string.Empty;
-
-        public bool IsComplete =>
-            new[] { DrugName, Dosage, Frequency, Duration }.All(value => !string.IsNullOrWhiteSpace(value));
-
-        public MedicationRequest ToRequest() => new(DrugName, Dosage, Frequency, Duration);
+        public bool IsComplete() =>
+            !string.IsNullOrWhiteSpace(DrugName)
+            && !string.IsNullOrWhiteSpace(Dosage)
+            && !string.IsNullOrWhiteSpace(Frequency)
+            && !string.IsNullOrWhiteSpace(Duration);
     }
 }

@@ -9,7 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\BuildingBlocks\MediView.BuildingBlocks.Api\MediView.BuildingBlocks.Api.csproj" />
+    <ProjectReference Include="..\..\Shared\MediView.Shared\MediView.Shared.csproj" />
   </ItemGroup>
 
 </Project>

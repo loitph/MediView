@@ -1,10 +1,9 @@
 @page "/worklist"
 @inject MediViewApi Api
-@inject ClinicTime Clinic
 
-<AuthorizeView Roles="@MediViewRoles.Doctor" Context="doctor">
+<AuthorizeView Roles="@Roles.Doctor" Context="doctor">
     <Authorized>
-        <TopBar Title="Worklist" Meta="@Meta" />
+        <TopBar Title="Worklist" Meta="@(studies is null ? null : $"{studies.Count} assigned")" />
 
         <div class="mv-page">
             <section class="mv-page__main" aria-label="Assigned studies">
@@ -43,7 +42,7 @@
                                         </div>
                                     </td>
                                     <td class="mv-mono">@study.StudyNumber</td>
-                                    <td class="mv-mono">@Clinic.WeekdayAndTime(study.ScheduledStart)</td>
+                                    <td class="mv-mono">@ClinicTime.WeekdayAndTime(study.ScheduledStart)</td>
                                     <td><StatusBadge Status="study.Status" /></td>
                                     <td class="mv-table__action">
                                         @if (study.ImagesImported)
@@ -85,14 +84,15 @@
 </AuthorizeView>
 
 @code {
-    private static readonly StudyStatus[] Statuses =
+    private static readonly List<StudyStatus> Statuses =
         [StudyStatus.ToDo, StudyStatus.InProgress, StudyStatus.ReDiagnosis, StudyStatus.Done];
 
-    private IReadOnlyList<StudySummary>? studies;
+    private List<StudySummary>? studies;
 
-    private string? Meta => studies is null ? null : $"{studies.Count} assigned · stat first";
-
-    protected override async Task OnInitializedAsync() => studies = await Api.ListStudiesAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        studies = await Api.ListStudiesAsync();
+    }
 
     private int CountOf(StudyStatus status) => studies?.Count(study => study.Status == status) ?? 0;
 }

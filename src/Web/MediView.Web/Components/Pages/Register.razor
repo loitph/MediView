@@ -56,32 +56,25 @@
         registering = true;
         failure = null;
 
-        try
-        {
-            var outcome = await Api.RegisterAsync(new RegisterRequest(form.Email, form.Password, form.FullName));
-            if (!outcome.Succeeded)
-            {
-                failure = outcome.Problem;
-                return;
-            }
-
-            var token = await Api.LoginAsync(form.Email, form.Password);
-            if (token is null)
-            {
-                Navigation.NavigateTo("login");
-                return;
-            }
-
-            var user = await AuthState.SignInAsync(token.Token);
-            Navigation.NavigateTo(LandingPage.For(user));
-        }
-        finally
+        failure = await Api.RegisterAsync(new RegisterRequest(form.Email, form.Password, form.FullName));
+        if (failure is not null)
         {
             registering = false;
+            return;
         }
+
+        var token = await Api.LoginAsync(form.Email, form.Password);
+        if (token is null)
+        {
+            Navigation.NavigateTo("login");
+            return;
+        }
+
+        var user = await AuthState.SignInAsync(token);
+        Navigation.NavigateTo(LandingPage.For(user));
     }
 
-    private sealed class RegisterForm
+    private class RegisterForm
     {
         [Required(ErrorMessage = "Enter your full name."), MaxLength(200)]
         public string FullName { get; set; } = string.Empty;

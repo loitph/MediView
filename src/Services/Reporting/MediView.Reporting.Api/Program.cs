@@ -1,23 +1,28 @@
-using System.Text.Json.Serialization;
-using MediView.BuildingBlocks.Api;
-using MediView.Reporting.Api.Reports;
-using MediView.Reporting.Application;
-using MediView.Reporting.Infrastructure;
+using MediView.Reporting.Api;
+using MediView.Reporting.Api.Data;
+using MediView.Reporting.Api.Endpoints;
+using MediView.Shared;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.AddApiDefaults();
-builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-builder.Services.AddReportingApplication();
-builder.Services.AddReportingInfrastructure(builder.Configuration);
-builder.Services.AddSingleton(TimeProvider.System);
+builder.AddServiceDefaults();
+builder.Services.AddDbContext<ReportingDbContext>(options => options
+    .UseNpgsql(
+        builder.Configuration.GetConnectionString("Postgres"),
+        npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", "reporting"))
+    .UseSnakeCaseNamingConvention());
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<StudiesClient>(client =>
+    client.BaseAddress = new Uri(builder.Configuration["Studies:BaseAddress"]!));
 
 var app = builder.Build();
-app.UseApiDefaults();
+app.UseServiceDefaults();
 app.MapReportEndpoints();
 
 if (app.Environment.IsDevelopment())
 {
-    app.Services.MigrateReportingDatabase();
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<ReportingDbContext>().Database.Migrate();
 }
 
 app.Run();
