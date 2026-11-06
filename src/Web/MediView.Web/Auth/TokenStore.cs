@@ -2,14 +2,14 @@ using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
 namespace MediView.Web.Auth;
 
-public sealed class TokenStore(ProtectedSessionStorage storage)
+public class TokenStore(ProtectedSessionStorage storage)
 {
     private const string StorageKey = "mediview.access-token";
 
     private string? token;
     private bool loaded;
 
-    public async ValueTask<string?> GetAsync()
+    public async Task<string?> GetAsync()
     {
         if (!loaded)
         {
@@ -21,14 +21,14 @@ public sealed class TokenStore(ProtectedSessionStorage storage)
         return token;
     }
 
-    public async ValueTask SetAsync(string accessToken)
+    public async Task SetAsync(string accessToken)
     {
         await storage.SetAsync(StorageKey, accessToken);
         token = accessToken;
         loaded = true;
     }
 
-    public async ValueTask ClearAsync()
+    public async Task ClearAsync()
     {
         await storage.DeleteAsync(StorageKey);
         token = null;

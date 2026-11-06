@@ -1,177 +1,159 @@
-using System.Globalization;
-using System.Net;
 using System.Net.Http.Headers;
+using MediView.Web.Auth;
+using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediView.Web.Api;
 
-public sealed class MediViewApi(HttpClient http)
+public class MediViewApi(HttpClient http, TokenStore tokens)
 {
-    private const string DicomMediaType = "application/dicom";
+    public const long MaxUploadFileBytes = 64L * 1024 * 1024;
 
-    public async Task<AccessToken?> LoginAsync(string email, string password, CancellationToken cancellationToken = default)
+    public async Task<string?> LoginAsync(string email, string password)
     {
-        using var response = await http.PostAsJsonAsync(
-            "api/identity/auth/login",
-            new LoginRequest(email, password),
-            cancellationToken);
-
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        using var response = await SendAsync(HttpMethod.Post, "api/identity/auth/login", new { Email = email, Password = password });
+        if (!response.IsSuccessStatusCode)
         {
             return null;
         }
 
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<AccessToken>(cancellationToken);
+        var login = await response.Content.ReadFromJsonAsync<LoginResponse>();
+        return login?.Token;
     }
 
-    public async Task<ApiOutcome> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
+    public Task<string?> RegisterAsync(RegisterRequest request) =>
+        SendAndReadErrorAsync(HttpMethod.Post, "api/identity/auth/register", request);
+
+    public async Task<List<DoctorSummary>> ListDoctorsAsync() =>
+        await GetAsync<List<DoctorSummary>>("api/identity/doctors") ?? [];
+
+    public Task<string?> CreateDoctorAsync(CreateDoctorRequest request) =>
+        SendAndReadErrorAsync(HttpMethod.Post, "api/identity/admin/doctors", request);
+
+    public async Task<List<AvailableSlot>> GetAvailabilityAsync(Guid doctorId, DateOnly from, DateOnly to) =>
+        await GetAsync<List<AvailableSlot>>($"api/identity/doctors/{doctorId}/availability?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}") ?? [];
+
+    public async Task<List<DateTimeOffset>> GetBookedSlotsAsync(Guid doctorId, DateTimeOffset from, DateTimeOffset to)
     {
-        using var response = await http.PostAsJsonAsync("api/identity/auth/register", request, cancellationToken);
-        return await ApiOutcome.FromAsync(response, cancellationToken);
+        var fromText = Uri.EscapeDataString(from.ToString("O"));
+        var toText = Uri.EscapeDataString(to.ToString("O"));
+        return await GetAsync<List<DateTimeOffset>>($"api/studies/studies/booked-slots?doctorId={doctorId}&from={fromText}&to={toText}") ?? [];
     }
 
-    public async Task<IReadOnlyList<DoctorSummary>> ListDoctorsAsync(CancellationToken cancellationToken = default) =>
-        await http.GetFromJsonAsync<IReadOnlyList<DoctorSummary>>("api/identity/doctors", cancellationToken) ?? [];
+    public Task<string?> BookAsync(Guid doctorId, DateTimeOffset scheduledStart) =>
+        SendAndReadErrorAsync(HttpMethod.Post, "api/studies/appointments", new { DoctorId = doctorId, ScheduledStart = scheduledStart });
 
-    public async Task<ApiOutcome> CreateDoctorAsync(CreateDoctorRequest request, CancellationToken cancellationToken = default)
-    {
-        using var response = await http.PostAsJsonAsync("api/identity/admin/doctors", request, cancellationToken);
-        return await ApiOutcome.FromAsync(response, cancellationToken);
-    }
+    public async Task<List<StudySummary>> ListStudiesAsync() =>
+        await GetAsync<List<StudySummary>>("api/studies/studies") ?? [];
 
-    public async Task<IReadOnlyList<AvailableSlot>> GetAvailabilityAsync(
-        Guid doctorId,
-        DateOnly from,
-        DateOnly to,
-        CancellationToken cancellationToken = default) =>
-        await http.GetFromJsonAsync<IReadOnlyList<AvailableSlot>>(
-            string.Create(
-                CultureInfo.InvariantCulture,
-                $"api/identity/doctors/{doctorId}/availability?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}"),
-            cancellationToken) ?? [];
+    public Task<StudyDetail?> GetStudyAsync(Guid studyId) =>
+        GetAsync<StudyDetail>($"api/studies/studies/{studyId}");
 
-    public async Task<IReadOnlyList<DateTimeOffset>> GetBookedSlotsAsync(
-        Guid doctorId,
-        DateTimeOffset from,
-        DateTimeOffset to,
-        CancellationToken cancellationToken = default) =>
-        await http.GetFromJsonAsync<IReadOnlyList<DateTimeOffset>>(
-            $"api/studies/studies/booked-slots?doctorId={doctorId}&from={QueryInstant(from)}&to={QueryInstant(to)}",
-            cancellationToken) ?? [];
+    public Task<string?> OpenStudyAsync(Guid studyId) =>
+        SendAndReadErrorAsync(HttpMethod.Post, $"api/studies/studies/{studyId}/open");
 
-    public async Task<ApiOutcome> BookAsync(BookAppointmentRequest request, CancellationToken cancellationToken = default)
-    {
-        using var response = await http.PostAsJsonAsync("api/studies/appointments", request, cancellationToken);
-        return await ApiOutcome.FromAsync(response, cancellationToken);
-    }
+    public Task<string?> OverrideStudyAsync(Guid studyId, StudyStatus to, string reason) =>
+        SendAndReadErrorAsync(HttpMethod.Post, $"api/studies/studies/{studyId}/override", new { To = to, Reason = reason });
 
-    public async Task<IReadOnlyList<StudySummary>> ListStudiesAsync(CancellationToken cancellationToken = default) =>
-        await http.GetFromJsonAsync<IReadOnlyList<StudySummary>>("api/studies/studies", cancellationToken) ?? [];
+    public async Task<List<InstanceSummary>> ListInstancesAsync(Guid studyId) =>
+        await GetAsync<List<InstanceSummary>>($"api/imaging/studies/{studyId}/instances") ?? [];
 
-    public async Task<StudyDetail?> GetStudyAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        using var response = await http.GetAsync($"api/studies/studies/{id}", cancellationToken);
-        if (response.StatusCode == HttpStatusCode.NotFound)
-        {
-            return null;
-        }
-
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<StudyDetail>(cancellationToken);
-    }
-
-    public async Task<(ApiOutcome Outcome, ImportedImages? Imported)> ImportImagesAsync(
-        Guid studyId,
-        IReadOnlyList<UploadFile> files,
-        CancellationToken cancellationToken = default)
+    public async Task<(ImportResult? Result, string? Error)> ImportImagesAsync(Guid studyId, IReadOnlyList<IBrowserFile> files)
     {
         using var form = new MultipartFormDataContent();
         foreach (var file in files)
         {
-            var content = new DeferredStreamContent(file);
-            content.Headers.ContentType = new MediaTypeHeaderValue(DicomMediaType);
-            form.Add(content, "files", file.FileName);
+            using var memory = new MemoryStream();
+            await using (var upload = file.OpenReadStream(MaxUploadFileBytes))
+            {
+                await upload.CopyToAsync(memory);
+            }
+
+            form.Add(new ByteArrayContent(memory.ToArray()), "files", file.Name);
         }
 
-        using var response = await http.PostAsync($"api/imaging/studies/{studyId}/images", form, cancellationToken);
-        var outcome = await ApiOutcome.FromAsync(response, cancellationToken);
+        var request = new HttpRequestMessage(HttpMethod.Post, $"api/imaging/studies/{studyId}/images") { Content = form };
+        using var response = await SendAsync(request);
 
-        return outcome.Succeeded
-            ? (outcome, await response.Content.ReadFromJsonAsync<ImportedImages>(cancellationToken))
-            : (outcome, null);
+        var error = await ReadErrorAsync(response);
+        if (error is not null)
+        {
+            return (null, error);
+        }
+
+        return (await response.Content.ReadFromJsonAsync<ImportResult>(), null);
     }
 
-    public async Task<IReadOnlyList<InstanceSummary>> ListInstancesAsync(Guid studyId, CancellationToken cancellationToken = default) =>
-        await http.GetFromJsonAsync<IReadOnlyList<InstanceSummary>>($"api/imaging/studies/{studyId}/instances", cancellationToken) ?? [];
+    public async Task<List<ReportView>> ListReportsAsync(Guid studyId) =>
+        await GetAsync<List<ReportView>>($"api/reporting/reports?studyId={studyId}") ?? [];
 
-    public Task<ApiOutcome> OpenStudyAsync(Guid studyId, CancellationToken cancellationToken = default) =>
-        PostAsync($"api/studies/studies/{studyId}/open", cancellationToken);
+    public Task<string?> StartReportAsync(Guid studyId) =>
+        SendAndReadErrorAsync(HttpMethod.Post, "api/reporting/reports", new { StudyId = studyId });
 
-    public Task<ApiOutcome> RenewLockAsync(Guid studyId, CancellationToken cancellationToken = default) =>
-        PostAsync($"api/studies/studies/{studyId}/lock/heartbeat", cancellationToken);
+    public Task<string?> UpdateReportAsync(Guid reportId, string? findings, string? impression) =>
+        SendAndReadErrorAsync(HttpMethod.Put, $"api/reporting/reports/{reportId}", new { Findings = findings, Impression = impression });
 
-    public Task<ApiOutcome> ReleaseLockAsync(Guid studyId, CancellationToken cancellationToken = default) =>
-        PostAsync($"api/studies/studies/{studyId}/lock/release", cancellationToken);
+    public Task<string?> AddMedicationAsync(Guid reportId, MedicationRequest medication) =>
+        SendAndReadErrorAsync(HttpMethod.Post, $"api/reporting/reports/{reportId}/medications", medication);
 
-    public async Task<LockOwner?> GetLockOwnerAsync(Guid studyId, CancellationToken cancellationToken = default)
+    public Task<string?> RemoveMedicationAsync(Guid reportId, Guid medicationId) =>
+        SendAndReadErrorAsync(HttpMethod.Delete, $"api/reporting/reports/{reportId}/medications/{medicationId}");
+
+    public Task<string?> FinalizeReportAsync(Guid reportId, ReportDecision decision) =>
+        SendAndReadErrorAsync(HttpMethod.Post, $"api/reporting/reports/{reportId}/finalize", new { Decision = decision });
+
+    private async Task<T?> GetAsync<T>(string url)
     {
-        using var response = await http.GetAsync($"api/studies/studies/{studyId}/lock", cancellationToken);
-        response.EnsureSuccessStatusCode();
+        using var response = await SendAsync(HttpMethod.Get, url);
+        if (!response.IsSuccessStatusCode)
+        {
+            return default;
+        }
 
-        return response.StatusCode == HttpStatusCode.NoContent
-            ? null
-            : await response.Content.ReadFromJsonAsync<LockOwner>(cancellationToken);
+        return await response.Content.ReadFromJsonAsync<T>();
     }
 
-    public async Task<ApiOutcome> OverrideStudyAsync(Guid studyId, StudyStatus to, string reason, CancellationToken cancellationToken = default) =>
-        await PostJsonAsync($"api/studies/studies/{studyId}/override", new { To = to, Reason = reason }, cancellationToken);
-
-    public async Task<ApiOutcome> ForceReleaseLockAsync(Guid studyId, string reason, CancellationToken cancellationToken = default) =>
-        await PostJsonAsync($"api/studies/studies/{studyId}/lock/force-release", new { Reason = reason }, cancellationToken);
-
-    public async Task<IReadOnlyList<ReportView>> ListReportsAsync(Guid studyId, CancellationToken cancellationToken = default) =>
-        await http.GetFromJsonAsync<IReadOnlyList<ReportView>>($"api/reporting/reports?studyId={studyId}", cancellationToken) ?? [];
-
-    public async Task<ApiOutcome> StartReportAsync(Guid studyId, CancellationToken cancellationToken = default) =>
-        await PostJsonAsync("api/reporting/reports", new { StudyId = studyId }, cancellationToken);
-
-    public async Task<ApiOutcome> UpdateReportAsync(
-        Guid reportId,
-        string? findings,
-        string? impression,
-        CancellationToken cancellationToken = default)
+    private async Task<string?> SendAndReadErrorAsync(HttpMethod method, string url, object? body = null)
     {
-        using var response = await http.PutAsJsonAsync(
-            $"api/reporting/reports/{reportId}",
-            new { Findings = findings, Impression = impression },
-            cancellationToken);
-        return await ApiOutcome.FromAsync(response, cancellationToken);
+        using var response = await SendAsync(method, url, body);
+        return await ReadErrorAsync(response);
     }
 
-    public async Task<ApiOutcome> AddMedicationAsync(Guid reportId, MedicationRequest medication, CancellationToken cancellationToken = default) =>
-        await PostJsonAsync($"api/reporting/reports/{reportId}/medications", medication, cancellationToken);
-
-    public async Task<ApiOutcome> RemoveMedicationAsync(Guid reportId, Guid medicationId, CancellationToken cancellationToken = default)
+    private Task<HttpResponseMessage> SendAsync(HttpMethod method, string url, object? body = null)
     {
-        using var response = await http.DeleteAsync($"api/reporting/reports/{reportId}/medications/{medicationId}", cancellationToken);
-        return await ApiOutcome.FromAsync(response, cancellationToken);
+        var request = new HttpRequestMessage(method, url);
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return SendAsync(request);
     }
 
-    public async Task<ApiOutcome> FinalizeReportAsync(Guid reportId, ReportDecision decision, CancellationToken cancellationToken = default) =>
-        await PostJsonAsync($"api/reporting/reports/{reportId}/finalize", new { Decision = decision }, cancellationToken);
-
-    private async Task<ApiOutcome> PostJsonAsync<T>(string uri, T body, CancellationToken cancellationToken)
+    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
     {
-        using var response = await http.PostAsJsonAsync(uri, body, cancellationToken);
-        return await ApiOutcome.FromAsync(response, cancellationToken);
+        var token = await tokens.GetAsync();
+        if (token is not null)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
+
+        return await http.SendAsync(request);
     }
 
-    private async Task<ApiOutcome> PostAsync(string uri, CancellationToken cancellationToken)
+    private static async Task<string?> ReadErrorAsync(HttpResponseMessage response)
     {
-        using var response = await http.PostAsync(uri, content: null, cancellationToken);
-        return await ApiOutcome.FromAsync(response, cancellationToken);
-    }
+        if (response.IsSuccessStatusCode)
+        {
+            return null;
+        }
 
-    private static string QueryInstant(DateTimeOffset instant) =>
-        Uri.EscapeDataString(instant.ToString("O", CultureInfo.InvariantCulture));
+        if (response.Content.Headers.ContentType?.MediaType != "application/problem+json")
+        {
+            return $"The request failed ({(int)response.StatusCode}).";
+        }
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        return problem?.Detail ?? problem?.Title ?? "The request failed.";
+    }
 }

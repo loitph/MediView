@@ -46,25 +46,19 @@
         signingIn = true;
         failure = null;
 
-        try
+        var token = await Api.LoginAsync(form.Email, form.Password);
+        if (token is null)
         {
-            var token = await Api.LoginAsync(form.Email, form.Password);
-            if (token is null)
-            {
-                failure = "Email or password is incorrect.";
-                return;
-            }
-
-            var user = await AuthState.SignInAsync(token.Token);
-            Navigation.NavigateTo(LandingPage.For(user));
-        }
-        finally
-        {
+            failure = "Email or password is incorrect.";
             signingIn = false;
+            return;
         }
+
+        var user = await AuthState.SignInAsync(token);
+        Navigation.NavigateTo(LandingPage.For(user));
     }
 
-    private sealed class LoginForm
+    private class LoginForm
     {
         [Required(ErrorMessage = "Enter your email."), EmailAddress(ErrorMessage = "Enter a valid email address.")]
         public string Email { get; set; } = string.Empty;

@@ -39,7 +39,6 @@ done
 
 echo
 echo "Web:  http://localhost:5217"
-echo "Seq:  http://localhost:${SEQ_PORT}"
 echo "Press Ctrl+C to stop."
 
 wait

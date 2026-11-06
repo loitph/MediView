@@ -130,7 +130,7 @@
 }
 
 .meds__remove:hover:not(:disabled) {
-    color: var(--mv-dark-lock-other-text);
+    color: var(--mv-dark-danger-text);
 }
 
 .meds__form {
@@ -203,7 +203,7 @@
 .report__problem {
     font-size: 12.5px;
     line-height: 1.5;
-    color: var(--mv-dark-lock-other-text);
+    color: var(--mv-dark-danger-text);
 }
 
 .decision {

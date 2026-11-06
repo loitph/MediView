@@ -1,28 +1,24 @@
 using System.Security.Claims;
-using MediView.BuildingBlocks.Api.Auth;
+using MediView.Shared;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace MediView.Web.Auth;
 
-public sealed class JwtAuthenticationStateProvider(TokenStore tokens, TimeProvider timeProvider)
-    : AuthenticationStateProvider
+public class JwtAuthenticationStateProvider(TokenStore tokens) : AuthenticationStateProvider
 {
-    private const string AuthenticationType = "MediViewJwt";
-
-    private static readonly JsonWebTokenHandler TokenHandler = new();
-    private static readonly AuthenticationState Anonymous = new(new ClaimsPrincipal(new ClaimsIdentity()));
+    private static readonly AuthenticationState SignedOut = new(new ClaimsPrincipal(new ClaimsIdentity()));
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
         var token = await tokens.GetAsync();
-        return token is null ? Anonymous : StateFor(token);
+        return token is null ? SignedOut : StateFromToken(token);
     }
 
     public async Task<ClaimsPrincipal> SignInAsync(string accessToken)
     {
         await tokens.SetAsync(accessToken);
-        var state = StateFor(accessToken);
+        var state = StateFromToken(accessToken);
         NotifyAuthenticationStateChanged(Task.FromResult(state));
         return state.User;
     }
@@ -30,18 +26,18 @@ public sealed class JwtAuthenticationStateProvider(TokenStore tokens, TimeProvid
     public async Task SignOutAsync()
     {
         await tokens.ClearAsync();
-        NotifyAuthenticationStateChanged(Task.FromResult(Anonymous));
+        NotifyAuthenticationStateChanged(Task.FromResult(SignedOut));
     }
 
-    private AuthenticationState StateFor(string accessToken)
+    private static AuthenticationState StateFromToken(string accessToken)
     {
-        var jwt = TokenHandler.ReadJsonWebToken(accessToken);
-        if (jwt.ValidTo <= timeProvider.GetUtcNow().UtcDateTime)
+        var jwt = new JsonWebTokenHandler().ReadJsonWebToken(accessToken);
+        if (jwt.ValidTo <= DateTime.UtcNow)
         {
-            return Anonymous;
+            return SignedOut;
         }
 
-        var identity = new ClaimsIdentity(jwt.Claims, AuthenticationType, MediViewClaims.Name, MediViewClaims.Role);
+        var identity = new ClaimsIdentity(jwt.Claims, "jwt", UserClaims.Name, UserClaims.Role);
         return new AuthenticationState(new ClaimsPrincipal(identity));
     }
 }

@@ -3,9 +3,9 @@
 @using System.Globalization
 @inject MediViewApi Api
 
-<AuthorizeView Roles="@MediViewRoles.Admin" Context="admin">
+<AuthorizeView Roles="@Roles.Admin" Context="admin">
     <Authorized>
-        <TopBar Title="Doctors" Meta="@StaffCount" />
+        <TopBar Title="Doctors" Meta="@(doctors is null ? null : $"{doctors.Count} on staff")" />
 
         <div class="mv-page">
             <section class="mv-page__main" aria-label="Doctors on staff">
@@ -104,20 +104,26 @@
                                             <th scope="row">
                                                 <label class="schedule__day">
                                                     <InputCheckbox @bind-Value="day.Works" />
-                                                    @day.ShortName
+                                                    @(day.DayOfWeek.ToString()[..3])
                                                 </label>
                                             </th>
                                             <td>
                                                 <InputSelect class="schedule__time" @bind-Value="day.Start" disabled="@(!day.Works)" aria-label="@($"{day.DayOfWeek} start")">
-                                                    @TimeOptions
+                                                    @foreach (var time in Times)
+                                                    {
+                                                        <option value="@time">@time</option>
+                                                    }
                                                 </InputSelect>
                                             </td>
                                             <td>
                                                 <InputSelect class="schedule__time" @bind-Value="day.End" disabled="@(!day.Works)" aria-label="@($"{day.DayOfWeek} end")">
-                                                    @TimeOptions
+                                                    @foreach (var time in Times)
+                                                    {
+                                                        <option value="@time">@time</option>
+                                                    }
                                                 </InputSelect>
                                             </td>
-                                            <td class="@SlotsClass(day)">@day.SlotsLabel(form.SlotMinutes)</td>
+                                            <td class="@SlotsCssClass(day)">@(day.Works ? $"{day.SlotCount(form.SlotMinutes)} slots" : "off")</td>
                                         </tr>
                                     }
                                 </tbody>
@@ -154,142 +160,131 @@
 </AuthorizeView>
 
 @code {
-    private const string TimeFormat = "HH:mm";
-    private const int TimeStepMinutes = 15;
-
-    private static readonly string[] Times =
-    [
-        .. Enumerable.Range(0, 24 * 60 / TimeStepMinutes)
-            .Select(step => TimeOnly.MinValue.AddMinutes(step * TimeStepMinutes).ToString(TimeFormat, CultureInfo.InvariantCulture)),
-    ];
+    private static readonly List<string> Times = EveryQuarterHour();
 
     private DoctorForm form = new();
-    private IReadOnlyList<DoctorSummary>? doctors;
+    private List<DoctorSummary>? doctors;
     private string? failure;
     private string? created;
     private bool saving;
 
-    private string? StaffCount => doctors is null ? null : $"{doctors.Count} on staff";
-
-    private static RenderFragment TimeOptions =>
-        @<text>
-            @foreach (var time in Times)
-            {
-                <option value="@time">@time</option>
-            }
-        </text>;
-
-    protected override async Task OnInitializedAsync() => doctors = await Api.ListDoctorsAsync();
-
-    private string SlotsClass(WorkingDay day) => day switch
+    protected override async Task OnInitializedAsync()
     {
-        { Works: false } => "schedule__slots",
-        _ when day.SlotCount(form.SlotMinutes) == 0 => "schedule__slots schedule__slots--invalid",
-        _ => "schedule__slots schedule__slots--open",
-    };
+        doctors = await Api.ListDoctorsAsync();
+    }
+
+    private static List<string> EveryQuarterHour()
+    {
+        var times = new List<string>();
+        for (var minutes = 0; minutes < 24 * 60; minutes += 15)
+        {
+            times.Add($"{minutes / 60:00}:{minutes % 60:00}");
+        }
+
+        return times;
+    }
+
+    private string SlotsCssClass(WorkingDay day)
+    {
+        if (!day.Works)
+        {
+            return "schedule__slots";
+        }
+
+        if (day.SlotCount(form.SlotMinutes) == 0)
+        {
+            return "schedule__slots schedule__slots--invalid";
+        }
+
+        return "schedule__slots schedule__slots--open";
+    }
 
     private async Task CreateAsync()
     {
         created = null;
-        failure = form.ScheduleProblem();
-        if (failure is not null)
+
+        var workingDays = form.Week.Where(day => day.Works).ToList();
+        if (workingDays.Count == 0)
         {
+            failure = "Pick at least one working day.";
+            return;
+        }
+
+        var dayWithoutSlots = workingDays.FirstOrDefault(day => day.SlotCount(form.SlotMinutes) == 0);
+        if (dayWithoutSlots is not null)
+        {
+            failure = $"{dayWithoutSlots.DayOfWeek} has no room for a {form.SlotMinutes}-minute slot. Check its hours.";
             return;
         }
 
         saving = true;
 
-        try
+        var shifts = workingDays
+            .Select(day => new ShiftRequest(day.DayOfWeek, day.StartTime, day.EndTime, form.SlotMinutes))
+            .ToList();
+        var request = new CreateDoctorRequest(form.FullName, form.Email, form.Password, form.LicenseNumber, form.Specialty, shifts);
+
+        failure = await Api.CreateDoctorAsync(request);
+        if (failure is null)
         {
-            var outcome = await Api.CreateDoctorAsync(new CreateDoctorRequest(
-                form.FullName,
-                form.Email,
-                form.Password,
-                form.LicenseNumber,
-                form.Specialty,
-                form.ToShifts()));
-
-            if (!outcome.Succeeded)
-            {
-                failure = outcome.Problem;
-                return;
-            }
-
             created = form.FullName;
             form = new DoctorForm();
             doctors = await Api.ListDoctorsAsync();
         }
-        finally
-        {
-            saving = false;
-        }
+
+        saving = false;
     }
 
-    private sealed class DoctorForm
+    private class DoctorForm
     {
-        private static readonly DayOfWeek[] MondayFirst =
-        [
-            DayOfWeek.Monday,
-            DayOfWeek.Tuesday,
-            DayOfWeek.Wednesday,
-            DayOfWeek.Thursday,
-            DayOfWeek.Friday,
-            DayOfWeek.Saturday,
-            DayOfWeek.Sunday,
-        ];
-
         [Required(ErrorMessage = "Enter the doctor's full name."), MaxLength(200)]
-        public string FullName { get; set; } = string.Empty;
+        public string FullName { get; set; } = "";
 
-        [Required(ErrorMessage = "Enter the doctor's email."), EmailAddress(ErrorMessage = "Enter a valid email address."), MaxLength(320)]
-        public string Email { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Enter the doctor's email."), EmailAddress(ErrorMessage = "Enter a valid email address.")]
+        public string Email { get; set; } = "";
 
-        [Required(ErrorMessage = "Set an initial password."), MinLength(8, ErrorMessage = "Use at least 8 characters."), MaxLength(128)]
-        public string Password { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Set an initial password."), MinLength(8, ErrorMessage = "Use at least 8 characters.")]
+        public string Password { get; set; } = "";
 
         [Required(ErrorMessage = "Enter the licence number."), MaxLength(64)]
-        public string LicenseNumber { get; set; } = string.Empty;
+        public string LicenseNumber { get; set; } = "";
 
         [Required(ErrorMessage = "Enter the specialty."), MaxLength(100)]
-        public string Specialty { get; set; } = string.Empty;
+        public string Specialty { get; set; } = "";
 
         [Range(5, 240, ErrorMessage = "Use 5 to 240 minutes.")]
         public int SlotMinutes { get; set; } = 30;
 
-        public IReadOnlyList<WorkingDay> Week { get; } = [.. MondayFirst.Select(day => new WorkingDay(day))];
-
-        private IEnumerable<WorkingDay> WorkingDays => Week.Where(day => day.Works);
-
-        public string? ScheduleProblem()
-        {
-            if (!WorkingDays.Any())
-            {
-                return "Pick at least one working day.";
-            }
-
-            var tooShort = WorkingDays.FirstOrDefault(day => day.SlotCount(SlotMinutes) == 0);
-            return tooShort is null
-                ? null
-                : $"{tooShort.DayOfWeek} has no room for a {SlotMinutes}-minute slot. Check its hours.";
-        }
-
-        public List<ShiftRequest> ToShifts() =>
-            [.. WorkingDays.Select(day => new ShiftRequest(day.DayOfWeek, day.StartTime, day.EndTime, SlotMinutes))];
+        public List<WorkingDay> Week { get; } =
+        [
+            new() { DayOfWeek = DayOfWeek.Monday, Works = true },
+            new() { DayOfWeek = DayOfWeek.Tuesday, Works = true },
+            new() { DayOfWeek = DayOfWeek.Wednesday, Works = true },
+            new() { DayOfWeek = DayOfWeek.Thursday, Works = true },
+            new() { DayOfWeek = DayOfWeek.Friday, Works = true },
+            new() { DayOfWeek = DayOfWeek.Saturday },
+            new() { DayOfWeek = DayOfWeek.Sunday },
+        ];
     }
 
-    private sealed class WorkingDay(DayOfWeek dayOfWeek)
+    private class WorkingDay
     {
-        public DayOfWeek DayOfWeek => dayOfWeek;
-        public string ShortName => CultureInfo.InvariantCulture.DateTimeFormat.GetAbbreviatedDayName(dayOfWeek);
-        public bool Works { get; set; } = dayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday);
+        public DayOfWeek DayOfWeek { get; set; }
+        public bool Works { get; set; }
         public string Start { get; set; } = "08:00";
         public string End { get; set; } = "16:00";
-        public TimeOnly StartTime => TimeOnly.ParseExact(Start, TimeFormat, CultureInfo.InvariantCulture);
-        public TimeOnly EndTime => TimeOnly.ParseExact(End, TimeFormat, CultureInfo.InvariantCulture);
 
-        public int SlotCount(int slotMinutes) =>
-            slotMinutes > 0 && StartTime < EndTime ? (int)((EndTime - StartTime).TotalMinutes / slotMinutes) : 0;
+        public TimeOnly StartTime => TimeOnly.Parse(Start, CultureInfo.InvariantCulture);
+        public TimeOnly EndTime => TimeOnly.Parse(End, CultureInfo.InvariantCulture);
 
-        public string SlotsLabel(int slotMinutes) => Works ? $"{SlotCount(slotMinutes)} slots" : "off";
+        public int SlotCount(int slotMinutes)
+        {
+            if (slotMinutes <= 0 || StartTime >= EndTime)
+            {
+                return 0;
+            }
+
+            return (int)(EndTime - StartTime).TotalMinutes / slotMinutes;
+        }
     }
 }

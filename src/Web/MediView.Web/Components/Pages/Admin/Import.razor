@@ -1,11 +1,9 @@
 @page "/admin/import"
-@using System.Globalization
 @inject MediViewApi Api
-@inject ClinicTime Clinic
 
-<AuthorizeView Roles="@MediViewRoles.Admin" Context="admin">
+<AuthorizeView Roles="@Roles.Admin" Context="admin">
     <Authorized>
-        <TopBar Title="Import x-rays" Meta="@Meta" />
+        <TopBar Title="Import x-rays" Meta="@(studies is null ? null : $"{studies.Count(study => !study.ImagesImported)} awaiting images")" />
 
         <div class="mv-page">
             <section class="mv-page__main" aria-label="Studies">
@@ -34,7 +32,7 @@
                                     <td>
                                         <div class="mv-table__text">
                                             <a class="mv-mono" href="@($"admin/studies/{study.Id}")">@study.StudyNumber</a>
-                                            <span class="mv-table__sub">@Clinic.DayAndTime(study.ScheduledStart)</span>
+                                            <span class="mv-table__sub">@ClinicTime.DayAndTime(study.ScheduledStart)</span>
                                         </div>
                                     </td>
                                     <td>@study.DoctorName</td>
@@ -99,7 +97,7 @@
 
                             @if (chosen.Count > 0)
                             {
-                                <p class="chosen mv-mono">@chosen.Count @(chosen.Count == 1 ? "file" : "files") · @Megabytes(chosen.Sum(file => file.Size))</p>
+                                <p class="chosen mv-mono">@FileCount(chosen.Count) · @Megabytes(chosen.Sum(file => file.Size))</p>
                             }
                         }
 
@@ -136,9 +134,8 @@
 
 @code {
     private const int MaxFiles = 500;
-    private const long MaxFileBytes = 64L * 1024 * 1024;
 
-    private IReadOnlyList<StudySummary>? studies;
+    private List<StudySummary>? studies;
     private StudySummary? selected;
     private IReadOnlyList<IBrowserFile> chosen = [];
     private int pickerVersion;
@@ -146,21 +143,21 @@
     private string? confirmation;
     private bool importing;
 
-    private string? Meta => studies is null
-        ? null
-        : $"{studies.Count(study => !study.ImagesImported)} awaiting images";
+    protected override async Task OnInitializedAsync()
+    {
+        studies = await Api.ListStudiesAsync();
+    }
 
     private static string ImagesLabel(StudySummary study) => study.ImagesImported ? "Imported" : "Awaiting images";
 
-    private static string Megabytes(long bytes) =>
-        string.Create(CultureInfo.InvariantCulture, $"{bytes / 1024d / 1024d:0.0} MB");
+    private static string Megabytes(long bytes) => $"{bytes / 1024.0 / 1024.0:0.0} MB";
 
-    protected override async Task OnInitializedAsync() => studies = await Api.ListStudiesAsync();
+    private static string FileCount(int count) => count == 1 ? "1 file" : $"{count} files";
 
     private void Select(StudySummary study)
     {
         selected = study;
-        ClearChoice();
+        ClearChosenFiles();
         failure = null;
         confirmation = null;
     }
@@ -172,16 +169,18 @@
 
         if (args.FileCount > MaxFiles)
         {
-            ClearChoice();
+            ClearChosenFiles();
             failure = $"Pick at most {MaxFiles} files at a time.";
             return;
         }
 
         chosen = args.GetMultipleFiles(MaxFiles);
-        if (chosen.FirstOrDefault(file => file.Size > MaxFileBytes) is { } tooLarge)
+
+        var tooLarge = chosen.FirstOrDefault(file => file.Size > MediViewApi.MaxUploadFileBytes);
+        if (tooLarge is not null)
         {
-            ClearChoice();
-            failure = $"'{tooLarge.Name}' is larger than {Megabytes(MaxFileBytes)}.";
+            ClearChosenFiles();
+            failure = $"'{tooLarge.Name}' is larger than {Megabytes(MediViewApi.MaxUploadFileBytes)}.";
         }
     }
 
@@ -196,40 +195,37 @@
         failure = null;
         confirmation = null;
 
-        var uploads = chosen
-            .Select(file => new UploadFile(file.Name, file.Size, () => file.OpenReadStream(MaxFileBytes)))
-            .ToList();
-
-        try
+        var (result, error) = await Api.ImportImagesAsync(selected.Id, chosen);
+        if (result is null)
         {
-            var (outcome, imported) = await Api.ImportImagesAsync(selected.Id, uploads);
-            if (!outcome.Succeeded || imported is null)
-            {
-                failure = outcome.Problem;
-                return;
-            }
-
-            confirmation = Describe(imported, selected.StudyNumber);
-            ClearChoice();
-            studies = await Api.ListStudiesAsync();
-            selected = studies.FirstOrDefault(study => study.Id == selected.Id);
-        }
-        finally
-        {
+            failure = error;
             importing = false;
+            return;
         }
+
+        confirmation = DescribeImport(result, selected.StudyNumber);
+        ClearChosenFiles();
+        studies = await Api.ListStudiesAsync();
+        selected = studies.FirstOrDefault(study => study.Id == selected.Id);
+        importing = false;
     }
 
-    private static string Describe(ImportedImages imported, string studyNumber) => imported switch
+    private static string DescribeImport(ImportResult result, string studyNumber)
     {
-        { Imported: 0 } => $"{studyNumber} already had all {Files(imported.AlreadyPresent)}; nothing new was stored.",
-        { AlreadyPresent: 0 } => $"{Files(imported.Imported)} attached to {studyNumber}.",
-        _ => $"{Files(imported.Imported)} attached to {studyNumber}; {imported.AlreadyPresent} it already had were skipped.",
-    };
+        if (result.Imported == 0)
+        {
+            return $"{studyNumber} already had all {FileCount(result.AlreadyPresent)}; nothing new was stored.";
+        }
 
-    private static string Files(int count) => count == 1 ? "1 file" : $"{count} files";
+        if (result.AlreadyPresent == 0)
+        {
+            return $"{FileCount(result.Imported)} attached to {studyNumber}.";
+        }
 
-    private void ClearChoice()
+        return $"{FileCount(result.Imported)} attached to {studyNumber}; {result.AlreadyPresent} it already had were skipped.";
+    }
+
+    private void ClearChosenFiles()
     {
         chosen = [];
         pickerVersion++;

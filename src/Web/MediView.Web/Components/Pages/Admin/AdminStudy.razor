@@ -1,10 +1,9 @@
 @page "/admin/studies/{StudyId:guid}"
 @inject MediViewApi Api
-@inject ClinicTime Clinic
 
-<AuthorizeView Roles="@MediViewRoles.Admin" Context="admin">
+<AuthorizeView Roles="@Roles.Admin" Context="admin">
     <Authorized>
-        <TopBar Title="@(detail?.Study.StudyNumber ?? "Study")" Meta="@(detail is null ? null : $"{detail.Study.DoctorName} · {Clinic.WeekdayAndTime(detail.Study.ScheduledStart)}")">
+        <TopBar Title="@(detail?.Study.StudyNumber ?? "Study")" Meta="@(detail is null ? null : $"{detail.Study.DoctorName} · {ClinicTime.WeekdayAndTime(detail.Study.ScheduledStart)}")">
             @if (detail is not null)
             {
                 <StatusBadge Status="detail.Study.Status" />
@@ -31,7 +30,7 @@
                             @foreach (var change in detail?.History ?? [])
                             {
                                 <tr>
-                                    <td class="mv-mono">@Clinic.DayAndTime(change.ChangedAt)</td>
+                                    <td class="mv-mono">@ClinicTime.DayAndTime(change.ChangedAt)</td>
                                     <td>@Describe(change)</td>
                                     <td>@ActorName(change.ChangedBy)</td>
                                     <td class="reason">@change.Reason</td>
@@ -46,8 +45,7 @@
                     }
 
                     <p class="mv-card__footer mv-small-print">
-                        History rows are the audit trail: every override and forced release keeps the administrator
-                        and the reason.
+                        History rows are the audit trail: every override keeps the administrator and the reason.
                     </p>
                 </div>
             </section>
@@ -73,19 +71,6 @@
                                 <div class="mv-facts__row">
                                     <dt>X-rays</dt>
                                     <dd>@(detail.Study.ImagesImported ? "Imported" : "Awaiting images")</dd>
-                                </div>
-                                <div class="mv-facts__row">
-                                    <dt>Lock</dt>
-                                    <dd>
-                                        @if (lockOwner is null)
-                                        {
-                                            <span class="mv-facts__pending">Free</span>
-                                        }
-                                        else
-                                        {
-                                            @lockOwner.DoctorName
-                                        }
-                                    </dd>
                                 </div>
                             </dl>
                         </div>
@@ -121,14 +106,12 @@
                                 <p class="mv-callout mv-callout--info" role="status">@confirmation</p>
                             }
 
-                            <button type="button" class="mv-button mv-button--primary mv-button--block" disabled="@(busy || !HasReason)" @onclick="OverrideAsync">Override status</button>
-                            <button type="button" class="mv-button mv-button--secondary mv-button--block" disabled="@(busy || !HasReason || lockOwner is null)" @onclick="ForceReleaseAsync">Force release lock</button>
+                            <button type="button" class="mv-button mv-button--primary mv-button--block" disabled="@(busy || string.IsNullOrWhiteSpace(reason))" @onclick="OverrideAsync">Override status</button>
                         </div>
                     </div>
 
                     <p class="mv-callout mv-callout--warning">
-                        Use these only when the normal flow is stuck. An override skips the transition rules; a forced
-                        release lets another doctor open the study while the first still has it on screen.
+                        Use this only when the normal flow is stuck. An override skips the transition rules.
                     </p>
                 </section>
             }
@@ -143,13 +126,12 @@
 </AuthorizeView>
 
 @code {
-    private static readonly StudyStatus[] Statuses =
+    private static readonly List<StudyStatus> Statuses =
         [StudyStatus.ToDo, StudyStatus.InProgress, StudyStatus.ReDiagnosis, StudyStatus.Done];
 
     private StudyDetail? detail;
-    private LockOwner? lockOwner;
     private StudyStatus target;
-    private string reason = string.Empty;
+    private string reason = "";
     private string? failure;
     private string? confirmation;
     private bool missing;
@@ -161,11 +143,10 @@
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationState { get; set; } = null!;
 
-    private bool HasReason => !string.IsNullOrWhiteSpace(reason);
-
     protected override async Task OnInitializedAsync()
     {
-        if ((await AuthenticationState).User.IsInRole(MediViewRoles.Admin))
+        var auth = await AuthenticationState;
+        if (auth.User.IsInRole(Roles.Admin))
         {
             await LoadAsync();
         }
@@ -175,52 +156,42 @@
     {
         detail = await Api.GetStudyAsync(StudyId);
         missing = detail is null;
-        lockOwner = detail is null ? null : await Api.GetLockOwnerAsync(StudyId);
         target = Statuses.FirstOrDefault(status => status != detail?.Study.Status);
     }
 
-    private string Describe(StatusChange change) => change switch
+    private static string Describe(StatusChange change)
     {
-        { From: null } => $"Booked · {change.To.Label()}",
-        _ when change.From == change.To => "Lock force-released",
-        _ => $"{change.From!.Value.Label()} → {change.To.Label()}",
-    };
+        if (change.From is null)
+        {
+            return $"Booked · {change.To.Label()}";
+        }
 
-    private string ActorName(StudyActor actor) => actor switch
+        return $"{change.From.Value.Label()} → {change.To.Label()}";
+    }
+
+    private string ActorName(StudyActor actor)
     {
-        StudyActor.Patient => detail?.Study.PatientName ?? "Patient",
-        StudyActor.Doctor => detail?.Study.DoctorName ?? "Doctor",
-        _ => "Admin",
-    };
+        return actor switch
+        {
+            StudyActor.Patient => detail?.Study.PatientName ?? "Patient",
+            StudyActor.Doctor => detail?.Study.DoctorName ?? "Doctor",
+            _ => "Admin",
+        };
+    }
 
-    private Task OverrideAsync() =>
-        RunAsync(() => Api.OverrideStudyAsync(StudyId, target, reason), $"Moved to {target.Label()}.");
-
-    private Task ForceReleaseAsync() =>
-        RunAsync(() => Api.ForceReleaseLockAsync(StudyId, reason), "Lock released. Another doctor can open the study now.");
-
-    private async Task RunAsync(Func<Task<ApiOutcome>> action, string success)
+    private async Task OverrideAsync()
     {
         busy = true;
-        failure = null;
         confirmation = null;
 
-        try
+        failure = await Api.OverrideStudyAsync(StudyId, target, reason);
+        if (failure is null)
         {
-            var outcome = await action();
-            if (!outcome.Succeeded)
-            {
-                failure = outcome.Problem;
-                return;
-            }
-
-            confirmation = success;
-            reason = string.Empty;
+            confirmation = $"Moved to {target.Label()}.";
+            reason = "";
             await LoadAsync();
         }
-        finally
-        {
-            busy = false;
-        }
+
+        busy = false;
     }
 }

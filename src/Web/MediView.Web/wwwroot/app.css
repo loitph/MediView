@@ -51,18 +51,6 @@
     --mv-status-done-bg: #e2f2e8;
     --mv-status-done-fg: #17724a;
     --mv-status-done-dot: #1d7f4e;
-    --mv-status-done-border: #bfe0cc;
-
-    --mv-priority-routine-bg: #eef1f5;
-    --mv-priority-routine-fg: #6b7c93;
-    --mv-priority-urgent-bg: #fdf3dc;
-    --mv-priority-urgent-fg: #a1660a;
-    --mv-priority-stat-bg: #fbe7e1;
-    --mv-priority-stat-fg: #b0402c;
-
-    --mv-lock-mine: #1d7f4e;
-    --mv-lock-other: #b0402c;
-    --mv-lock-free: #c3ccd8;
 
     --mv-success: #1d7f4e;
     --mv-danger: #b0402c;
@@ -82,7 +70,6 @@
     --mv-segment-inactive: #6b7c93;
     --mv-segment-shadow: 0 1px 2px rgba(20, 40, 74, .1);
 
-    --mv-radius-frame: 10px;
     --mv-radius-card: 9px;
     --mv-radius-control: 7px;
     --mv-radius-small: 6px;
@@ -99,7 +86,6 @@
 .mv-viewport {
     --mv-dark-bg: #0f1319;
     --mv-dark-chrome: #171c24;
-    --mv-dark-rail: #131820;
     --mv-dark-border: #262d38;
     --mv-dark-input: #0f141b;
     --mv-dark-input-border: #2b3340;
@@ -113,8 +99,8 @@
     --mv-dark-overlay: rgba(255, 255, 255, .55);
     --mv-dark-stripe-a: #20262f;
     --mv-dark-stripe-b: #252c36;
-    --mv-dark-lock-mine-text: #5fd39c;
-    --mv-dark-lock-other-text: #eb9280;
+    --mv-dark-success-text: #5fd39c;
+    --mv-dark-danger-text: #eb9280;
 }
 
 *, *::before, *::after {
@@ -673,16 +659,4 @@ button, input, select, textarea {
     border: 0;
     font-size: 18px;
     cursor: pointer;
-}
-
-.blazor-error-boundary {
-    padding: 16px 18px;
-    background: var(--mv-danger-bg);
-    border: 1px solid var(--mv-danger-border);
-    border-radius: var(--mv-radius-card);
-    color: var(--mv-danger-text);
-}
-
-.blazor-error-boundary::after {
-    content: "An error has occurred.";
 }

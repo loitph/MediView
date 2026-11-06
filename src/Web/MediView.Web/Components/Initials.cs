@@ -4,18 +4,19 @@ public static class Initials
 {
     public static string Of(string fullName)
     {
-        var letters = fullName
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Select(word => word.FirstOrDefault(char.IsLetter))
-            .Where(char.IsLetter)
-            .Select(char.ToUpperInvariant)
-            .ToArray();
-
-        return letters.Length switch
+        var words = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0)
         {
-            0 => "?",
-            1 => letters[0].ToString(),
-            _ => new string([letters[0], letters[^1]]),
-        };
+            return "?";
+        }
+
+        var first = char.ToUpperInvariant(words[0][0]);
+        if (words.Length == 1)
+        {
+            return first.ToString();
+        }
+
+        var last = char.ToUpperInvariant(words[^1][0]);
+        return $"{first}{last}";
     }
 }
